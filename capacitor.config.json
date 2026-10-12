@@ -1,0 +1,7 @@
+{
+  "appId": "az.zuvand.servis",
+  "appName": "ZUVAND Servis",
+  "webDir": "www",
+  "server": { "androidScheme": "http", "cleartext": true },
+  "android": { "allowMixedContent": true }
+}
