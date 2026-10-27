@@ -22,6 +22,17 @@ jobs:
 
       - name: Fayllar yerinə (GitHub-a qovluqsuz yüklənsə də işləsin)
         run: |
+          # fayllar səhvən .github/workflows qovluğuna yüklənibsə, oradan götür
+          for f in index.html satis-index.html satis-config.js config.js package.json capacitor.config.json debug.keystore favicon.ico icon-only.png icon-foreground.png icon-background.png splash.png; do
+            [ ! -f "$f" ] && [ -f ".github/workflows/$f" ] && cp ".github/workflows/$f" "$f" || true
+          done
+          # yalnız index.html faylları yüklənibsə, qalan lazımi fayllar burada yaradılır
+          [ -f package.json ] || echo '{"name": "zuvand-servis", "version": "1.0.0", "private": true, "dependencies": {"@capacitor/android": "^6.2.0", "@capacitor/app": "^6.0.2", "@capacitor/core": "^6.2.0", "@capacitor/filesystem": "^6.0.3", "@capacitor/local-notifications": "^6.1.1", "@capacitor/share": "^6.0.3"}, "devDependencies": {"@capacitor/assets": "^3.0.5", "@capacitor/cli": "^6.2.0"}}' > package.json
+          [ -f capacitor.config.json ] || echo '{"appId": "az.zuvand.servis", "appName": "ZUVAND Servis", "webDir": "www", "server": {"androidScheme": "http", "cleartext": true}, "android": {"allowMixedContent": true}}' > capacitor.config.json
+          [ -f config.js ] || echo 'window.UPS_CONFIG = { serverUrl: "", apiKey: "" };' > config.js
+          [ -f satis-config.js ] || echo 'window.SA_CONFIG = { serverUrl: "", apiKey: "", hub: true };' > satis-config.js
+          # həmişə eyni imza açarı — yeni APK köhnənin üstündən quraşdırılır
+          [ -f debug.keystore ] || echo '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' | base64 -d > debug.keystore
           mkdir -p www/lib www/satis/lib assets
           [ -f satis-index.html ] && cp -f satis-index.html www/satis/index.html || true
           [ -f satis/index.html ] && cp -f satis/index.html www/satis/index.html || true
@@ -55,9 +66,11 @@ jobs:
       - name: Ofis şəbəkəsinə (http) icazə, versiya, imza
         run: |
           npx cap sync android
-          sed -i 's/<application /<application android:usesCleartextTraffic="true" /' android/app/src/main/AndroidManifest.xml
-          grep -q usesCleartextTraffic android/app/src/main/AndroidManifest.xml
-          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q usesCleartextTraffic "$M" || sed -i 's#<application#<application android:usesCleartextTraffic="true"#' "$M"
+          grep -q usesCleartextTraffic "$M"
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]*\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -n "versionCode\|versionName" android/app/build.gradle || true
           mkdir -p ~/.android && cp debug.keystore ~/.android/debug.keystore
 
       - name: APK yığılır
