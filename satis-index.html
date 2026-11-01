@@ -1363,7 +1363,7 @@ const MAIN_TABS=()=>{const Q=can("quote")?[["quotes","Təkliflər"]]:[],inv=can(
 const GRP_L={svcb:"Servis hesabları",sale:"Satış",wh:"Anbar",cc:"Müştərilər və müqavilələr"};
 function grpSubs(){const A=MAIN_TABS().map(x=>x[0]),has=k=>A.includes(k),o={svcb:[],sale:[],wh:[],cc:[]};
   if(has("quotes")){if(can("setPrice")||can("contract"))o.svcb.push(["svcbill","Aylıq hesablar"]);o.svcb.push(["quotes:svc","Servis sənədləri"]);o.sale.push(["quotes:sale","Təkliflər"])}
-  if(has("invoices"))o.sale.push(["invoices:out","Satış qaimələri"]);
+  if(has("invoices"))o.sale.push(["invoices:out","Satış qaimələri"]);if(has("quotes")&&(can("setPrice")||can("admin")))o.sale.push(["stats","Statistika"]);
   if(has("stock"))o.wh.push(["stock","Qalıq"]);if(has("invoices"))o.wh.push(["invoices:in","Mədaxil (alış qaimələri)"]);if(has("catalog"))o.wh.push(["catalog","Kataloq"]);if(has("moves"))o.wh.push(["moves","Hərəkətlər"]);if(has("expenses"))o.wh.push(["expenses","Xərclər"]);
   if(has("contracts"))o.cc.push(["contracts","Müqavilələr"]);if(has("customers"))o.cc.push(["customers","Müştərilər"]);
   const ord=can("moveStock")&&!can("invoice")?["wh","sale","svcb","cc"]:(can("setPrice")||can("contract"))?["svcb","sale","wh","cc"]:["sale","svcb","cc","wh"];
@@ -1391,7 +1391,7 @@ function subPage(backTo,tabs){$("#hBack").hidden=false;$("#hBack").onclick=async
 function go(v,arg){state.view=v;state.arg=arg;window.scrollTo(0,0);render()}
 function render(){header();const v=state.view;
   if(v==="expenses")return renderExpenses();if(v==="expense")return renderExpense(state.arg);if(v==="customers")return renderCustomers();if(v==="customer")return renderCustomer(state.arg);
-  if(v==="svcbill")return renderSvcBill();if(v==="quotes")return renderQuotes();if(v==="catalog")return renderCatalog();if(v==="stock")return renderStock();if(v==="moves")return renderMoves();if(v==="invoices"){INV=null;state.invMode="";return renderInvoices()}if(v==="invoice")return renderInvoice(state.arg);if(v==="contracts")return renderContracts();if(v==="contract")return renderContract(state.arg);
+  if(v==="svcbill")return renderSvcBill();if(v==="stats")return renderSaStats();if(v==="quotes")return renderQuotes();if(v==="catalog")return renderCatalog();if(v==="stock")return renderStock();if(v==="moves")return renderMoves();if(v==="invoices"){INV=null;state.invMode="";return renderInvoices()}if(v==="invoice")return renderInvoice(state.arg);if(v==="contracts")return renderContracts();if(v==="contract")return renderContract(state.arg);
   if(v==="item")return renderItem(state.arg);if(v==="move")return renderMoveForm(state.arg);if(v==="settings")return renderSettings();if(v==="quote")return renderQuote()}
 const dupLive=s=>!!s.dup&&!(state.deleted||[]).some(d=>d.no===s.dup);
 const dueCount=()=>listQuotes().filter(s=>s.due&&s.bill!=="inv").length;
@@ -1550,7 +1550,7 @@ function renderQuotes(){mainTabs("quotes");if(!state.qk)state.qk=LS.get("sa.qk")
     <div class="stats" style="margin-bottom:12px"><div class="stat warn"><b style="font-size:15px">${money(list.reduce((a,s)=>a+saNum(s.total),0))}</b><span>gözlənilən ödəniş, ₼ (${list.length} sənəd)</span></div></div>`:""}
   ${F==="trash"?`<div class="banner" style="margin:0 0 12px">Son 30 gündə silinən təkliflər. “Bərpa et” təklifi siyahıya qaytarır.</div>`:""}
   ${all.length&&F!=="trash"&&F!=="pay"?`<div class="stats" style="margin-bottom:12px"><div class="stat"><b>${all.length}</b><span>təklif</span></div><div class="stat ok"><b>${cnt("accepted")+cnt("done")}</b><span>qəbul edilib</span></div><div class="stat"><b style="font-size:15px">${money(accTot)}</b><span>qəbul edilənlərin cəmi, ₼</span></div></div>`:""}
-  <div class="rlist">${list.map(s=>`<button class="rcard" data-id="${s.id}"${QSEL&&QSEL.has(s.id)?' style="outline:3px solid var(--bad,#c33);outline-offset:-3px"':""}><span class="t">${QSEL?(QSEL.has(s.id)?"☑ ":"☐ "):""}${esc(s.client||"(müştəri yazılmayıb)")}</span><span class="r">${AZN(s.total)}</span>
+  <div class="rlist">${list.map(s=>`<button class="rcard" data-id="${s.id}" data-st="${s.status}${s.due&&s.bill!=="paid"?" due":""}"${QSEL&&QSEL.has(s.id)?' style="outline:3px solid var(--bad,#c33);outline-offset:-3px"':""}><span class="t">${QSEL?(QSEL.has(s.id)?"☑ ":"☐ "):""}${esc(s.client||"(müştəri yazılmayıb)")}</span><span class="r">${AZN(s.total)}</span>
     <span class="m"><span class="no">${esc(s.no||"nömrəsiz")}</span><span>${fmtDate(s.date)}</span>${stChip(s.status)}${QSEL&&isProt(s)?'<span class="chip bad">qorunur</span>':""}${s.per?`<span class="chip">${esc(s.per)}</span>`:""}${s.svc?'<span class="chip warn">servis</span>':""}${billChip(s)}${s.rev?'<span class="chip bad">⚠ servis təsdiqi geri alınıb</span>':""}${dupLive(s)?`<span class="chip bad">ikiqat hesab? ${esc(s.dup)}</span>`:""}${s.site?`<span>obyekt: ${esc(s.site)}</span>`:""}${s.zero&&can("linePrice")?'<span class="chip bad">qiyməti yazılmayan sətir</span>':""}${s.subj?`<span>${esc(s.subj)}</span>`:""}<span>${esc(s.author||"")}</span>${s.pending?'<span class="chip warn">göndərilməyib</span>':""}${F==="trash"?`<span class="chip bad">silinib ${fmtDate(dayOf(s.delAt))}${s.delBy?" · "+esc(s.delBy):""}</span>`:""}</span>${F==="trash"?`<span class="actions" style="margin:6px 0 0"><span class="btn sm pri" data-rs="${s.id}" role="button">Bərpa et</span></span>`:""}</button>`).join("")
     ||`<div class="empty"><h3>${all.length?"Heç nə tapılmadı":"Hələ təklif yoxdur"}</h3><p class="note" style="margin:0">${can("quote")?"“+ Yeni təklif” ilə başlayın.":"Təkliflər işçilər tərəfindən yaradılır."}</p></div>`}</div>`;
   $("#q").oninput=e=>{state.q=e.target.value;const p=e.target.selectionStart;renderQuotes();const i=$("#q");i.focus();i.setSelectionRange(p,p)};
@@ -1804,7 +1804,7 @@ function marginHTML(){const q=state.cur,I=itemsById();let cost=0,miss=0,mal=0,xi
     <div class="grand"><span>Mənfəət</span><b style="color:var(--${pr<0?"bad":mg<10?"warn":"ok"})">${AZN(pr)} · ${qf(Math.round(mg*10)/10)}%</b></div></div>${miss?`<p class="note" style="margin:0;color:var(--warn)">${miss} mal sətrinin alış qiyməti yoxdur — sətirdə “Alış” xanasına yazın.</p>`:""}<p class="note" style="margin:0">Sətirdə “Gəlir faizi” yazanda satış qiyməti alışdan avtomatik hesablanır.</p>`}
 
 /* ================= quote paper (A4) ================= */
-let LOGO_OK=null;const LOGO=(typeof LOGO_B64==="string"&&!LOGO_B64.startsWith("__"))?"data:image/jpeg;base64,"+LOGO_B64.replace(/_/g,"/").replace(/-/g,"+"):"";
+let LOGO_OK=null;var LOGO=(typeof LOGO_B64==="string"&&!LOGO_B64.startsWith("__"))?"data:image/jpeg;base64,"+LOGO_B64.replace(/_/g,"/").replace(/-/g,"+"):"";
 function paperHTML(q,lang){const prevDL=DL;DL=lang||qLang(q);try{return paperHTML0(q)}finally{DL=prevDL}}
 function paperHTML0(q){const S=state.settings,T=saTotals(q),hasDisc=q.lines.some(l=>saNum(l.disc)>0),dash=v=>v?esc(v):"—",E=v=>esc(F(v));
   const coLine=[S.coaddr,S.cotel&&L("Tel:")+" "+S.cotel,S.coemail,S.covoen&&L("VÖEN:")+" "+S.covoen].filter(Boolean).map(esc).join(" · ");
@@ -3323,23 +3323,36 @@ if(!state.me.name)renderWelcome();else startApp();
       document.body.innerHTML='<div style="position:fixed;inset:0;display:grid;place-items:center;background:#0f1514;color:#fff;font:16px system-ui,sans-serif;text-align:center;padding:20px"><div><div style="font-size:20px;font-weight:700;margin-bottom:8px">Proqram artıq açıqdır</div><div style="opacity:.8;margin-bottom:16px">Açıq olan pəncərədən istifadə edin (aşağıdakı tapşırıqlar panelində).</div><button onclick="window.close()" style="font-size:15px;padding:10px 18px;border-radius:8px;border:0;cursor:pointer">Bağla</button></div></div>';
       setTimeout(function(){try{window.close()}catch(x){}},1200)}});
   put(K+".ping",{id:me,t:Date.now()})}catch(e){}})();</script>
-<script>/* ZUVAND — görünüş: rəng, düymə forması və effekti, kartlar, arxa fon, loqo, şrift, sıxlıq (hər cihazda ayrıca) */
+<script>/* ZUVAND — görünüş və interfeys: rəng, düymələr, kartlar, arxa fon, loqo (başlıq + PDF), hazır üslublar, sahə rejimi,
+   qaranlıq rejim vaxtı, açılış ekranı, ikonlar, animasiyalar, aşağı menyu (telefon), qrafiklər, rəhbərin görünüşü hamıya göndərməsi */
 window.ZSLOOK=(function(){
-  let KEY="zs.look";
-  const D={acc:"",accC:"",btn:"std",fx:"flat",anim:"1",card:"std",bg:"plain",bgImg:"",bgOp:"0.22",hdr:"std",fs:"n",dens:"n",logo:"",logoM:"both"};
-  const get=()=>{try{return Object.assign({},D,JSON.parse(localStorage.getItem(KEY)||"{}"))}catch(e){return Object.assign({},D)}};
-  const put=L=>{try{localStorage.setItem(KEY,JSON.stringify(L));return true}catch(e){return false}};
+  let KEY="zs.look",O={};
+  const D={acc:"",accC:"",btn:"std",fx:"flat",anim:"1",card:"std",bg:"plain",bgImg:"",bgOp:"0.22",hdr:"std",fs:"n",dens:"n",logo:"",logoM:"both",logoPdf:"1",
+    icons:"1",splash:"1",nav:"1",field:"0",darkAuto:"0",darkFrom:"19:00",darkTo:"07:00"};
+  const LSg=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
+  const own=()=>LSg(KEY,{})||{},team=()=>LSg(KEY+".team",null),isAdm=()=>!!(O.isAdmin&&O.isAdmin());
+  const hasOwn=()=>Object.keys(own()).length>0;
+  /* the look in force: the manager's own; a worker — the manager's (or his own, if allowed and set) */
+  function get(){const T=team();let L=own();if(!isAdm()&&T&&T.look&&!(T.allowOwn&&hasOwn()))L=T.look;return Object.assign({},D,L)}
+  const put=L=>LSs(KEY,L);
+  const locked=()=>{const T=team();return !isAdm()&&!!(T&&T.look&&!T.allowOwn)};
   const ACC=[["","Standart (yaşıl)","#0E6A5B"],["blue","Göy","#1D5FBF"],["indigo","İndiqo","#4338CA"],["violet","Bənövşəyi","#7C3AED"],["teal","Firuzəyi","#0F766E"],["orange","Narıncı","#C2410C"],["red","Qırmızı","#B91C1C"],["pink","Çəhrayı","#BE185D"],["gold","Qızılı","#A16207"],["slate","Qrafit","#334155"],["custom","Öz rəngim…",""]];
   const OPT={
     btn:[["std","Standart"],["round","Yumru (kapsul)"],["soft","Yumşaq künc"],["sharp","Kəskin künc"]],
     fx:[["flat","Düz"],["shadow","Kölgəli"],["raised","Qabarıq (3D)"],["gloss","Parlaq (qradiyent)"],["glass","Şüşə"],["glow","İşıldayan"],["outline","Kontur"]],
-    anim:[["1","Var (üstünə gələndə qalxır)"],["0","Yoxdur"]],
+    anim:[["1","Var"],["0","Yoxdur"]],
     card:[["std","Standart"],["shadow","Kölgəli"],["float","Havada (dərin kölgə)"],["edge","Rəngli kənar"],["outline","Qalın haşiyə"],["glass","Şüşə"]],
     bg:[["plain","Sadə"],["grad","Yumşaq qradiyent"],["dots","Nöqtəli"],["grid","Dama"],["lines","Çəp xətlər"],["img","Öz şəklim…"]],
     hdr:[["std","Standart"],["accent","Rəngli"],["glass","Şüşə"]],
     fs:[["s","Kiçik"],["n","Normal"],["l","Böyük"],["xl","Çox böyük"]],
     dens:[["c","Yığcam"],["n","Normal"],["w","Geniş"]],
-    logoM:[["both","Loqo + ad"],["logo","Yalnız loqo"]]};
+    logoM:[["both","Loqo + ad"],["logo","Yalnız loqo"]],
+    logoPdf:[["1","Bəli — PDF, akt və təkliflərdə də"],["0","Xeyr — yalnız proqramın başlığında"]],
+    icons:[["1","Var"],["0","Yoxdur"]],splash:[["1","Var"],["0","Yoxdur"]],nav:[["1","Var (telefonda)"],["0","Yoxdur"]],
+    field:[["0","Söndürülüb"],["1","Açıq — iri düymə, güclü kontrast"]],darkAuto:[["0","Söndürülüb"],["1","Açıq — vaxta görə"]]};
+  const PRESETS=[["Klassik",{}],["Müasir",{acc:"violet",btn:"round",fx:"shadow",card:"float",bg:"grad",hdr:"std"}],["Kontrast",{acc:"slate",btn:"sharp",fx:"outline",card:"outline",bg:"plain",hdr:"accent",field:"0"}],
+    ["Minimal",{acc:"slate",btn:"soft",fx:"flat",card:"std",bg:"plain",hdr:"glass",dens:"c"}],["Gecə",{acc:"teal",fx:"glow",card:"glass",bg:"dots",darkAuto:"1",darkFrom:"00:00",darkTo:"23:59"}],
+    ["Okean",{acc:"blue",btn:"soft",fx:"gloss",card:"shadow",bg:"grad",hdr:"accent"}],["Günəş",{acc:"orange",btn:"round",fx:"raised",card:"edge",bg:"lines"}],["Korporativ",{acc:"gold",btn:"std",fx:"shadow",card:"edge",bg:"plain",hdr:"accent"}]];
   function accOf(L){if(L.acc==="custom")return L.accC||"";const a=ACC.find(x=>x[0]===L.acc);return a&&a[0]?a[2]:""}
   function css(L){const A=accOf(L),c=[];
     if(A)c.push(`:root,:root[data-theme]{--accent:${A};--accent-soft:color-mix(in srgb,${A} 18%,var(--surface));--paper-head:color-mix(in srgb,${A} 70%,#000)}`);
@@ -3359,41 +3372,136 @@ window.ZSLOOK=(function(){
       grid:"body{background-image:linear-gradient(color-mix(in srgb,var(--ink) 7%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--ink) 7%,transparent) 1px,transparent 1px);background-size:24px 24px;background-attachment:fixed}",
       lines:"body{background-image:repeating-linear-gradient(135deg,color-mix(in srgb,var(--accent) 7%,transparent) 0 2px,transparent 2px 16px);background-attachment:fixed}",
       img:L.bgImg?`body::before{content:"";position:fixed;inset:0;background:url(${L.bgImg}) center/cover no-repeat;opacity:${+L.bgOp||0.22};z-index:-1;pointer-events:none}`:""}[L.bg]||"");
-    c.push({std:"",accent:"header.top{background:var(--accent)!important;color:var(--accent-ink)}header.top .brand,header.top .brand small,header.top .tab{color:var(--accent-ink)!important}header.top .brand small{opacity:.85}header.top .tab[aria-selected=\"true\"]{background:var(--accent-ink)!important;color:var(--accent)!important}header.top .btn{background:color-mix(in srgb,var(--accent-ink) 14%,transparent);color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent-ink) 35%,transparent)}",
+    c.push({std:"",accent:"header.top{background:var(--accent)!important;color:var(--accent-ink)}header.top .brand,header.top .brand small,header.top .tab{color:var(--accent-ink)!important}header.top .brand small{opacity:.85}header.top .tab[aria-selected=\"true\"]{background:var(--accent-ink)!important;color:var(--accent)!important}header.top .btn{background:color-mix(in srgb,var(--accent-ink) 14%,transparent);color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent-ink) 35%,transparent)}header.top .sync,header.top .save,header.top .sync *{color:var(--accent-ink)!important;opacity:.92}",
       glass:"header.top{background:color-mix(in srgb,var(--bg) 65%,transparent)!important;backdrop-filter:blur(12px)}"}[L.hdr]||"");
     c.push({s:"body{zoom:.92}",n:"",l:"body{zoom:1.08}",xl:"body{zoom:1.18}"}[L.fs]||"");
     c.push({c:".card{padding:10px!important;gap:8px!important}.btn{min-height:36px;padding:6px 11px}.rcard{padding:8px 10px!important}",n:"",w:".card{padding:18px!important;gap:14px!important}.btn{min-height:46px;padding:11px 18px}"}[L.dens]||"");
     if(L.logo)c.push(`#zsLogo{height:36px;max-width:140px;object-fit:contain;margin-right:10px;border-radius:6px;flex:none}${L.logoM==="logo"?"#hTitle{font-size:0!important}#hTitle small{font-size:12px!important}":""}`);
+    if(L.field==="1")c.push(".btn{min-height:56px!important;font-size:17px!important;padding:12px 18px!important;border-width:2px!important}input,select,textarea{min-height:52px!important;font-size:19px!important;border-width:2px!important}:root:not([data-theme=dark]){--line:#7d8a86;--muted:#2f3b38}.tab{font-size:15px!important;padding:11px 14px!important}.chk input,input[type=checkbox]{transform:scale(1.35)}");
+    if(L.anim==="1")c.push("@keyframes zsIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}#main.zs-in{animation:zsIn .22s ease-out}@keyframes zsPop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}@keyframes zsFade{to{opacity:0}}");
     return c.filter(Boolean).join("\n")}
-  function apply(){const L=get();let st=document.getElementById("zsLook");if(!st){st=document.createElement("style");st.id="zsLook";document.head.appendChild(st)}st.textContent=css(L);
+  /* ---- dark mode by the clock ---- */
+  function darkTick(){const L=get();if(L.darkAuto!=="1")return;const n=new Date(),hm=n.getHours()*60+n.getMinutes(),t=s=>{const m=/^(\d{1,2}):(\d{2})$/.exec(s||"");return m?+m[1]*60+ +m[2]:0};
+    const a=t(L.darkFrom),b=t(L.darkTo),dark=a<=b?(hm>=a&&hm<b):(hm>=a||hm<b);document.documentElement.setAttribute("data-theme",dark?"dark":"light")}
+  function apply(){const L=get();let st=document.getElementById("zsLook");if(!st){st=document.createElement("style");st.id="zsLook";document.head.appendChild(st)}st.textContent=BASE+css(L);
     let im=document.getElementById("zsLogo");const t=document.getElementById("hTitle");
-    if(L.logo&&t){if(!im){im=document.createElement("img");im.id="zsLogo";im.alt="Loqo";t.parentNode.insertBefore(im,t)}if(im.src!==L.logo)im.src=L.logo}else if(im)im.remove()}
-  function shrink(file,max,type,q){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);res(c.toDataURL(type,q))};im.onerror=rej;im.src=fr.result};fr.onerror=rej;fr.readAsDataURL(file)})}
-  function card(toast,esc){const m=document.getElementById("main");if(!m)return;const L=get(),old=document.getElementById("lookCard");
-    const sel=(k,l)=>`<label class="f"><span>${l}</span><select data-lk="${k}">${OPT[k].map(([v,t])=>`<option value="${v}"${L[k]===v?" selected":""}>${t}</option>`).join("")}</select></label>`;
-    const h=`<div class="card" id="lookCard" style="margin-top:12px"><h3>Görünüş</h3><p class="note" style="margin:0 0 4px">Proqramın rəngi, düymələri, kartları, arxa fonu və loqosu. Dəyişiklik dərhal görünür və bu cihazda yadda qalır.</p>
-      <div class="f"><span>Əsas rəng</span><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${ACC.map(([k,t,c])=>k==="custom"?`<label class="btn sm" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer${L.acc==="custom"?";outline:2px solid var(--accent)":""}">${t}<input type="color" id="lkColor" value="${esc(L.accC||"#0E6A5B")}" style="width:28px;height:22px;min-height:0;padding:0;border:0;background:none"></label>`
-        :`<button type="button" class="btn sm" data-acc="${k}" title="${t}" style="display:inline-flex;gap:6px;align-items:center${L.acc===k?";outline:2px solid var(--accent);outline-offset:1px":""}"><span style="width:16px;height:16px;border-radius:50%;background:${c};display:inline-block"></span>${t}</button>`).join("")}</div></div>
+    if(L.logo&&t){if(!im){im=document.createElement("img");im.id="zsLogo";im.alt="Loqo";t.parentNode.insertBefore(im,t)}if(im.src!==L.logo)im.src=L.logo}else if(im)im.remove();
+    darkTick();if(O.onApply)try{O.onApply(L)}catch(e){}}
+  const pdfLogo=()=>{const L=get();return L.logo&&L.logoPdf!=="0"?L.logo:""};
+  /* ---- base CSS of the extras (KPI tiles, charts, bottom bar, skeleton, splash, ok-check) ---- */
+  const BASE=`.zs-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0 12px}@media (max-width:760px){.zs-kpi b{font-size:18px}.zs-kpis{grid-template-columns:1fr 1fr}}
+.zs-kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:block;width:100%}
+.zs-kpi b{display:block;font:700 24px/1.15 var(--f-num);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.zs-kpi span{color:var(--muted);font-size:12.5px}
+.zs-kpi.ok{background:var(--ok-bg);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}.zs-kpi.warn{background:var(--warn-bg);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}.zs-kpi.bad{background:var(--bad-bg);border-color:color-mix(in srgb,var(--bad) 30%,transparent)}.zs-kpi.on{outline:3px solid var(--accent);outline-offset:1px}
+.zs-chart{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 12px}.zs-chart h3{margin:0 0 6px}.zs-chart svg{width:100%;height:auto;display:block}
+.zs-hb{display:grid;gap:8px;margin-top:6px}.zs-hb div{font-size:13.5px}.zs-hb i{display:block;height:10px;border-radius:5px;background:var(--surface2);margin-top:3px;overflow:hidden}.zs-hb i u{display:block;height:100%;background:var(--accent);border-radius:5px}
+#zsNav{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 4px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -4px 14px rgba(0,0,0,.06)}
+#zsNav button{border:0;background:none;display:grid;justify-items:center;gap:2px;font:600 10.5px var(--f-body);color:var(--muted);cursor:pointer;min-width:58px;padding:4px 2px}#zsNav button.on{color:var(--accent)}#zsNav svg{width:24px;height:24px}
+#zsFab{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:61;width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);font-size:30px;line-height:1;box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 45%,transparent);cursor:pointer}
+body.zs-hasnav{padding-bottom:78px}body.zs-hasnav .tabs [data-g],body.zs-hasnav .tabs [data-g]+span{display:none}
+.zs-sk{background:var(--surface);border-radius:12px;padding:14px;margin:0 0 10px;border:1px solid var(--line)}.zs-sk i{display:block;height:12px;border-radius:6px;margin:8px 0;background:linear-gradient(90deg,var(--surface2) 25%,color-mix(in srgb,var(--surface2) 40%,var(--surface)) 50%,var(--surface2) 75%);background-size:200% 100%;animation:zsSh 1.2s linear infinite}@keyframes zsSh{to{background-position:-200% 0}}
+#zsSplash{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:linear-gradient(160deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#000));color:var(--accent-ink);text-align:center;transition:opacity .35s}
+#zsSplash .lg{width:96px;height:96px;border-radius:22px;margin:0 auto 14px;background:rgba(255,255,255,.16);display:grid;place-items:center;font:800 46px var(--f-disp);overflow:hidden}#zsSplash .lg img{width:100%;height:100%;object-fit:contain;background:#fff}
+#zsSplash .nm{font:800 22px var(--f-disp);letter-spacing:.04em;text-transform:uppercase}#zsSplash .bar{margin:24px auto 0;width:130px;height:4px;border-radius:2px;background:rgba(255,255,255,.25);overflow:hidden}#zsSplash .bar i{display:block;height:100%;width:40%;background:#fff;animation:zsLoad 1s ease-in-out infinite}@keyframes zsLoad{0%{transform:translateX(-100%)}100%{transform:translateX(330%)}}
+#zsOk{position:fixed;left:50%;top:40%;z-index:9998;transform:translate(-50%,-50%);width:76px;height:76px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:40px;box-shadow:0 0 0 12px color-mix(in srgb,var(--ok) 18%,transparent);pointer-events:none;animation:zsPop .35s ease-out,zsFade .3s ease-in .75s forwards}
+.btn svg.zsi{width:16px;height:16px;flex:none;margin-right:6px;vertical-align:-3px}
+`;
+  /* ---- icons on buttons (by the button's words) ---- */
+  const P=d=>`<svg class="zsi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const IC=[[/^\+|yeni |yeni$|əlavə et/i,P('<path d="M12 5v14M5 12h14"/>')],[/pdf/i,P('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>')],
+    [/excel/i,P('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>')],[/çap/i,P('<path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1"/><path d="M7 14h10v7H7z"/>')],
+    [/^sil|silin|təklifləri sil/i,P('<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>')],[/paylaş|göndər/i,P('<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>')],
+    [/yadda saxla|^saxla|təsdiqlə/i,P('<path d="M20 6L9 17l-5-5"/>')],[/yenilə|sinxron/i,P('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>')],
+    [/tapşırıq/i,P('<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>')],[/cədvəl/i,P('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>')],
+    [/müştəri|Müştəri/,P('<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.6"/>')],[/statistika|qrafik/i,P('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')],
+    [/borc|ödəniş/i,P('<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20M16 15h2"/>')],[/[iİ]şçi/i,P('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')],
+    [/detal|siyahı/i,P('<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>')],[/ətraflı|^aç$|aç ↗/i,P('<path d="M14 3h7v7M10 14L21 3M21 14v7H3V3h7"/>')],
+    [/qovluq/i,P('<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.6l2 2h8.4A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/>')],[/hesab hazırla|hesab/i,P('<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h5"/>')]];
+  let icT=0;function icons(){if(get().icons!=="1")return;document.querySelectorAll(".btn:not([data-zsi])").forEach(b=>{b.setAttribute("data-zsi","1");if(b.querySelector("svg,img"))return;
+    const t=(b.textContent||"").trim();if(!t||/^[+−←→‹›✕×⟵🗑📁💰📊📤☀🌙◐☾…]/.test(t)||t.length>48)return;const m=IC.find(x=>x[0].test(t));if(m)b.insertAdjacentHTML("afterbegin",m[1])})}
+  /* ---- page change: soft entrance ---- */
+  let lastKey="";function pageAnim(){if(get().anim!=="1")return;const m=document.getElementById("main");if(!m)return;const h=document.querySelector("#main h2"),t=document.getElementById("hTitle");
+    const k=(t?t.textContent:"")+"|"+(h?h.textContent:"");if(k===lastKey)return;lastKey=k;m.classList.remove("zs-in");void m.offsetWidth;m.classList.add("zs-in")}
+  function okAnim(){if(get().anim!=="1")return;const o=document.getElementById("zsOk");if(o)o.remove();document.body.insertAdjacentHTML("beforeend",'<div id="zsOk">✓</div>');setTimeout(()=>{const x=document.getElementById("zsOk");if(x)x.remove()},1200)}
+  const skeleton=(n=3)=>Array.from({length:n},(_,i)=>`<div class="zs-sk"><i style="width:${40+i*7}%;height:15px"></i><i></i><i style="width:${70-i*8}%"></i></div>`).join("");
+  /* ---- splash at start ---- */
+  function splash(){const L=get();if(L.splash!=="1"||sessionStorage.getItem(KEY+".sp"))return;try{sessionStorage.setItem(KEY+".sp","1")}catch(e){}
+    document.body.insertAdjacentHTML("beforeend",`<div id="zsSplash"><div><div class="lg">${L.logo?`<img src="${L.logo}" alt="">`:(O.letter||"Z")}</div><div class="nm">${O.name||"ZUVAND"}</div><div style="opacity:.85">${O.sub||""}</div><div class="bar"><i></i></div></div></div>`);
+    setTimeout(()=>{const s=document.getElementById("zsSplash");if(s){s.style.opacity="0";setTimeout(()=>s.remove(),400)}},1000)}
+  /* ---- bottom bar on phones ---- */
+  const mob=()=>window.innerWidth<=760;
+  function nav(items,act,fab){let n=document.getElementById("zsNav"),f=document.getElementById("zsFab");const on=get().nav==="1"&&mob()&&items&&items.length;
+    if(!on){if(n)n.remove();if(f)f.remove();document.body.classList.remove("zs-hasnav");return}
+    const html=items.map(([k,l,ic])=>`<button type="button" data-zn="${k}" data-zsi="1" class="${k===act?"on":""}">${ic||""}${l}</button>`).join("");
+    if(!n){document.body.insertAdjacentHTML("beforeend",'<nav id="zsNav" aria-label="Əsas menyu"></nav>');n=document.getElementById("zsNav")}if(!document.body.classList.contains("zs-hasnav"))document.body.classList.add("zs-hasnav");
+    if(n._h!==html){n._h=html;n.innerHTML=html}
+    n.querySelectorAll("[data-zn]").forEach(b=>b.onclick=()=>{const it=items.find(x=>x[0]===b.dataset.zn);if(it&&it[3])it[3]()});
+    if(fab){if(!f){document.body.insertAdjacentHTML("beforeend",'<button type="button" id="zsFab" aria-label="Yeni" data-zsi="1">+</button>');f=document.getElementById("zsFab")}if(f.title!==fab[0])f.title=fab[0];f.onclick=fab[1]}else if(f)f.remove()}
+  const NI={home:P('<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>').replace('class="zsi"',''),task:IC[8][1].replace('class="zsi"',''),cal:IC[9][1].replace('class="zsi"',''),
+    users:IC[10][1].replace('class="zsi"',''),wallet:IC[12][1].replace('class="zsi"',''),chart:IC[11][1].replace('class="zsi"',''),gear:P('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>').replace('class="zsi"',''),
+    box:P('<path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>').replace('class="zsi"',''),doc:IC[17][1].replace('class="zsi"',''),cart:P('<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H6"/>').replace('class="zsi"','')};
+  /* ---- charts ---- */
+  function bars(data,o={}){const W=640,H=200,pl=8,pb=26,pt=18,n=data.length||1,mx=Math.max(1,...data.map(d=>Math.max(+d.v||0,(+d.v||0)+(+d.v2||0)))),bw=(W-pl*2)/n,fmt=o.fmt||(x=>String(Math.round(x)));
+    const y=v=>H-pb-(v/mx)*(H-pb-pt);let s=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+    data.forEach((d,i)=>{const x=pl+i*bw+bw*.16,w=bw*.68,v=+d.v||0,v2=+d.v2||0;
+      if(o.pair){const w2=w/2;s+=`<rect x="${x}" y="${y(v)}" width="${w2-2}" height="${H-pb-y(v)}" rx="4" fill="var(--accent)"/><rect x="${x+w2}" y="${y(v2)}" width="${w2-2}" height="${H-pb-y(v2)}" rx="4" fill="color-mix(in srgb,var(--accent) 40%,var(--surface))"/>`}
+      else{s+=`<rect x="${x}" y="${y(v+v2)}" width="${w}" height="${H-pb-y(v)}" rx="4" fill="var(--accent)"/>`;if(v2)s+=`<rect x="${x}" y="${y(v+v2)}" width="${w}" height="${y(v)-y(v+v2)}" rx="4" fill="color-mix(in srgb,var(--accent) 40%,var(--surface))"/>`}
+      const tv=o.pair?Math.max(v,v2):v+v2;if(tv)s+=`<text x="${x+w/2}" y="${y(tv)-5}" text-anchor="middle" font-size="11" fill="var(--ink)">${fmt(o.pair?v:tv)}</text>`;
+      s+=`<text x="${x+w/2}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${d.l}</text>`});
+    return s+`<line x1="0" y1="${H-pb}" x2="${W}" y2="${H-pb}" stroke="var(--line)"/></svg>`+(o.legend?`<p class="note" style="margin:4px 0 0">${o.legend}</p>`:"")}
+  const hbars=(rows,fmt)=>{const mx=Math.max(1,...rows.map(r=>r[1]));return `<div class="zs-hb">${rows.map(r=>`<div>${r[0]} <b style="float:right">${fmt?fmt(r[1]):r[1]}</b><i><u style="width:${Math.max(2,Math.round(r[1]/mx*100))}%"></u></i></div>`).join("")}</div>`};
+  function shrink(file,max,type,q){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext("2d");if(type==="image/jpeg"){x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height)}x.drawImage(im,0,0,c.width,c.height);res(c.toDataURL(type,q))};im.onerror=rej;im.src=fr.result};fr.onerror=rej;fr.readAsDataURL(file)})}
+  /* ---- the manager sends the look to everybody ---- */
+  async function teamPull(){if(!O.teamGet)return;try{const T=await O.teamGet();const cur=team();if(T&&T.look){if(!cur||cur.at!==T.at){LSs(KEY+".team",T);apply();if(document.getElementById("lookCard"))card()}}else if(T===null&&cur){localStorage.removeItem(KEY+".team");apply()}}catch(e){}}
+  async function teamSend(btn){const L=Object.assign({},own());if(L.bgImg&&L.bgImg.length>200000)delete L.bgImg;const T={look:L,allowOwn:!!LSg(KEY+".allow",false),at:Date.now(),by:O.who?O.who():""};
+    if(JSON.stringify(T).length>480000){toast("Göndərmək olmur: şəkillər çox böyükdür");return}
+    btn.disabled=true;try{await O.teamSend(T);LSs(KEY+".team",T);toast("Görünüş bütün işçilərə göndərildi — proqramı açanda tətbiq olunacaq")}catch(e){toast("Göndərmək alınmadı — internet / server")}btn.disabled=false}
+  let toastF=(m)=>{},escF=x=>String(x);const toast=m=>toastF(m);
+  function card(t,e){if(t)toastF=t;if(e)escF=e;const esc=escF;const m=document.getElementById("main");if(!m)return;const L=get(),old=document.getElementById("lookCard"),lk=locked(),T=team(),adm=isAdm(),dis=lk?" disabled":"";
+    const sel=(k,l)=>`<label class="f"><span>${l}</span><select data-lk="${k}"${dis}>${OPT[k].map(([v,tx])=>`<option value="${v}"${L[k]===v?" selected":""}>${tx}</option>`).join("")}</select></label>`;
+    const h=`<div class="card" id="lookCard" style="margin-top:12px"><h3>Görünüş</h3><p class="note" style="margin:0 0 4px">Proqramın rəngi, düymələri, kartları, arxa fonu, loqosu və köməkçi funksiyalar. Dəyişiklik dərhal görünür.</p>
+      ${lk?`<div class="banner" style="margin:0">Görünüşü rəhbər${T&&T.by?" ("+esc(T.by)+")":""} təyin edib — dəyişmək üçün rəhbər “İşçilər öz görünüşünü dəyişə bilsin” işarəsini qoymalıdır.</div>`:""}
+      ${!adm&&T&&T.allowOwn&&hasOwn()?`<div class="actions"><button type="button" class="btn sm" id="lkTeam">Rəhbərin görünüşünə qayıt</button></div>`:""}
+      <div class="f"><span>Hazır üslublar</span><div style="display:flex;flex-wrap:wrap;gap:6px">${PRESETS.map(([n],i)=>`<button type="button" class="btn sm" data-pre="${i}"${dis}>${n}</button>`).join("")}</div></div>
+      <div class="f"><span>Əsas rəng</span><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${ACC.map(([k,tx,c])=>k==="custom"?`<label class="btn sm" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer${L.acc==="custom"?";outline:2px solid var(--accent)":""}">${tx}<input type="color" id="lkColor" value="${esc(L.accC||"#0E6A5B")}" style="width:28px;height:22px;min-height:0;padding:0;border:0;background:none"${dis}></label>`
+        :`<button type="button" class="btn sm" data-acc="${k}" title="${tx}" style="display:inline-flex;gap:6px;align-items:center${L.acc===k?";outline:2px solid var(--accent);outline-offset:1px":""}"${dis}><span style="width:16px;height:16px;border-radius:50%;background:${c};display:inline-block"></span>${tx}</button>`).join("")}</div></div>
       <div class="grid2">${sel("btn","Düymə forması")}${sel("fx","Düymə effekti")}</div>
-      <div class="grid2">${sel("anim","Hərəkət effekti")}${sel("card","Kartların görünüşü")}</div>
-      <div class="grid2">${sel("hdr","Yuxarı panel")}${sel("bg","Arxa fon")}</div>
-      ${L.bg==="img"?`<div class="grid2"><label class="f"><span>Arxa fon şəkli</span><input type="file" id="lkBg" accept="image/*"></label><label class="f"><span>Şəklin görünmə dərəcəsi: ${Math.round((+L.bgOp||.22)*100)}%</span><input type="range" id="lkOp" min="0.05" max="0.8" step="0.05" value="${esc(L.bgOp)}"></label></div>`:""}
+      <div class="grid2">${sel("card","Kartların görünüşü")}${sel("hdr","Yuxarı panel")}</div>
+      <div class="grid2">${sel("bg","Arxa fon")}${sel("anim","Animasiyalar (keçid, ✓, hərəkət)")}</div>
+      ${L.bg==="img"?`<div class="grid2"><label class="f"><span>Arxa fon şəkli</span><input type="file" id="lkBg" accept="image/*"${dis}></label><label class="f"><span>Şəklin görünmə dərəcəsi: ${Math.round((+L.bgOp||.22)*100)}%</span><input type="range" id="lkOp" min="0.05" max="0.8" step="0.05" value="${esc(L.bgOp)}"${dis}></label></div>`:""}
       <div class="grid2">${sel("fs","Yazı və elementlərin ölçüsü")}${sel("dens","Sıxlıq")}</div>
-      <div class="grid2"><label class="f"><span>Loqo (şəkil faylı)</span><input type="file" id="lkLogo" accept="image/*"></label>${L.logo?sel("logoM","Başlıqda"):""}</div>
-      ${L.logo?`<div style="display:flex;gap:10px;align-items:center"><img src="${L.logo}" alt="" style="height:40px;max-width:160px;object-fit:contain;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff"><button type="button" class="btn sm" id="lkLogoDel">Loqonu sil</button></div>`:""}
-      <div class="actions" style="margin-top:4px"><button type="button" class="btn" id="lkReset">Standart görünüşə qaytar</button></div></div>`;
+      <div class="grid2">${sel("icons","Düymələrdə ikonlar")}${sel("nav","Telefonda aşağı menyu")}</div>
+      <div class="grid2">${sel("field","Sahə rejimi (əlcəklə / günəşdə)")}${sel("splash","Açılış ekranı")}</div>
+      <div class="grid2">${sel("darkAuto","Qaranlıq rejim avtomatik")}${L.darkAuto==="1"?`<div class="grid2"><label class="f"><span>🌙 başlayır</span><input type="time" data-lt="darkFrom" value="${esc(L.darkFrom)}"${dis}></label><label class="f"><span>☀ bitir</span><input type="time" data-lt="darkTo" value="${esc(L.darkTo)}"${dis}></label></div>`:"<span></span>"}</div>
+      <div class="grid2"><label class="f"><span>Loqo (şəkil faylı)</span><input type="file" id="lkLogo" accept="image/*"${dis}></label>${L.logo?sel("logoM","Başlıqda"):"<span></span>"}</div>
+      ${L.logo?`<div class="grid2"><div style="display:flex;gap:10px;align-items:center"><img src="${L.logo}" alt="" style="height:44px;max-width:170px;object-fit:contain;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff"><button type="button" class="btn sm" id="lkLogoDel"${dis}>Loqonu sil</button></div>${sel("logoPdf","Loqo sənədlərdə (PDF)")}</div>`:""}
+      ${adm&&O.teamSend?`<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:10px"><b>Bütün işçilərə</b><p class="note" style="margin:2px 0 6px">Bu görünüşü (rəng, loqo, düymələr, kartlar, funksiyalar) bütün işçilərin proqramına göndərin.${T&&T.at?" Son göndərmə: "+new Date(T.at).toLocaleString("az-AZ"):""}</p>
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer;margin:0 0 8px"><input type="checkbox" id="lkAllow" style="width:16px;height:16px;min-height:0;margin:0"${LSg(KEY+".allow",false)?" checked":""}> İşçilər öz görünüşünü dəyişə bilsin</label>
+        <div class="actions"><button type="button" class="btn pri" id="lkSend">📤 Hamıya göndər</button>${T?`<button type="button" class="btn" id="lkUnsend">Ümumi görünüşü ləğv et</button>`:""}</div></div>`:""}
+      <div class="actions" style="margin-top:4px"><button type="button" class="btn" id="lkReset"${dis}>Standart görünüşə qaytar</button></div></div>`;
     if(old)old.outerHTML=h;else m.insertAdjacentHTML("beforeend",h);
-    const save=(L2,redraw)=>{if(!put(L2)){toast("Yadda saxlamaq alınmadı — şəkil çox böyükdür");return}apply();if(redraw)card(toast,esc)};
-    document.querySelectorAll("[data-lk]").forEach(x=>x.onchange=()=>{const L2=get();L2[x.dataset.lk]=x.value;save(L2,["bg","logoM"].includes(x.dataset.lk))});
-    document.querySelectorAll("[data-acc]").forEach(b=>b.onclick=()=>{const L2=get();L2.acc=b.dataset.acc;save(L2,true)});
-    const co=document.getElementById("lkColor");if(co)co.oninput=()=>{const L2=get();L2.acc="custom";L2.accC=co.value;save(L2,false)},co&&(co.onchange=()=>card(toast,esc));
-    const bg=document.getElementById("lkBg");if(bg)bg.onchange=async()=>{const f=bg.files[0];if(!f)return;try{const L2=get();L2.bgImg=await shrink(f,1600,"image/jpeg",0.72);save(L2,true);toast("Arxa fon şəkli qoyuldu")}catch(e){toast("Şəkil oxunmadı")}};
-    const op=document.getElementById("lkOp");if(op){op.oninput=()=>{const L2=get();L2.bgOp=op.value;put(L2);apply()};op.onchange=()=>card(toast,esc)}
-    const lg=document.getElementById("lkLogo");if(lg)lg.onchange=async()=>{const f=lg.files[0];if(!f)return;try{const L2=get();L2.logo=await shrink(f,320,"image/png");save(L2,true);toast("Loqo qoyuldu")}catch(e){toast("Şəkil oxunmadı")}};
-    const ld=document.getElementById("lkLogoDel");if(ld)ld.onclick=()=>{const L2=get();L2.logo="";save(L2,true)};
-    document.getElementById("lkReset").onclick=()=>{put({});apply();card(toast,esc);toast("Standart görünüş qaytarıldı")}}
-  function init(prefix){KEY=prefix+".look";apply();const t=document.getElementById("hTitle");if(t&&window.MutationObserver)new MutationObserver(()=>{if(get().logo&&!document.getElementById("zsLogo"))apply()}).observe(t.parentNode,{childList:true})}
-  return {init,apply,card,get}})();
+    const g=id=>document.getElementById(id);
+    const save=(L2,redraw)=>{if(!put(L2)){toast("Yadda saxlamaq alınmadı — şəkil çox böyükdür");return}apply();if(redraw)card()};
+    const base=()=>Object.assign({},get(),own());
+    document.querySelectorAll("[data-lk]").forEach(x=>x.onchange=()=>{const L2=base();L2[x.dataset.lk]=x.value;save(L2,["bg","logoM","darkAuto","logoPdf"].includes(x.dataset.lk));if(x.dataset.lk==="darkAuto"&&x.value==="0"&&O.resetTheme)O.resetTheme()});
+    document.querySelectorAll("[data-lt]").forEach(x=>x.onchange=()=>{const L2=base();L2[x.dataset.lt]=x.value;save(L2,false)});
+    document.querySelectorAll("[data-acc]").forEach(b=>b.onclick=()=>{const L2=base();L2.acc=b.dataset.acc;save(L2,true)});
+    document.querySelectorAll("[data-pre]").forEach(b=>b.onclick=()=>{const p=PRESETS[+b.dataset.pre][1],cur=own(),L2=Object.assign({},D,{logo:cur.logo||"",logoM:cur.logoM||"both",logoPdf:cur.logoPdf||"1",bgImg:cur.bgImg||""},p);save(L2,true);toast("Üslub: "+PRESETS[+b.dataset.pre][0])});
+    const co=g("lkColor");if(co){co.oninput=()=>{const L2=base();L2.acc="custom";L2.accC=co.value;save(L2,false)};co.onchange=()=>card()}
+    const bg=g("lkBg");if(bg)bg.onchange=async()=>{const f=bg.files[0];if(!f)return;try{const L2=base();L2.bgImg=await shrink(f,1600,"image/jpeg",0.72);save(L2,true);toast("Arxa fon şəkli qoyuldu")}catch(e){toast("Şəkil oxunmadı")}};
+    const op=g("lkOp");if(op){op.oninput=()=>{const L2=base();L2.bgOp=op.value;put(L2);apply()};op.onchange=()=>card()}
+    const lg=g("lkLogo");if(lg)lg.onchange=async()=>{const f=lg.files[0];if(!f)return;try{const L2=base();L2.logo=await shrink(f,360,"image/png");save(L2,true);toast("Loqo qoyuldu")}catch(e){toast("Şəkil oxunmadı")}};
+    const ld=g("lkLogoDel");if(ld)ld.onclick=()=>{const L2=base();L2.logo="";save(L2,true)};
+    const al=g("lkAllow");if(al)al.onchange=()=>LSs(KEY+".allow",al.checked);
+    const sd=g("lkSend");if(sd)sd.onclick=()=>teamSend(sd);
+    const us=g("lkUnsend");if(us)us.onclick=async()=>{us.disabled=true;try{await O.teamSend(null);localStorage.removeItem(KEY+".team");toast("Ümumi görünüş ləğv edildi — hər kəs öz görünüşünü seçir");card()}catch(e){toast("Alınmadı — internet / server");us.disabled=false}};
+    const tm=g("lkTeam");if(tm)tm.onclick=()=>{localStorage.removeItem(KEY);apply();card();toast("Rəhbərin görünüşü tətbiq olundu")};
+    g("lkReset").onclick=()=>{put({});apply();card();if(O.resetTheme)O.resetTheme();toast("Standart görünüş qaytarıldı")}}
+  function init(prefix,opts){KEY=prefix+".look";O=opts||{};apply();
+    const t=document.getElementById("hTitle");if(t&&window.MutationObserver)new MutationObserver(()=>{if(get().logo&&!document.getElementById("zsLogo"))apply()}).observe(t.parentNode,{childList:true});
+    if(window.MutationObserver)new MutationObserver(()=>{cancelAnimationFrame(icT);icT=requestAnimationFrame(()=>{icons();pageAnim();if(O.onRender)try{O.onRender()}catch(e){}})}).observe(document.body,{childList:true,subtree:true});
+    setInterval(darkTick,60000);setTimeout(splash,0);setTimeout(teamPull,4000);setInterval(teamPull,30*60000);window.addEventListener("resize",()=>{if(O.onResize)O.onResize()})}
+  return {init,apply,card,get,pdfLogo,okAnim,skeleton,nav,NI,bars,hbars,teamPull,mob}})();
 </script>
 <script>/* ZUVAND — ehtiyat nüsxə (backup): əl ilə və ya avtomatik (hər gün / həftə / ay); ZUVAND Servis-də bərpa */
 window.ZSBK=(function(){
@@ -3459,7 +3567,6 @@ window.ZSBK=(function(){
 </script>
 <script>/* Satış və Anbar: görünüş + ehtiyat nüsxə (Ayarlarda), ZUVAND Servis-də bərpa */
 (function(){try{
-  ZSLOOK.init("sa");
   ZSBK.init({app:"satis-anbar",ls:"sa",file:"Satis-Anbar",title:"Satış və Anbar",hub:!!CFG.hub,photos:false,
     what:"Bütün kataloq, anbar qalığı və hərəkətləri, təkliflər və satışlar, qaimələr, müqavilələr, xərclər və ayarlar",
     mobile:IS_APP||IS_IOS||/Android/i.test(navigator.userAgent),isAdmin:()=>can("admin"),ready:()=>!!state.me.name,who:()=>state.me.name||"",
@@ -3473,6 +3580,51 @@ window.ZSBK=(function(){
       try{await sync()}catch(e){}const n=r.restored||{};return `${n.items||0} mal, ${n.quotes||0} sənəd, ${n.invoices||0} qaimə, ${n.contracts||0} müqavilə, ${n.moves||0} hərəkət`}});
   const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{ZSBK.card()}catch(e){}return r};
 }catch(e){console.log("look/backup",e)}})();
+</script>
+<script>/* Satış və Anbar: göstəricilər, statistika, aşağı menyu, status rəngi, PDF loqo, rəhbərin görünüşü, animasiyalar */
+(function(){try{
+  const LOGO0=LOGO;
+  document.head.insertAdjacentHTML("beforeend",`<style>.rcard[data-st]{border-left:5px solid var(--line)!important}.rcard[data-st^=sent]{border-left-color:#2B6CB0!important}.rcard[data-st^=accepted]{border-left-color:var(--ok)!important}.rcard[data-st^=done]{border-left-color:#145C38!important}.rcard[data-st^=rejected]{border-left-color:var(--bad)!important}.rcard[data-st~=due]{border-left-color:#D4A017!important}</style>`);
+  const mon=()=>today().slice(0,7);
+  function kpi(){const v=state.view;if(!["svcbill","quotes","stock","stats"].includes(v)||document.getElementById("zsKpi"))return;const m=document.getElementById("main");if(!m||!m.firstElementChild)return;
+    const L=listQuotes(),T=[];
+    if(can("setPrice")){const due=L.filter(s=>s.due&&s.bill!=="paid");T.push(["pay",AZN(due.reduce((a,s)=>a+saNum(s.total),0)),"ödəniş gözləyir · "+due.length+" sənəd",due.length?"warn":""]);
+      const ms=L.filter(s=>(s.status==="accepted"||s.status==="done")&&!s.wk&&String(s.date||"").startsWith(mon()));T.push(["sale",AZN(ms.reduce((a,s)=>a+saNum(s.total),0)),"bu ayın satışı (qəbul edilmiş)","ok"])}
+    if(can("setPrice")||can("contract"))T.push(["svc",sbOpen(),"aylıq hesaba gözləyən servis",sbOpen()?"warn":""]);
+    if(MAIN_TABS().some(x=>x[0]==="stock"))T.push(["low",lowCount(),"az qalan mal",lowCount()?"bad":""]);
+    if(!T.length)return;
+    m.insertAdjacentHTML("afterbegin",`<div class="zs-kpis" id="zsKpi">${T.map(([k,val,l,c])=>`<button type="button" class="zs-kpi ${c}" data-kpi="${k}"><b>${val}</b><span>${l}</span></button>`).join("")}</div>`);
+    m.querySelectorAll("[data-kpi]").forEach(b=>b.onclick=()=>{const k=b.dataset.kpi;
+      if(k==="pay"){const due=L.filter(s=>s.due&&s.bill!=="paid"),sv=due.filter(s=>qKind(s)==="svc").length;state.qf="pay";state.qpay="all";goSub(sv>due.length-sv?"quotes:svc":"quotes:sale")}
+      else if(k==="sale"){state.qf="accepted";goSub("quotes:sale")}else if(k==="svc")goSub("svcbill");else if(k==="low"){state.sf="low";goSub("stock")}})}
+  function skel(){if(state.view!=="quotes"||state.lastSync||isDemo())return;const e=document.querySelector("#main .empty");if(e)e.outerHTML=`<p class="note" style="margin:0 0 8px">Məlumat serverdən yüklənir…</p>`+ZSLOOK.skeleton(3)}
+  /* statistics */
+  window.renderSaStats=function(){mainTabs("stats");const L=listQuotes().filter(s=>s.status==="accepted"||s.status==="done"),now=new Date(),M=[];
+    for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);M.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"))}
+    const MN=["Yan","Fev","Mar","Apr","May","İyn","İyl","Avq","Sen","Okt","Noy","Dek"],inM=(s,m)=>String(s.date||"").startsWith(m),rev=L.filter(s=>!s.wk);
+    const k=n=>n>=10000?Math.round(n/1000)+"k":String(Math.round(n));
+    const d1=M.map(m=>({l:MN[+m.slice(5)-1],v:rev.filter(s=>inM(s,m)&&qKind(s)==="sale").reduce((a,s)=>a+saNum(s.total),0),v2:rev.filter(s=>inM(s,m)&&qKind(s)==="svc").reduce((a,s)=>a+saNum(s.total),0)}));
+    const d2=M.map(m=>({l:MN[+m.slice(5)-1],v:rev.filter(s=>inM(s,m)).reduce((a,s)=>a+saNum(s.total),0),v2:rev.filter(s=>inM(s,m)&&s.bill==="paid").reduce((a,s)=>a+saNum(s.total),0)}));
+    const cl={};rev.filter(s=>String(s.date||"")>=M[0]).forEach(s=>{const c=String(s.client||"").trim();if(c)cl[c]=(cl[c]||0)+saNum(s.total)});
+    const top=(o,n)=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([x,v])=>[esc(x),v]);
+    const cat={};if(can("seeCost"))state.items.filter(i=>!i.svc&&i.active!==false).forEach(i=>{const q=stk(i.id).q;if(q>0){const c=catOf(i)||"Kateqoriyasız";cat[c]=(cat[c]||0)+q*saNum(i.cost)}});
+    $("#main").innerHTML=`<h2 class="sec">Statistika</h2><p class="hint">Qəbul edilmiş və təhvil verilmiş sənədlər üzrə, son 12 ay (ƏDV daxil).</p>
+      <div class="zs-chart"><h3>Aylıq satış, ₼</h3>${ZSLOOK.bars(d1,{fmt:k,legend:'<span class="chip" style="background:var(--accent);color:var(--accent-ink)">mal / avadanlıq</span> <span class="chip">servis</span>'})}</div>
+      <div class="zs-chart"><h3>Satış və ödəniş, ₼</h3>${ZSLOOK.bars(d2,{pair:1,fmt:k,legend:'<span class="chip" style="background:var(--accent);color:var(--accent-ink)">satış</span> <span class="chip">ödənilib</span>'})}</div>
+      <div class="cols2"><div class="col"><div class="zs-chart"><h3>Ən böyük müştərilər (12 ay)</h3>${Object.keys(cl).length?ZSLOOK.hbars(top(cl,10),AZN):'<p class="note">Məlumat yoxdur.</p>'}</div></div>
+      <div class="col">${can("seeCost")?`<div class="zs-chart"><h3>Anbar dəyəri kateqoriyalar üzrə (maya)</h3>${Object.keys(cat).length?ZSLOOK.hbars(top(cat,10),AZN):'<p class="note">Anbar boşdur.</p>'}</div>`:""}</div></div>`;
+    window.scrollTo(0,0)};
+  /* bottom bar on phones: the four sections + settings */
+  function nav(){const G=grpSubs(),cs=curSub(state.view),inG=G.find(([g,L])=>L.some(x=>x[0]===cs));if(!state.me.name||(!inG&&state.view!=="settings")){ZSLOOK.nav(null);return}
+    const I=ZSLOOK.NI,ic={svcb:I.doc,sale:I.cart,wh:I.box,cc:I.users},lb={svcb:"Servis",sale:"Satış",wh:"Anbar",cc:"Müştəri"};
+    const it=G.map(([g,L])=>[g,lb[g],ic[g],()=>goSub(L[0][0])]);it.push(["settings","Ayarlar",I.gear,()=>go("settings")]);
+    const nb=document.getElementById("bNew");ZSLOOK.nav(it,state.view==="settings"?"settings":inG&&inG[0],nb&&state.view==="quotes"?["Yeni təklif",()=>{const b=document.getElementById("bNew");if(b)b.click()}]:null)}
+  ZSLOOK.init("sa",{isAdmin:()=>can("admin"),who:()=>state.me.name||"",name:"Satış və Anbar",sub:"ZUVAND",letter:"S",
+    teamGet:async()=>{if(isDemo())return undefined;const r=await api("look_get");return r&&r.look?r.look:null},
+    teamSend:async T=>{await api("look_set",{look:T})},resetTheme:()=>{try{applyTheme(LS.get("sa_theme")||"auto")}catch(e){}},
+    onApply:()=>{LOGO=ZSLOOK.pdfLogo()||LOGO0},onRender:()=>{kpi();skel();nav()},onResize:()=>nav()});
+  const _t=toast;toast=function(m){const r=_t.apply(this,arguments);try{if(/saxlanıldı|təsdiqləndi|hazırlandı|qəbul edildi|bərpa olundu/i.test(String(m)))ZSLOOK.okAnim()}catch(e){}return r};
+}catch(e){console.log("zs-ui",e)}})();
 </script>
 </body>
 </html>
