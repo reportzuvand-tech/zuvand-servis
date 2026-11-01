@@ -40,6 +40,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .drop.over{border-color:var(--accent);background:var(--accent-soft)}
 .drop input{position:absolute;width:1px;height:1px;opacity:0}
 .drop b{color:var(--accent)}
+.sttbl table{font-size:12.5px}.sttbl th{white-space:normal;line-height:1.2;padding:6px 4px;font-size:11.5px;vertical-align:bottom;text-align:center}.sttbl td{padding:6px 4px;white-space:nowrap}.sttbl td:first-child{white-space:normal;min-width:90px}.sttbl .chip{padding:2px 7px}
 .maptbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
 .maptbl table{border-collapse:collapse;width:100%;font-size:12px}
 .maptbl th,.maptbl td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -51,7 +52,14 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .brand{font:700 20px/1 var(--f-disp);letter-spacing:.02em;text-transform:uppercase;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brand small{display:block;font:500 12px/1.3 var(--f-body);letter-spacing:0;text-transform:none;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis}
 .save{font-size:12px;color:var(--muted);white-space:nowrap}
-.sync{font-size:12px;font-weight:600;white-space:nowrap;color:var(--muted)}.sync.ok{color:var(--ok)}.sync.warn{color:var(--warn)}
+table.cut{border-collapse:collapse;width:100%;font-size:13px}table.cut th,table.cut td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}table.cut th{font-size:12px;color:var(--muted)}table.cut td.c{text-align:center}table.cut .mono{font-family:ui-monospace,Consolas,monospace;white-space:nowrap}
+.sync{font-size:12px;font-weight:600;white-space:nowrap;color:var(--muted);cursor:pointer}
+.syncov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:60px 12px 12px;overflow:auto}
+.syncov .card{max-width:640px;width:100%;margin:0}
+.syncov .srow{display:flex;gap:10px;justify-content:space-between;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}
+.syncov .srow:first-of-type{border-top:0}
+.syncov .why{display:block;font-size:12.5px;margin-top:2px}
+.syncov .why.bad{color:var(--bad)} .syncov .why.warn{color:var(--warn)}.sync.ok{color:var(--ok)}.sync.warn{color:var(--warn)}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer;min-height:42px}
 .btn:focus-visible,.tab:focus-visible,.tcard:focus-visible,.dchip:focus-visible,.seg button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chip:focus-visible,.rcard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -175,6 +183,10 @@ ul.concl{margin:0;padding-left:18px;display:grid;gap:6px}
 .paper td.k{background:var(--paper-soft);font-weight:700;width:17%}
 .paper td.c{text-align:center}
 .paper .num{font-family:var(--f-num);font-size:10px}
+.paper tr.r-part td{background:#DDF3E4;color:#11502A;font-weight:700}
+.paper tr.r-bad td{background:#FBD9D5;color:#8E1B10;font-weight:700}
+.paper tr.r-nasaz td{background:#FFE2C2;color:#8A4300;font-weight:700}
+.paper tr.r-part td,.paper tr.r-bad td,.paper tr.r-nasaz td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .paper .p-ok{background:#D7EFDF;color:#1D6A43} .paper .p-warn{background:#FAEDC4;color:#7A5600} .paper .p-bad{background:#F8D3CD;color:#A01E12;font-weight:700}
 .paper ul{margin:6px 0;padding-left:16px}
 .paper li{margin-bottom:3px}
@@ -375,7 +387,17 @@ const realOf=r=>(r&&r.__real)||r;
    Təsdiqlənmiş hesabat Satış və Anbar proqramına gedir (satış + anbardan çıxacaq hissələr); işçi onu artıq dəyişə bilmir. */
 const APPR_SINCE="2026-10-01";
 const apprOf=r=>{r=realOf(r);return r&&r.appr&&r.appr.at?r.appr:null};
-const lockedRep=r=>!!r&&!realOf(r).sample&&!!apprOf(r)&&state.me.role!=="admin";
+const nameKey=x=>String(x||"").trim().replace(/\s+/g," ").toLocaleLowerCase("az");
+const ownerOf=r=>{r=realOf(r)||{};return String(r.creator||(state.remote[r.id]||{}).creator||"").trim()};
+/* someone else's report: a worker may look at it, but changes go into a new report of their own (the manager edits everything) */
+const foreignRep=r=>{if(!r||realOf(r).sample||!hasServer()||state.me.role==="admin")return false;const o=ownerOf(r);return !!o&&!!state.me.name&&nameKey(o)!==nameKey(state.me.name)};
+const lockedRep=r=>!!r&&!realOf(r).sample&&((!!apprOf(r)&&state.me.role!=="admin")||foreignRep(r));
+/* a copy that belongs to me: new id and number, my name, no signatures / approval */
+function forkReport(src,keepDate){const r=normalize(clone(realOf(src)));r.id=newId();r.createdAt=Date.now();r.updatedAt=Date.now();r.creator=state.me.name;r.by=state.me.name;
+  r.svc.eng=state.me.name;if(state.me.engCo)r.svc.engCo=state.me.engCo;if(state.me.engPos)r.svc.engPos=state.me.engPos;r.svc.repno="";r.svc.repnoAuto=true;if(!keepDate)r.svc.date=todayISO();
+  delete r.appr;delete r.sub;delete r.taskId;delete r.forkOf;r.forkOf=realOf(src).id;
+  const strip=o=>{if(!o||typeof o!=="object")return;for(const k of Object.keys(o)){if(k==="sig")delete o[k];else if(k==="sign"&&typeof o[k]==="string")o[k]="";else strip(o[k])}};strip(r);
+  applyRepNo(r,true);return r}
 const needsAppr=s=>!s.appr&&(s.remote||s.pending)&&(!!s.sub||(s.date||"")>=APPR_SINCE);
 function devName(d){const i=d.info||{};return [i.brand,i.model].filter(Boolean).join(" ")}
 /* places already used for this client's devices (this report + earlier reports of the same client) */
@@ -416,6 +438,7 @@ function blankReport(S,tp){
     svc:{repno:"",date:todayISO(),type:SVC_TYPES[0],eng:S.eng||"",interval:String(S.interval??6)},
     cl:{name:"",obj:"",addr:"",person:"",tel:"",sign:""},
     devices:[blankDevice(S,tp||"ups")],notes:"",recs:""}}
+function freshReport(S,tp){const r=blankReport(S,tp);r.svc.engCo=state.me.engCo||"";r.svc.engPos=state.me.engPos||"";return r}
 const LEGACY=["ups","meas","chk","works","wExtra","bat","dis"];
 function normDevice(d){const S=state.settings,tp=TYPES[d&&d.type]?d.type:"ups",T=TYPES[tp],b=blankDevice(S,tp);
   const o=Object.assign(b,d||{});o.type=tp;o.info=Object.assign(blankDevice(S,tp).info,(d&&d.info)||{});
@@ -735,9 +758,18 @@ function snHint(){const inp=document.getElementById("f-ups-sn");if(!inp||!state.
 let snHintT=0;
 document.addEventListener("input",e=>{if(e.target&&e.target.id==="f-ups-sn"){clearTimeout(snHintT);snHintT=setTimeout(snHint,250)}});
 new MutationObserver(()=>{const i=document.getElementById("f-ups-sn");if(i&&!i.dataset.snh){i.dataset.snh=1;setTimeout(snHint,0)}}).observe(document.documentElement,{childList:true,subtree:true});
+/* people who took part in the job besides the engineer filling the report: {n:name, r:"m" (məsul) | "k" (köməkçi)} */
+const TEAM_ROLE={m:"Məsul",k:"Köməkçi"};
+const teamList=r=>{r=realOf(r)||{};const me=nameKey(r.svc&&(r.creator||r.svc.eng)||"");return ((r.svc&&r.svc.team)||[]).filter(x=>x&&String(x.n||"").trim()&&nameKey(x.n)!==me)};
+const teamStr=r=>teamList(r).map(x=>String(x.n).trim().replace(/[:|]/g," ")+":"+(x.r==="m"?"m":"k")).join("|");
+function teamOfItem(it){const full=state.reports[it.id];if(full&&!realOf(full).sample)return teamList(full);
+  return String(it.team||"").split("|").map(x=>{const i=x.lastIndexOf(":");return i>0?{n:x.slice(0,i).trim(),r:x.slice(i+1)==="m"?"m":"k"}:null}).filter(x=>x&&x.n&&nameKey(x.n)!==nameKey(whoOf(it)))}
+function knownWorkers(){const m={};const add=n=>{n=String(n||"").trim();if(n&&n!=="Naməlum")m[nameKey(n)]=n};
+  listItems().forEach(it=>{add(it.creator);add(it.eng);teamOfItem(it).forEach(x=>add(x.n))});(state.tasks||[]).forEach(t=>String(t.names||"").split(", ").forEach(add));(LS.get("ups.workerNames")||[]).forEach(add);add(state.me.name);
+  return Object.values(m).sort((a,b)=>a.localeCompare(b,"az"))}
 function summaryOf(r){r=realOf(r);const A=analyzeReport(r),d0=r.devices[0]||{info:{}},i0=d0.info||{},n=r.devices.length;
   return {id:r.id,repno:r.svc.repno,date:r.svc.date,client:r.cl.name,obj:r.cl.obj,brand:i0.brand||"",model:(i0.model||"")+(n>1?" (+"+(n-1)+" cihaz)":""),sn:i0.sn||"",kva:i0.kva||"",
-  types:r.devices.map(d=>d.type).join(","),type:r.svc.type||"",devn:n,fill:fillOf(r),photos:r.devices.reduce((x,d)=>x+((d.photos||[]).length),0),creator:r.creator||"",sns:snsOf(r),eng:r.svc.eng,overall:A.overall,cls:A.cls,tested:A.tested,rep:A.rep,att:A.att,next:A.next,updatedAt:r.updatedAt,by:r.by||"",appr:r.appr&&r.appr.at?(r.appr.by||"✓"):"",sub:r.sub&&r.sub.at?(r.sub.by||"✓"):""}}
+  types:r.devices.map(d=>d.type).join(","),type:r.svc.type||"",devn:n,fill:fillOf(r),photos:r.devices.reduce((x,d)=>x+((d.photos||[]).length),0),creator:r.creator||"",sns:snsOf(r),team:teamStr(r),payer:String(r.cl.payer||"").trim(),eng:r.svc.eng,overall:A.overall,cls:A.cls,tested:A.tested,rep:A.rep,att:A.att,next:A.next,updatedAt:r.updatedAt,by:r.by||"",appr:r.appr&&r.appr.at?(r.appr.by||"✓"):"",sub:r.sub&&r.sub.at?(r.sub.by||"✓"):""}}
 function blocksOf(r){r=realOf(r);const keep=CUR_TYPE,out=[],ups=r.devices.map((d,i)=>i).filter(i=>TYPES[r.devices[i].type].hasBat);
   ups.forEach(i=>{useType(r.devices[i].type);const V=devProxy(r,i),a=analyze(V),p=Math.floor(num(V.bat.per))||1,pre=ups.length>1?"C"+(i+1)+"-":"";
     a.blocks.filter(b=>b.st).forEach(b=>out.push([pre+b.lab,b.s,b.i%p+1,b.v,b.r,b.t,b.st]))});
@@ -760,6 +792,15 @@ document.addEventListener("focusout",()=>{if(pendingRemote&&state.cur)setTimeout
 /* sync runs in the background and never blocks work: everything is kept on the device first.
    The open report is sent when the editor is left (or the app goes to background); failures back off quietly. */
 let syncFail=0;
+/* why a report is still waiting — shown in the sync panel (click on the sync text in the header) */
+const SYNC_WHY={};
+const SRV_ERR={auth:"API açarı yanlışdır və ya deaktiv edilib — Ayarlarda açarı yoxlayın",forbidden:"Bu əməliyyata icazəniz yoxdur (açarın rolu)",bad_report:"Hesabatın məlumatı serverə uyğun deyil",bad_photo:"Şəkil serverə yüklənmədi (fayl zədəli və ya çox böyükdür)",
+  bad_json:"Server sorğunu oxuya bilmədi (hesabat çox böyük ola bilər)",bad_items:"Detal siyahısında xəta var",not_found:"Hesabat serverdə tapılmadı",unknown_action:"Serverdə köhnə Code.gs var — Apps Script-də Code.gs-i yeniləyin",
+  bad_response:"Server ünvanı yanlışdır və ya Google cavab vermədi — Ayarlarda ünvanı yoxlayın",offline:"İnternet yoxdur",auth_none:"API açarı yazılmayıb"};
+function syncErrText(e){if(!e)return "Naməlum xəta";const m=e.data&&e.data.error||e.message||"";if(e.name==="AbortError")return "Server vaxtında cavab vermədi (zəif internet və ya hesabat çox böyükdür)";
+  if(SRV_ERR[m])return SRV_ERR[m];if(/failed to fetch|networkerror|load failed/i.test(m))return "Serverə qoşulmaq mümkün olmadı — internet bağlantısını yoxlayın";return (e.server?"Server xətası: ":"Xəta: ")+m}
+function syncLog(what,err){const L=LS.get("ups.synclog")||[];if(L[0]&&L[0].what===what&&L[0].err===err){L[0].at=Date.now()}else L.unshift({at:Date.now(),what,err});LS.set("ups.synclog",L.slice(0,30))}
+const repLabel=r=>{r=realOf(r)||{};return (r.svc&&r.svc.repno||"№ yoxdur")+" · "+(r.cl&&r.cl.name||"Adsız müştəri")}
 function nextSyncDelay(){return Math.min(300000,15000*Math.pow(2,Math.max(0,syncFail-1)))}
 async function sync(opt={}){
   clearTimeout(syncTimer);
@@ -770,17 +811,22 @@ async function sync(opt={}){
     for(const id of [...state.pending]){
       const r=state.reports[id];
       if(!r){state.pending.delete(id);continue}
-      if(state.cur&&state.cur.id===id&&(state.dirty||state.saving||(state.view==="edit"&&!opt.all&&Date.now()-(state.lastEdit||0)<60000)))continue;
+      if(state.cur&&state.cur.id===id&&(state.dirty||state.saving||(state.view==="edit"&&!opt.all&&Date.now()-(state.lastEdit||0)<60000))){SYNC_WHY[id]="Hazırda açıqdır və redaktə olunur — redaktordan çıxanda (və ya 1 dəqiqə toxunulmayanda) göndəriləcək";continue}
       try{await uploadPhotos(r);const res=await api("save",{report:r,summary:summaryOf(r),blocks:blocksOf(r),items:itemsOf(r)});
-        state.pending.delete(id);state.remote[id]={...summaryOf(r),...(res.summary||{})};savePending();changed=true}
+        state.pending.delete(id);delete SYNC_WHY[id];state.remote[id]={...summaryOf(r),...(res.summary||{})};savePending();changed=true}
       catch(e){
+        if(e.server&&e.data&&e.data.error==="not_owner"){const f=forkReport(r,true);state.reports[f.id]=f;state.pending.add(f.id);saveLocalReports([f]);
+          if(e.data.report){state.reports[id]=e.data.report;saveLocalReports([e.data.report]);applyRemoteToOpen(id)}state.pending.delete(id);savePending();delete SYNC_WHY[id];changed=true;
+          syncLog(repLabel(r),"Bu hesabat "+(e.data.owner||"başqa işçi")+" adınadır — dəyişikliklər sizin adınıza yeni hesabat kimi saxlanıldı ("+f.svc.repno+")");
+          toast("“"+(r.cl.name||"")+"” hesabatı "+(e.data.owner||"başqa işçi")+" adınadır — dəyişiklikləriniz sizin adınıza yeni hesabat kimi saxlanıldı: "+f.svc.repno,7000);
+          if(state.cur&&state.cur.id===id&&state.view==="edit"){state.rep=f;setActive(0);renderEditor()}continue}
         if(e.server&&e.data&&e.data.error==="conflict"&&e.data.report){
           state.reports[id]=e.data.report;state.pending.delete(id);saveLocalReports([e.data.report]);applyRemoteToOpen(id);
           toast("Bu hesabat başqa cihazda daha yeni dəyişdirilib — yeni versiya yükləndi")}
         else if(e.server&&e.data&&e.data.error==="deleted"){delete state.reports[id];state.pending.delete(id);RDB.del([id]).catch(()=>{});toast("Bir hesabat rəhbər tərəfindən silinib — bu cihazdan da çıxarıldı")}
-        else if(e.server&&e.data&&e.data.error==="auth")throw e;
-        else if(e.server){state.syncErr="Server xətası: "+e.message}
-        else throw e}}
+        else if(e.server&&e.data&&e.data.error==="auth"){SYNC_WHY[id]=syncErrText(e);throw e}
+        else if(e.server){const w=syncErrText(e);SYNC_WHY[id]="Server qəbul etmədi: "+w;state.syncErr=repLabel(r)+": "+w;syncLog(repLabel(r),w)}
+        else{SYNC_WHY[id]="Göndərilmədi: "+syncErrText(e);throw e}}}
     savePending();
     const L=await api("list");const prevRemote=new Set(Object.keys(state.remote)),gone=new Set(L.deleted||[]);
     const sigBefore=Object.values(state.remote).map(x=>x.id+":"+x.updatedAt).sort().join(",");
@@ -799,11 +845,11 @@ async function sync(opt={}){
     const need=Object.keys(state.remote).filter(id=>{const loc=state.reports[id];return !state.pending.has(id)&&(!loc||(state.remote[id].updatedAt||0)>(loc.updatedAt||0))&&!(state.cur&&state.cur.id===id&&state.dirty)});
     const got=[];for(const id of need.slice(0,opt.all?400:25)){try{const g=await api("get",{id});if(g.report){state.reports[id]=g.report;got.push(g.report);applyRemoteToOpen(id)}}catch(e){if(!e.server)break}}
     if(got.length){saveLocalReports(got);changed=true}
-    state.online=true;state.lastSync=Date.now();state.syncErr="";syncFail=0;scheduleReminders();
+    state.online=true;state.lastSync=Date.now();state.syncErr=[...state.pending].map(id=>SYNC_WHY[id]&&/^Server qəbul etmədi/.test(SYNC_WHY[id])?repLabel(state.reports[id])+": "+SYNC_WHY[id].replace(/^Server qəbul etmədi: /,""):"").filter(Boolean).join("; ");syncFail=0;scheduleReminders();
     if(need.length>got.length&&got.length)scheduleSync(3000);
   }catch(e){
     state.online=false;syncFail++;
-    state.syncErr=e&&e.message==="auth"?"API açarı yanlışdır — Ayarlarda yoxlayın":e&&e.message==="bad_response"?"Server ünvanı yanlışdır — Ayarlarda yoxlayın":"";
+    state.syncErr=syncErrText(e);
   }finally{
     state.syncing=false;updateSyncBadge();
     if(state.online===false)scheduleSync(nextSyncDelay());else if(state.pending.size)scheduleSync(30000);
@@ -818,11 +864,33 @@ function updateSyncBadge(){const el=$("#syncState");if(!el)return;const n=state.
   if(!hasServer()){t="Server qoşulmayıb";c="warn"}
   else if(state.syncing){t="sinxronlaşır…"}
   else if(state.online===false){t=(n?n+" gözləyir · ":"")+"oflayn — işləməyə davam edin";c="warn"}
-  else if(n){t=n+" göndərilməyib"+(autoSync()?"":" · əl ilə");c="warn"}
+  else if(n){t=n+" göndərilməyib"+(state.syncErr?" ⚠":"")+(autoSync()?"":" · əl ilə");c="warn"}
   else if(!autoSync()&&!state.online){t="əl ilə sinxron";c=""}
   else if(state.online){t="sinxron ✓";c="ok"}
   else t="";
-  el.textContent=t;el.className="sync "+c;el.title=state.syncErr||""}
+  el.textContent=t;el.className="sync "+c;el.title=(state.syncErr?state.syncErr+"\n":"")+"Ətraflı və sinxronlaşdırmaq üçün basın";
+  if(document.getElementById("syncOv"))syncPanel()}
+document.addEventListener("click",async e=>{if(e.target&&e.target.id==="syncState"){syncPanel();if(hasServer()&&!state.syncing){try{await flush()}catch(_){}sync({all:true})}}});
+function syncPanel(){let ov=document.getElementById("syncOv");
+  if(!ov){ov=document.createElement("div");ov.id="syncOv";ov.className="syncov";ov.onclick=e=>{if(e.target===ov)ov.remove()};document.body.appendChild(ov)}
+  const tm=t=>t?new Date(t).toLocaleString("az",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"—";
+  const P=[...state.pending].filter(id=>state.reports[id]),L=LS.get("ups.synclog")||[];
+  const st=!hasServer()?["Server qoşulmayıb — hesabatlar yalnız bu cihazdadır","warn"]:state.syncing?["Sinxronlaşır…",""]:state.online===false?["Server ilə əlaqə yoxdur","bad"]:state.syncErr?["Son sinxronda xəta oldu","bad"]:["Server ilə əlaqə var","ok"];
+  let h=`<div class="card" role="dialog" aria-label="Sinxronizasiya"><h3>Sinxronizasiya</h3>
+    <p style="margin:0"><span class="chip ${st[1]}">${esc(st[0])}</span> <span class="note">son uğurlu sinxron: ${tm(state.lastSync)}</span></p>
+    ${state.syncErr?`<p class="why bad" style="margin:8px 0 0"><b>Səbəb:</b> ${esc(state.syncErr)}</p>`:""}
+    ${!hasServer()?`<p class="note" style="margin:6px 0 0">Ayarlarda server ünvanını və şəxsi API açarınızı yazın.</p>`:state.online===false?`<p class="note" style="margin:6px 0 0">Hesabatlar cihazda saxlanılıb — bağlantı bərpa olunanda avtomatik göndəriləcək. İnternet bağlantısını, Ayarlarda server ünvanını və API açarını yoxlayın.</p>`:""}
+    <h3 style="margin-top:14px">Serverə göndərilməyib · ${P.length}</h3>`;
+  if(!P.length)h+=`<p class="note" style="margin:0">Gözləyən hesabat yoxdur — hamısı serverə göndərilib.</p>`;
+  h+=P.map(id=>{const r=state.reports[id],w=SYNC_WHY[id]||(state.syncing?"göndərilir…":!hasServer()?"server qoşulmayıb":state.online===false?"server əlçatan deyil — bağlantı bərpa olunanda göndəriləcək":"növbəti sinxronda göndəriləcək"),bad=/qəbul etmədi/.test(w);
+    return `<div class="srow"><span><b>${esc(repLabel(r))}</b> <span class="note">· ${esc(fmtDate(r.svc&&r.svc.date)||"")} · son dəyişiklik ${tm(r.updatedAt)}</span><span class="why ${bad?"bad":SYNC_WHY[id]?"warn":"note"}">${esc(w)}</span></span>${state.cur&&state.cur.id===id&&state.view==="edit"?"":`<button class="btn sm" data-sopen="${esc(id)}">Aç</button>`}</div>`}).join("");
+  if(L.length)h+=`<h3 style="margin-top:14px">Server qəbul etmədi (son ${Math.min(L.length,8)})</h3>${L.slice(0,8).map(x=>`<div class="srow"><span><b>${esc(x.what)}</b> <span class="note">· ${tm(x.at)}</span><span class="why bad">${esc(x.err)}</span></span></div>`).join("")}`;
+  h+=`<div class="actions" style="margin-top:12px">${hasServer()?`<button class="btn pri" id="sNow" ${state.syncing?"disabled":""}>${state.syncing?"Sinxronlaşır…":"İndi sinxronlaşdır"}</button>`:""}${L.length?'<button class="btn" id="sClr">Xəta siyahısını təmizlə</button>':""}<button class="btn" id="sCls">Bağla</button></div></div>`;
+  ov.innerHTML=h;
+  ov.querySelector("#sCls").onclick=()=>ov.remove();
+  const sn=ov.querySelector("#sNow");if(sn)sn.onclick=async()=>{try{await flush()}catch(_){}sync({all:true})};
+  const cl=ov.querySelector("#sClr");if(cl)cl.onclick=()=>{LS.set("ups.synclog",[]);syncPanel()};
+  ov.querySelectorAll("[data-sopen]").forEach(b=>b.onclick=()=>{ov.remove();openReport(state.reports[b.dataset.sopen])})}
 
 async function persist(r){r=realOf(r);if(r&&r.svc&&!String(r.svc.repno||"").trim()&&!(r.appr&&r.appr.at)&&!r.sample)applyRepNo(r,true);
   r.updatedAt=Date.now();r.by=state.me.name||r.by||"";
@@ -902,6 +970,38 @@ async function scheduleReminders(){if(!IS_APP)return;
       body:(u.client||"Müştəri")+(u.obj?" ("+u.obj+")":"")+" — "+[u.brand,u.model].filter(Boolean).join(" ")+(u.sn?", S/N "+u.sn:"")+". Tarix: "+fmtDate(u.next),
       schedule:{at:new Date(u.at),allowWhileIdle:true}}))});
     remindSig=sig;LS.set("ups.remindSig",sig)}catch(e){}}
+/* payments of the service work: written by Satış və Anbar, shown to the manager (workers — if allowed) */
+let PAY=(()=>{try{return JSON.parse(localStorage.getItem("ups.pay")||"null")}catch(e){return null}})(),PAY_AT=0;
+const payOn=()=>!!(PAY&&!PAY.hidden&&PAY.reps);
+const ckey=x=>String(x||"").trim().replace(/\s+/g," ").toLocaleLowerCase("az").replace(/["“”«»']/g,"");
+async function payRefresh(force){if(!hasServer()||state.online===false)return;if(!force&&Date.now()-PAY_AT<120000)return;PAY_AT=Date.now();
+  try{const r=await api("pay");const old=JSON.stringify(PAY);PAY=r&&r.hidden?{hidden:true,workers:false}:{reps:r.reps||{},items:r.items||[],at:r.at||"",workers:!!r.workers};
+    try{localStorage.setItem("ups.pay",JSON.stringify(PAY))}catch(e){}
+    if(JSON.stringify(PAY)!==old){if(state.view==="home")renderHome();else if(state.view==="debts")renderDebts();else if(state.view==="edit")payBanner()}}catch(e){}}
+const PAY_L={paid:["ok","Ödənilib"],inv:["warn","Hesab yazılıb, ödənilməyib"],none:["","Hesab yazılmayıb"],draft:["","Satışda qaralama — qiymət yazılmalı"]};
+const payChip=id=>{if(!payOn())return "";const r=PAY.reps[id];if(!r)return "";return r.st==="paid"?'<span class="chip ok">ödənilib</span>':r.st==="inv"?'<span class="chip warn">ödəniş gözlənilir</span>':r.st==="none"?'<span class="chip">hesab yazılmayıb</span>':""};
+function debtsBy(){const D={};(PAY&&PAY.items||[]).forEach(x=>{const k=ckey(x.client);const d=D[k]=D[k]||{client:x.client,inv:0,none:0,items:[]};d.items.push(x);if(x.st==="inv")d.inv+=x.total;else d.none+=x.total});
+  return Object.values(D).sort((a,b)=>(b.inv+b.none)-(a.inv+a.none))}
+const azn=n=>{const [a,b]=(Math.round((+n||0)*100)/100).toFixed(2).split(".");return a.replace(/\B(?=(\d{3})+(?!\d))/g," ")+","+b+" ₼"};
+function debtCard(){if(!payOn())return "";const D=debtsBy();if(!D.length)return "";const ti=D.reduce((a,d)=>a+d.inv,0),tn=D.reduce((a,d)=>a+d.none,0);
+  return `<div class="card" style="border-left:4px solid var(--warn,#b7791f);margin:0 0 12px"><div class="actions" style="justify-content:space-between;align-items:center;margin:0"><h3 style="margin:0">💰 Müştərilərin borcları</h3><button class="btn sm" id="bDebts">Ətraflı</button></div>
+    <p class="note" style="margin:6px 0 4px">Hesab yazılıb, ödənilməyib: <b>${azn(ti)}</b> · hesab yazılmalı (iş görülüb): <b>${azn(tn)}</b>${PAY.at?" · yeniləndi "+esc(PAY.at):""}</p>
+    ${D.slice(0,5).map(d=>`<div class="rrow" style="cursor:default;padding:4px 0"><span>${esc(d.client)}</span><span>${d.inv?`<span class="chip warn">${azn(d.inv)}</span>`:""}${d.none?` <span class="chip">${azn(d.none)} yazılmalı</span>`:""}</span></div>`).join("")}${D.length>5?`<p class="note" style="margin:4px 0 0">və daha ${D.length-5} müştəri…</p>`:""}</div>`}
+function renderDebts(){state.view="debts";$("#tabs").hidden=true;$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#hTitle").innerHTML='Müştərilərin borcları<small>Satış və Anbardan</small>';
+  const adm=state.me.role==="admin",q=ckey(state.dq||""),D=debtsBy().filter(d=>!q||ckey([d.client,...d.items.map(x=>x.site+" "+x.no)].join(" ")).includes(q));
+  let h=`<h2 class="sec">Müştərilərin borcları</h2><p class="hint">Satış və Anbarda qəbul edilmiş, amma ödənişi qeyd olunmamış sənədlər. Vasitəçi şirkətlərdə obyektlər ayrıca göstərilir. Ödəniş Satış və Anbarda “Ödənilib” qeyd olunanda buradan çıxır və servis hesabatında “Ödənildi” görünür.${PAY&&PAY.at?" Yeniləndi: "+esc(PAY.at)+".":""}</p>`;
+  if(adm)h+=`<div class="card"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:600"><input type="checkbox" id="payW" style="width:18px;height:18px;min-height:0;margin:0"${PAY&&PAY.workers?" checked":""}> İşçilər də borc və ödəniş məlumatını görsün</label><p class="note" style="margin:4px 0 0">İşarəsiz olanda bu məlumatı yalnız rəhbər görür.</p></div>`;
+  h+=`<div class="card"><input id="dq" type="search" placeholder="Axtar: müştəri, vasitəçi, obyekt, sənəd №" value="${esc(state.dq||"")}"></div>`;
+  h+=D.map(d=>{const G={};d.items.forEach(x=>{(G[x.site||""]=G[x.site||""]||[]).push(x)});
+    return `<div class="card"><div class="actions" style="justify-content:space-between;align-items:center;margin:0"><h3 style="margin:0">${esc(d.client)}</h3><span>${d.inv?`<span class="chip warn">borc ${azn(d.inv)}</span>`:""}${d.none?` <span class="chip">yazılmalı ${azn(d.none)}</span>`:""}</span></div>
+      ${Object.entries(G).map(([site,L])=>`${site?`<p style="margin:8px 0 2px"><b>Obyekt: ${esc(site)}</b></p>`:""}<div class="tw" style="overflow-x:auto"><table class="cut"><tr><th>Sənəd</th><th>Tarix</th><th>Növ</th><th>Qaimə</th><th>Məbləğ</th><th>Status</th></tr>${L.map(x=>`<tr><td>${esc(x.no)}</td><td class="c">${esc(fmtDate(x.date))}</td><td>${esc(({bill:"aylıq servis hesabı",svc:"servis",sale:"satış"})[x.kind]||x.kind||"")}</td><td>${esc(x.doc||"")}</td><td class="c"><b>${azn(x.total)}</b></td><td><span class="chip ${(PAY_L[x.st]||["",""])[0]}">${esc((PAY_L[x.st]||["",x.st])[1])}</span></td></tr>`).join("")}</table></div>`).join("")}</div>`}).join("")||'<div class="empty"><h3>Borc yoxdur</h3></div>';
+  h+=`<button class="btn ghost" id="dBack">← Geri</button>`;$("#main").innerHTML=h;$("#hBack").onclick=renderHome;$("#dBack").onclick=renderHome;
+  const dq=$("#dq");dq.oninput=e=>{state.dq=e.target.value;const p=e.target.selectionStart;renderDebts();const n=$("#dq");n.focus();n.setSelectionRange(p,p)};
+  const pw=$("#payW");if(pw)pw.onchange=async()=>{pw.disabled=true;try{await api("pay_cfg",{on:pw.checked});PAY.workers=pw.checked;try{localStorage.setItem("ups.pay",JSON.stringify(PAY))}catch(e){}toast(pw.checked?"İşçilər də borc məlumatını görəcək":"Borc məlumatını yalnız rəhbər görür")}catch(e){pw.checked=!pw.checked;toast("Saxlamaq alınmadı — internet / server")}pw.disabled=false};
+  payRefresh()}
+function payBanner(){const old=$("#payBox");if(old)old.remove();if(!payOn()||!state.cur)return;const r=PAY.reps[realOf(state.cur).id];if(!r)return;const m=$("#main");if(!m)return;
+  const L=PAY_L[r.st]||["",r.st],doc=[r.bill?"aylıq hesab "+r.bill:"",r.no&&!r.bill?"sənəd "+r.no:"",r.doc?"qaimə "+r.doc:""].filter(Boolean).join(" · ");
+  m.insertAdjacentHTML("afterbegin",`<div id="payBox" class="card" style="margin:0 0 12px;border-left:4px solid ${r.st==="paid"?"var(--ok,#1e8e5a)":r.st==="inv"?"var(--warn,#b7791f)":"var(--line,#ccc)"}"><div><b>${r.st==="paid"?"✓ Ödənildi":"💰 "+esc(L[1])}</b>${r.st==="paid"&&r.at?" · "+esc(fmtDate(r.at)):""} · ${azn(r.amount)}${doc?` <span class="note">· ${esc(doc)}</span>`:""}${r.client?` <span class="note">· hesab: ${esc(r.client)}${r.site?" ("+esc(r.site)+")":""}</span>`:""}</div></div>`)}
 function renderHome(){
   state.view="home";$("#tabs").hidden=true;$("#hBack").hidden=true;$("#hSettings").hidden=false;$("#saveState").textContent="";
   $("#hTitle").innerHTML='ZUVAND Servis<small>'+esc(state.me.name?state.me.name:"Servis hesabatları")+'</small>';
@@ -920,13 +1020,14 @@ function renderHome(){
     if(best===s){items.push(s);dupOf[s.id]=g.filter(x=>x!==s)}else if(state.showDup)items.push(Object.assign({},s,{isDup:1}))});
   const nDup=base.length-Object.keys(groups).length;
   let h=`<h2 class="sec">Servis hesabatları</h2><p class="hint">Bütün işçilərin hesabatları mərkəzi serverdə toplanır. İnternet olmayanda hesabat telefonda saxlanılır və bağlantı bərpa olunanda göndərilir.</p>
-  <div class="actions" style="margin-bottom:14px">${hasSales()?'<a class="btn" href="satis/index.html" style="text-decoration:none;display:inline-flex;align-items:center;border-color:var(--accent);color:var(--accent)">Satış · Anbar · Mühasibat →</a>':""}<button class="btn pri" id="bNew">+ Yeni servis</button><button class="btn" id="bTasks">Tapşırıqlar${myOpenTasks().length?` <span class="chip warn">${myOpenTasks().length}</span>`:""}</button><button class="btn" id="bPlan">Servis cədvəli</button><button class="btn" id="bLists">Detal siyahıları</button>${state.me.role==="admin"?'<button class="btn" id="bStaff">İşçi paneli</button>':""}${hasServer()?'<button class="btn" id="bSync">Yenilə</button>':""}${all.length?'<input id="q" type="search" placeholder="Axtar: seriya №, müştəri, model, işçi" style="flex:1;min-width:180px" value="'+esc(state.q||"")+'">':""}</div>`;
+  <div class="actions" style="margin-bottom:14px">${hasSales()?'<a class="btn" href="satis/index.html" style="text-decoration:none;display:inline-flex;align-items:center;border-color:var(--accent);color:var(--accent)">Satış · Anbar · Mühasibat →</a>':""}<button class="btn pri" id="bNew">+ Yeni servis</button><button class="btn" id="bTasks">Tapşırıqlar${myOpenTasks().length?` <span class="chip warn">${myOpenTasks().length}</span>`:""}</button><button class="btn" id="bPlan">Servis cədvəli</button><button class="btn" id="bLists">Detal siyahıları</button>${state.me.role==="admin"?'<button class="btn" id="bStaff">İşçi paneli</button><button class="btn" id="bCust">Müştərilər və cihazlar</button>':""}${hasServer()?'<button class="btn" id="bSync">Yenilə</button>':""}${all.length?'<input id="q" type="search" placeholder="Axtar: seriya №, müştəri, model, işçi" style="flex:1;min-width:180px" value="'+esc(state.q||"")+'">':""}</div>`;
   if(state.syncErr)h+=`<div class="banner" style="margin:0 0 12px">${esc(state.syncErr)}</div>`;
   else if(state.online===false&&hasServer())h+=`<p class="note" style="margin:0 0 10px">Server əlçatan deyil — işləməyə davam edin: hər şey cihazda saxlanılır və bağlantı bərpa olunanda avtomatik göndərilir${state.pending.size?" ("+state.pending.size+" hesabat gözləyir)":""}.</p>`;
   if(!hasServer())h+=`<div class="banner" style="margin:0 0 12px">Server qoşulmayıb: hesabatlar yalnız bu cihazda qalır. Ayarlarda server ünvanını və API açarını yazın.</div>`;
   h+=tasksBanner();
   h+=apprBanner(all);
   h+=upcomingBanner();
+  h+=debtCard();
   h+=snCard(snRes,q);
   if(q&&qn.length>=3&&!snRes.length&&!base.length)h+=`<p class="note" style="margin:0 0 10px">“${esc(state.q)}” üzrə heç nə tapılmadı${hasServer()&&state.online===false?" (server əlçatan deyil — yalnız bu cihazdakı hesabatlarda axtarıldı)":""}.</p>`;
   if(hasServer()&&state.me.role&&state.me.role!=="admin"&&all.some(x=>x.remote))h+=`<p class="note" style="margin:0 0 10px">Serverdəki hesabatları yalnız rəhbər silə bilər (🗑 düyməsi rəhbər açarı ilə görünür: Ayarlar → Açar).</p>`;
@@ -935,10 +1036,10 @@ function renderHome(){
   if(!all.length)h+=`<div class="empty"><h3>Hələ hesabat yoxdur</h3><p class="note" style="margin:0">“Yeni servis” ilə ilk hesabatı başladın. Tətbiqi tanımaq üçün doldurulmuş nümunə də aça bilərsiniz (bu nümunə serverə göndərilməz).</p><button class="btn" id="bSample">Nümunə hesabatı aç</button></div>`;
   else h+=`<div class="rlist">`+items.map(s=>`<div class="rwrap${canDelItem(s)?" hasdel":""}"><button class="rcard" data-open="${esc(s.id)}"><span class="t">${esc(s.client||"Adsız müştəri")}</span><span class="chip ${s.cls||""}">${s.cls==="ok"?"Qənaətbəxş":s.cls==="warn"?"Diqqət":s.cls==="bad"?"Təcili":""}</span>
     <span class="m"><span class="no">${esc(s.repno||"№ yoxdur")}</span><span>${esc(fmtDate(s.date))}</span><span>${esc([s.brand,s.model].filter(Boolean).join(" "))}${s.kva?" · "+esc(s.kva)+" kVA":""}</span>${s.eng?`<span>${esc(s.eng)}</span>`:""}
-    ${dupOf[s.id]?`<span class="chip warn">+${dupOf[s.id].length} təkrar</span>`:""}${s.isDup?'<span class="chip bad">təkrar</span>':""}${s.appr?'<span class="chip ok">təsdiqlənib</span>':s.sub?'<span class="chip warn">təsdiq gözləyir</span>':state.me.role==="admin"&&needsAppr(s)?'<span class="chip">təsdiqlənməyib</span>':""}${s.pending?'<span class="chip warn">göndərilməyib</span>':""}${!s.local?'<span class="chip">serverdə</span>':""}</span></button>${canDelItem(s)?`<button class="rdel" data-del="${esc(s.id)}" title="Hesabatı sil" aria-label="Hesabatı sil">🗑</button>`:""}</div>`).join("")+`</div>`;
+    ${dupOf[s.id]?`<span class="chip warn">+${dupOf[s.id].length} təkrar</span>`:""}${s.isDup?'<span class="chip bad">təkrar</span>':""}${s.appr?'<span class="chip ok">təsdiqlənib</span>':s.sub?'<span class="chip warn">təsdiq gözləyir</span>':state.me.role==="admin"&&needsAppr(s)?'<span class="chip">təsdiqlənməyib</span>':""}${s.pending?'<span class="chip warn">göndərilməyib</span>':""}${!s.local?'<span class="chip">serverdə</span>':""}${payChip(s.id)}</span></button>${canDelItem(s)?`<button class="rdel" data-del="${esc(s.id)}" title="Hesabatı sil" aria-label="Hesabatı sil">🗑</button>`:""}</div>`).join("")+`</div>`;
   $("#main").innerHTML=h;
-  $("#bNew").onclick=()=>openNew();$("#bTasks").onclick=()=>renderTasks();document.querySelectorAll("[data-topen]").forEach(b=>b.onclick=()=>{state.tkF="open";renderTasks(b.dataset.topen)});$("#bPlan").onclick=renderPlan;$("#bLists").onclick=()=>renderLists();const bst=$("#bStaff");if(bst)bst.onclick=renderStaff;
-  const bsy=$("#bSync");if(bsy)bsy.onclick=()=>sync();
+  $("#bNew").onclick=()=>openNew();$("#bTasks").onclick=()=>renderTasks();document.querySelectorAll("[data-topen]").forEach(b=>b.onclick=()=>{state.tkF="open";renderTasks(b.dataset.topen)});$("#bPlan").onclick=renderPlan;$("#bLists").onclick=()=>renderLists();const bst=$("#bStaff");if(bst)bst.onclick=renderStaff;const bcu=$("#bCust");if(bcu)bcu.onclick=()=>{state.cuSel="";renderCustomers()};
+  const bsy=$("#bSync");if(bsy)bsy.onclick=()=>{sync();payRefresh(true)};const bdb=$("#bDebts");if(bdb)bdb.onclick=renderDebts;payRefresh();
   document.querySelectorAll("[data-af]").forEach(b=>b.onclick=()=>{state.af=b.dataset.af==="1";renderHome()});
   document.querySelectorAll("[data-hf]").forEach(b=>b.onclick=()=>{state.hf=b.dataset.hf;renderHome()});const bd=$("#bDup");if(bd)bd.onclick=()=>{state.showDup=!state.showDup;renderHome()};
   const bs=$("#bSample");if(bs)bs.onclick=()=>{const r=sampleReport(state.settings);r.sample=true;openReport(r)};
@@ -1029,7 +1130,7 @@ function dupDevice(i){const R=state.rep,src=R.devices[i],d=clone(src);
   d.did="d"+Math.random().toString(36).slice(2,8);delete d.log;if(d.info)d.info.sn="";d.photos=[];d.parts=[];d.bad=[];if(d.bat)d.bat.blocks=[];if(d.dis)d.dis={res:"",load:"",time:"",v0:"",v1:""};
   if(isPar(src)){const m=/^(\d+)\s*\/\s*(\d+)$/.exec(src.par.pos||"");if(m){const a=+m[1]+1,tot=Math.max(+m[2],a);d.par.pos=a+"/"+tot;if(tot>+m[2])R.devices.forEach(x=>{if(isPar(x)&&x.par.grp===src.par.grp){const q=/^(\d+)\s*\/\s*\d+$/.exec(x.par.pos||"");if(q)x.par.pos=q[1]+"/"+tot}})}else if(/^\d+$/.test(src.par.pos||""))d.par.pos=String(+src.par.pos+1)}
   R.devices.splice(i+1,0,d);setActive(i+1);markDirty();return d}
-function nextFrom(src){src=realOf(src);const r=blankReport(state.settings);r.cl=clone(src.cl);
+function nextFrom(src){src=realOf(src);const r=freshReport(state.settings);r.cl=clone(src.cl);if(!r.svc.engCo&&src.svc.engCo)r.svc.engCo=src.svc.engCo;if(!r.svc.engPos&&src.svc.engPos)r.svc.engPos=src.svc.engPos;
   r.svc.type=src.svc.type||r.svc.type;r.svc.interval=src.svc.interval||r.svc.interval;
   r.devices=src.devices.map(d=>{const nd=blankDevice(state.settings,d.type);nd.info=clone(d.info);nd.loc=d.loc||"";nd.par=clone(d.par||nd.par);nd.bat={...clone(d.bat),blocks:[]};
     nd.meas.forEach((m,i)=>{if(d.meas[i]){m.min=d.meas[i].min;m.max=d.meas[i].max}});return nd});return r}
@@ -1039,7 +1140,7 @@ function startCopy(src){const r=nextFrom(src);startReport(r);state.tab="svc";ren
 function canDelItem(s){return s.remote?state.me.role==="admin":true}
 function openNew(){
   const items=listItems().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
-  const h=`<h2 class="sec">Yeni servis</h2><p class="hint">Boş hesabat başladın və ya əvvəlki hesabatı kopyalayın: müştəri və bütün cihazları (pasport məlumatları, akkumulyator quruluşu, normalar) köçürülür, ölçmələr boş başlayır.</p>
+  const h=`<h2 class="sec">Yeni servis</h2><p class="hint">Boş hesabat başladın və ya əvvəlki hesabatı seçin — sonra seçərsiniz: bütün məlumatlar köçürülsün, yoxsa müştəri və cihazlar köçürülüb yeni məlumat doldurulsun.</p>
   <div class="card"><button class="btn pri" id="nBlank">Yeni hesabat — cihazı seç</button></div>
   ${items.length?`<div class="card"><h3>Əvvəlki hesabatdan köçür</h3><input id="nq" type="search" placeholder="Müştəri və ya seriya № ilə axtar"><div class="rlist" id="nlist"></div></div>`:""}
   <button class="btn ghost" id="nCancel">← Geri</button>`;
@@ -1047,11 +1148,34 @@ function openNew(){
   const draw=()=>{const box=$("#nlist");if(!box)return;const q=($("#nq").value||"").toLowerCase();
     box.innerHTML=items.filter(s=>!q||[s.client,s.sn,s.model,s.obj].join(" ").toLowerCase().includes(q)).slice(0,40).map(s=>`<button class="rcard" data-copy="${esc(s.id)}"><span class="t">${esc(s.client||"Adsız")}</span><span class="no">${esc(fmtDate(s.date))}</span><span class="m">${esc([s.brand,s.model,s.sn].filter(Boolean).join(" · "))}</span></button>`).join("");
     box.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{b.disabled=true;
-      try{const src=normalize(clone(await getFull(b.dataset.copy)));startCopy(src)}
-      catch(e){b.disabled=false;toast("Köçürmək üçün internet lazımdır")}})};
+      let src;try{src=normalize(clone(await getFull(b.dataset.copy)))}catch(e){b.disabled=false;toast("Köçürmək üçün internet lazımdır");return}
+      b.disabled=false;copyChoice(src)})};
   if($("#nq")){$("#nq").oninput=draw;draw()}
   $("#nCancel").onclick=renderHome;
-  $("#nBlank").onclick=()=>typePicker("Xidmət olunacaq cihaz nədir?","Hesabatı seçdiyiniz cihaz üçün başladın. Eyni müştəridə başqa cihazlar da varsa, onları sonra “+ Cihaz” düyməsi ilə eyni hesabata əlavə edə bilərsiniz.",tp=>startReport(blankReport(state.settings,tp)),openNew)}
+  $("#nBlank").onclick=()=>typePicker("Xidmət olunacaq cihaz nədir?","Hesabatı seçdiyiniz cihaz üçün başladın. Eyni müştəridə başqa cihazlar da varsa, onları sonra “+ Cihaz” düyməsi ilə eyni hesabata əlavə edə bilərsiniz.",tp=>startReport(freshReport(state.settings,tp)),openNew)}
+function copyChoice(src){const R=realOf(src),nDev=R.devices.length,nPh=R.devices.reduce((x,d)=>x+((d.photos||[]).length),0);
+  const ov=document.createElement("div");ov.className="sigpad";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");
+  ov.innerHTML=`<div class="sp-in" style="max-width:560px"><div class="sp-head"><b>${esc(R.cl.name||"Adsız müştəri")} · ${esc(fmtDate(R.svc.date)||"")}${R.svc.repno?" · "+esc(R.svc.repno):""}</b></div>
+   <p class="note" style="margin:0 0 8px">Yeni hesabat necə başlasın? Hər halda yeni nömrə, bugünkü tarix və sizin adınız yazılır; əvvəlki hesabat dəyişmir.</p>
+   <div style="display:grid;gap:8px">
+    <button class="btn pri" id="cpAll" style="text-align:left;justify-content:flex-start;padding:10px 12px"><span><b>Bütün məlumatları köçür</b><br><span class="note" style="color:inherit;opacity:.85">müştəri, ${nDev} cihaz, ölçmələr, yoxlama, akkumulyator blokları, görülən işlər, hissələr, qeydlər — sonra yalnız dəyişəni düzəldin</span></span></button>
+    ${nPh?`<label style="display:flex;gap:8px;align-items:center;margin:-2px 0 2px 4px;font-size:14px;cursor:pointer"><input type="checkbox" id="cpPh" style="width:18px;height:18px;min-height:0;margin:0;flex:0 0 auto"> şəkilləri də köçür (${nPh})</label>`:""}
+    <button class="btn" id="cpDev" style="text-align:left;justify-content:flex-start;padding:10px 12px"><span><b>Yeni məlumat doldurulacaq</b><br><span class="note">müştəri və cihazlar (pasport, akkumulyator quruluşu, normalar) köçürülür; ölçmələr, yoxlama və işlər boş başlayır</span></span></button>
+    <button class="btn" id="cpCl" style="text-align:left;justify-content:flex-start;padding:10px 12px"><span><b>Yalnız müştəri</b><br><span class="note">müştəri məlumatları köçürülür, cihazı yenidən seçirsiniz</span></span></button>
+   </div><div class="actions" style="margin-top:10px"><button class="btn ghost" id="cpNo">Ləğv et</button></div></div>`;
+  document.body.appendChild(ov);const close=()=>ov.remove();
+  ov.querySelector("#cpNo").onclick=close;
+  ov.querySelector("#cpAll").onclick=()=>{const ph=ov.querySelector("#cpPh");const r=forkReport(src);r.forkOf=undefined;delete r.forkOf;r.copyOf=R.id;
+    if(!(ph&&ph.checked))r.devices.forEach(d=>d.photos=[]);close();startReport(r);state.tab="svc";renderEditor();window.scrollTo(0,0);
+    toast("Bütün məlumatlar köçürüldü ("+nDev+" cihaz). Bu səfərdə dəyişən məlumatları düzəldin.",6000)};
+  ov.querySelector("#cpDev").onclick=()=>{close();startCopy(src)};
+  ov.querySelector("#cpCl").onclick=()=>{close();typePicker("Xidmət olunacaq cihaz nədir?","“"+(R.cl.name||"Müştəri")+"” üçün yeni hesabat — müştəri məlumatları köçürüləcək.",tp=>{const r=freshReport(state.settings,tp);r.cl=clone(R.cl);
+    ["sign"].forEach(k=>{if(k in r.cl)r.cl[k]=""});r.svc.type=R.svc.type||r.svc.type;r.svc.interval=R.svc.interval||r.svc.interval;startReport(r)},openNew)}}
+function teamCard(){const R=realOf(state.rep),T=(R.svc.team||[]),lead=R.creator||R.svc.eng||state.me.name||"";
+  return `<div style="margin-top:10px;padding:10px;border:1px dashed var(--line);border-radius:8px"><b>İşdə iştirak edənlər</b>
+   <p class="note" style="margin:2px 0 8px">Mükafat xalı iştirakçılar arasında rol çəkisinə görə bölünür (çəkilər İşçi panelində). Hesabatı dolduran — <b>${esc(lead||"—")}</b> — avtomatik məsuldur.</p>
+   ${T.map((x,i)=>`<div class="row" style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span style="flex:1;min-width:0">${esc(x.n)}</span><select data-tmrole="${i}" style="width:auto">${Object.entries(TEAM_ROLE).map(([k,l])=>`<option value="${k}"${(x.r==="m"?"m":"k")===k?" selected":""}>${l}</option>`).join("")}</select><button class="btn sm danger" data-tmdel="${i}" aria-label="Sil">✕</button></div>`).join("")}
+   <div style="display:flex;gap:8px"><input id="tmName" list="tmList" placeholder="İşçinin adı" autocomplete="off" style="flex:1"><datalist id="tmList">${knownWorkers().filter(n=>nameKey(n)!==nameKey(lead)&&!T.some(x=>nameKey(x.n)===nameKey(n))).map(n=>`<option value="${esc(n)}">`).join("")}</datalist><button class="btn" id="tmAdd">+ Əlavə et</button></div></div>`}
 function typePicker(title,hint,onPick,onBack){
   $("#main").innerHTML=`<h2 class="sec">${esc(title)}</h2><p class="hint">${esc(hint)}</p><div class="tpick">${TYPE_ORDER.map(k=>`<button class="tcard" data-tp="${k}"><b>${esc(TYPES[k].label)}</b><span class="note">${esc(TYPES[k].chk.length)} yoxlama bəndi · ${esc(TYPES[k].meas.length)} ölçmə${TYPES[k].hasBat?" · akkumulyator testi":""}</span></button>`).join("")}</div>
   <button class="btn ghost" id="tpBack" style="margin-top:12px">← Geri</button>`;
@@ -1070,6 +1194,8 @@ function renderSettings(){
   $("#main").innerHTML=`<h2 class="sec">Ayarlar</h2>
   <div class="card"><h3>Mən və server</h3>
    <label class="f"><span>Adınız, soyadınız${state.me.personal?" (şəxsi açara bağlıdır)":""}</span><input id="meName" value="${esc(state.me.name)}"${state.me.personal?" readonly":""}></label>
+   <div class="grid2"><label class="f"><span>Mühəndisin şirkəti (imza yerində)</span><input id="meEngCo" value="${esc(state.me.engCo||"")}" placeholder="məs. ZUVAND Grand System MMC-nin"></label><label class="f"><span>Vəzifəniz (imza yerində)</span><input id="meEngPos" value="${esc(state.me.engPos||"")}" placeholder="məs. Texniki direktoru"></label></div>
+   <p class="note" style="margin:0 0 6px">Yeni hesabat açılanda “Servis” bölməsindəki bu iki xana avtomatik doldurulur (hesabatda dəyişmək olar).</p>
    ${IS_GAS||CFG.hub?"":`<label class="f"><span>Server ünvanı (ofis kompüteri)</span><input id="meUrl" inputmode="url" placeholder="məs. 192.168.1.10:8787" value="${esc(state.me.url)}"></label>`}
    <label class="f"><span>Açar (işçi və ya rəhbər açarı)</span><input id="meKey" autocomplete="off" value="${esc(state.me.key)}"></label>
    ${state.me.personal?'<p class="note" style="margin:0">Ad şəxsi açara bağlıdır və rəhbərin işçi siyahısından gəlir (Ayarlar → İşçilər). Başqa adla işləmək üçün <b>Hesabdan çıx</b> basın və öz açarınızla daxil olun.</p>':""}
@@ -1091,7 +1217,7 @@ function renderSettings(){
   ${hasServer()&&state.me.role==="admin"?'<div class="card" id="cuBox" style="margin-top:16px"></div>':""}
   <div class="card" style="margin-top:16px"><h3>PDF və Excel faylları</h3>
    ${IS_APP?`<p class="note" style="margin:0">Telefonda fayllar <b>Documents / UPS Servis Hesabatları / müştərinin adı</b> qovluğuna yazılır, sonra göndərmək menyusu açılır.</p>`
-    :typeof window.showDirectoryPicker==="function"&&!state.noDir?`<p class="note" style="margin:0">Hər müştəri üçün bu qovluğun içində ayrıca qovluq açılır və hesabat ora yazılır.</p><div class="actions"><span class="note" id="dirName">Qovluq: …</span><button class="btn sm" id="dirPick">Qovluğu seç / dəyiş</button></div><label class="f"><span>Bu qovluğun kompüterdəki tam yolu (📁 düyməsi ilə qovluğu açmaq üçün)</span><input id="rootPath" value="${esc(LS.get("ups.rootpath")||"")}" placeholder="məs. D:\\Servis\\Hesabatlar"></label><p class="note" style="margin:0">Müştəri qovluğunun içində “Servis hesabatları” və “Aktlar” qovluqları ayrıca yaranır.</p>`
+    :typeof window.showDirectoryPicker==="function"&&!state.noDir?`<p class="note" style="margin:0">Hər müştəri üçün bu qovluğun içində ayrıca qovluq açılır və hesabat ora yazılır.</p><div class="actions"><span class="note" id="dirName">Qovluq: …</span><button class="btn sm" id="dirPick">Qovluğu seç / dəyiş</button></div><label class="f"><span>Bu qovluğun kompüterdəki tam yolu (📁 düyməsi ilə qovluğu açmaq üçün)</span><input id="rootPath" value="${esc(LS.get("ups.rootpath")||"")}" placeholder="məs. D:\\Servis\\Hesabatlar"></label><p class="note" style="margin:0">Müştəri qovluğunun içində “Servis hesabatları” və “Aktlar” qovluqları ayrıca yaranır. Hesab vasitəçi / podratçı şirkətə yazılırsa (“Hesab kimə”), fayllar həmin şirkətin qovluğunda, müştərinin adı ilə alt qovluğa düşür: &lt;vasitəçi&gt;\\&lt;müştəri&gt;\\….</p>`
     :`<p class="note" style="margin:0">Bu versiyada brauzer qovluq seçməyə icazə vermir — fayllar Yükləmələr qovluğuna düşür. Müştəri qovluqları üçün masaüstü ikonu ilə açılan Windows versiyasından istifadə edin.</p>`}
    <label class="f" style="display:flex;gap:8px;align-items:center;grid-template-columns:none"><input type="checkbox" id="pdfDrive" style="width:auto;min-height:0" ${LS.get("ups.pdfdrive")?"checked":""}><span>PDF-in nüsxəsini ofis serverinə də yüklə</span></label></div>
   <div class="card" style="margin-top:16px"><h3>Yedək nüsxə</h3><p class="note" style="margin:0">Bu cihazdakı bütün hesabatları bir .json faylına saxlayın və ya həmin fayldan bərpa edin.</p>
@@ -1099,6 +1225,7 @@ function renderSettings(){
   document.querySelectorAll("[data-smode]").forEach(b=>b.onclick=()=>{state.me.syncMode=b.dataset.smode;LS.set("ups.me",state.me);toast(autoSync()?"Avtomatik sinxronlaşma":"Sinxronlaşma yalnız düymə ilə");if(autoSync())scheduleSync(500);renderSettings()});
   const sn=$("#syncNow");if(sn)sn.onclick=async()=>{readMe();sn.disabled=true;$("#syncMsg").textContent="sinxronlaşır…";await flush();await sync({all:true});sn.disabled=false;
     $("#syncMsg").textContent=state.online?"Sinxronlaşdı ✓"+(state.me.via===1?" (internet ünvanı ilə)":""):"Serverə qoşulmaq olmadı"+(state.syncErr?": "+state.syncErr:"")};
+  ["meEngCo","meEngPos"].forEach(k=>{const el=$("#"+k);if(el)el.onchange=()=>{state.me[k==="meEngCo"?"engCo":"engPos"]=el.value.trim();LS.set("ups.me",state.me);toast("Saxlanıldı — yeni hesabatlarda avtomatik yazılacaq")}});
   const readMe=()=>{state.me.name=$("#meName").value.trim();const al=$("#meAlt");if(al)state.me.alt=al.value.trim();if($("#meKey").value.trim()!==state.me.key)state.me.role="";if($("#meUrl"))state.me.url=$("#meUrl").value.trim();state.me.key=$("#meKey").value.trim();LS.set("ups.me",state.me)};
   $("#meOut").onclick=()=>{const b=$("#meOut");
     if(b.dataset.confirm!=="1"){b.dataset.confirm="1";b.textContent=state.pending.size?state.pending.size+" hesabat göndərilməyib — yenə də çıxılsın?":"Çıxılsın? Təsdiq üçün yenidən basın";return}
@@ -1191,7 +1318,7 @@ function renderEditor(){
   const ad=$("#addDev");if(ad)ad.onclick=()=>typePicker("Əlavə cihaz","Bu müştəridə servis etdiyiniz növbəti cihazı seçin. O, eyni hesabata əlavə olunacaq.",tp=>{state.rep.devices.push(blankDevice(state.settings,tp));setActive(state.rep.devices.length-1);state.tab="ups";markDirty();renderEditor()},()=>renderEditor());
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{state.tab=b.dataset.go;renderEditor();window.scrollTo(0,0)});
   (AFTER[state.tab]||(()=>{}))();
-  live();applyLock();
+  live();applyLock();payBanner();
 }
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-xl],[data-xset],[data-xall],[data-delkit],#addKit,#kitStd");if(!b||!state.cur||lockedRep(state.rep))return;
   const X=state.cur.x||(state.cur.x={}),y=window.scrollY;
@@ -1276,7 +1403,7 @@ const XSECT={
 const SECTIONS={
  svc(){return `<h2 class="sec">Servis və müştəri</h2><p class="hint">Hesabat nömrəsi, tarix və müştəri məlumatları.</p>
   <div class="card"><h3>Servis</h3><div class="grid2">${fld("svc.repno","Hesabat №",{ph:"avtomatik, məs. RSH-20261013-01"})}${fld("svc.date","Servis tarixi",{date:1})}</div>
-  ${fld("svc.type","Servis növü",{sel:SVC_TYPES})}<div class="grid2">${fld("svc.engCo","Mühəndisin şirkəti (imza yerində)",{ph:"məs. ZUVAND Grand System MMC-nin"})}${fld("svc.engPos","Mühəndisin vəzifəsi",{ph:"məs. Texniki direktoru"})}</div><div class="grid2">${fld("svc.eng","Servis mühəndisi")}${isDiag(state.rep)?"":fld("svc.interval","Növbəti servis intervalı, ay",{n:1})}</div>${isDiag(state.rep)?`<p class="note" style="margin:0">Diaqnostika: müştəri servis müqaviləsində deyil — növbəti servis planlanmır və servis cədvəlinə düşmür.</p>`:""}
+  ${fld("svc.type","Servis növü",{sel:SVC_TYPES})}<div class="grid2">${fld("svc.engCo","Mühəndisin şirkəti (imza yerində)",{ph:"məs. ZUVAND Grand System MMC-nin"})}${fld("svc.engPos","Mühəndisin vəzifəsi",{ph:"məs. Texniki direktoru"})}</div><div class="grid2">${fld("svc.eng","Servis mühəndisi")}${isDiag(state.rep)?"":fld("svc.interval","Növbəti servis intervalı, ay",{n:1})}</div>${teamCard()}${isDiag(state.rep)?`<p class="note" style="margin:0">Diaqnostika: müştəri servis müqaviləsində deyil — növbəti servis planlanmır və servis cədvəlinə düşmür.</p>`:""}
   <div class="note">Növbəti servis: <b data-live="next"></b></div>
   ${SVC_PROF(state.rep)==="inst"?`<div class="grid2">${fld("svc.conNo","Müqavilə № (akt üçün)")}${fld("svc.conDate","Müqavilə tarixi",{date:1})}</div><div class="grid2">${fld("svc.warr","Zəmanət müddəti, ay",{n:1,ph:"məs. 12"})}${fld("svc.train","Təlimat keçilən şəxs (Sifarişçi tərəfdən)",{ph:"məs. Fərid Həsənov"})}</div>`:""}
   ${SVC_PROF(state.rep)==="call"?`<div class="grid2">${fld("svc.tCall","Çağırış vaxtı",{ph:"məs. 14.10.2026 09:40"})}${fld("svc.tArr","Gəliş vaxtı",{ph:"məs. 14.10.2026 11:15"})}</div>`:""}
@@ -1390,6 +1517,12 @@ SECTIONS.ups=function(){const T=TYPES[CUR_TYPE],R=state.rep;
   return locCard+body+(CUR_TYPE==="ups"?logCard():"")+parCard+dupCard+(R.devices.length>1?`<div class="card"><button class="btn sm danger" id="rmDev">Bu cihazı hesabatdan çıxar</button><div id="rmConf" hidden><p style="margin:0 0 8px"><b>${state.di+1}-ci cihaz və onun bütün ölçmələri bu hesabatdan silinsin?</b></p><div class="actions"><button class="btn danger" id="rmYes">Bəli, çıxar</button><button class="btn" id="rmNo">Ləğv et</button></div></div></div>`:"")};
 const AFTER={
  svc(){const R0=realOf(state.rep),rr=()=>{markDirty();const y=window.scrollY;renderEditor();window.scrollTo(0,y)};
+  {const T=()=>(R0.svc.team=R0.svc.team||[]);const ta=$("#tmAdd"),ti=$("#tmName");
+    const add=()=>{const n=ti.value.trim();if(!n){ti.focus();return}if(nameKey(n)===nameKey(R0.creator||R0.svc.eng)){toast("Hesabatı dolduran işçi artıq məsuldur");return}
+      if(T().some(x=>nameKey(x.n)===nameKey(n))){toast("Bu işçi artıq siyahıdadır");return}T().push({n,r:"k"});rr()};
+    if(ta){ta.onclick=add;ti.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();add()}}}
+    document.querySelectorAll("[data-tmrole]").forEach(sl=>sl.onchange=()=>{const x=T()[+sl.dataset.tmrole];if(x){x.r=sl.value==="m"?"m":"k";rr()}});
+    document.querySelectorAll("[data-tmdel]").forEach(b=>b.onclick=()=>{T().splice(+b.dataset.tmdel,1);rr()})}
   const ax=$("#addClx");if(ax)ax.onclick=()=>{(R0.cl.extra=R0.cl.extra||[]).push({id:Math.random().toString(36).slice(2,8),name:"",pos:""});rr()};
   document.querySelectorAll("[data-delclx]").forEach(b=>b.onclick=()=>{const x=(R0.cl.extra||[]).splice(+b.dataset.delclx,1)[0];if(x&&R0.sig)delete R0.sig["cl_"+x.id];rr()});
   const cn=$("#f-cl-name");if(cn)cn.addEventListener("change",()=>{if(lockedRep(state.rep))return;const R=realOf(state.rep);R.cl.name=cn.value;const n=fillClientFrom(cn.value);{const cu=custOf(cn.value),iv={"Aylıq":"1","Rüblük":"3","Yarımillik":"6","İllik":"12"}[cu&&cu.period];if(iv&&R.svc.interval!==iv&&!isDiag(R)){R.svc.interval=iv;applyRepNo(R)}}
@@ -1457,7 +1590,7 @@ async function setAppr(kind,on){await flush();const r=realOf(state.rep);
   if(kind==="appr"){if(on)r.appr={by:state.me.name||"Rəhbər",at:Date.now()};else delete r.appr}
   else{if(on)r.sub={by:state.me.name||"",at:Date.now()};else delete r.sub}
   try{await persist(r)}catch(e){toast("Cihaza yazmaq alınmadı");return}
-  state.dirty=false;toast(kind==="appr"?(on?"Təsdiqləndi — Satış və Anbara göndərilir":"Təsdiq geri alındı"):(on?"Rəhbərə göndərildi":"Geri götürüldü"));
+  state.dirty=false;toast(kind==="appr"?(on?"Təsdiqləndi — Satış və Anbara göndərilir":"Təsdiq geri alındı — Satış və Anbarda satış da geri alınır (hesab yazılıbsa orada xəbərdarlıq çıxır)"):(on?"Rəhbərə göndərildi":"Geri götürüldü"));
   sync({all:true});const y=window.scrollY;renderEditor();window.scrollTo(0,y)}
 function bindAppr(){const two=(id,fn,txt)=>{const b=$("#"+id);if(b)b.onclick=()=>{if(b.dataset.confirm!=="1"){b.dataset.confirm="1";b.textContent=txt;return}b.disabled=true;fn()}};
   two("apprGo",()=>setAppr("appr",true),"Təsdiq edilsin? Yenidən basın");
@@ -1466,14 +1599,24 @@ function bindAppr(){const two=(id,fn,txt)=>{const b=$("#"+id);if(b)b.onclick=()=
   const u=$("#subUndo");if(u)u.onclick=()=>setAppr("sub",false)}
 /* an approved report is read-only for workers: everything except navigation, PDF, print, Excel and language is disabled */
 function applyLock(){if(!lockedRep(state.rep))return;const m=$("#main");if(!m)return;const A=apprOf(state.rep);
-  m.insertAdjacentHTML("afterbegin",`<div class="banner" style="margin:0 0 12px">Bu hesabat ${esc(A.by||"rəhbər")} tərəfindən təsdiqlənib — yalnız baxmaq olar. Dəyişiklik lazımdırsa, rəhbərə / servis müdirinə deyin.</div>`);
+  if(A)m.insertAdjacentHTML("afterbegin",`<div class="banner" style="margin:0 0 12px">Bu hesabat ${esc(A.by||"rəhbər")} tərəfindən təsdiqlənib — yalnız baxmaq olar. Dəyişiklik lazımdırsa, rəhbərə / servis müdirinə deyin.</div>`);
+  else m.insertAdjacentHTML("afterbegin",`<div class="banner" style="margin:0 0 12px"><b>Bu hesabat ${esc(ownerOf(state.rep))} tərəfindən hazırlanıb</b> — yalnız baxmaq olar. Başqasının hesabatını yalnız rəhbər dəyişə bilər.<br>Bu müştəridə iş görmüsünüzsə, öz adınıza yeni hesabat açın:
+    <div class="actions" style="margin-top:8px"><button class="btn sm pri" id="fkNext">Öz adıma yeni hesabat (müştəri və cihazlar köçürülür)</button><button class="btn sm" id="fkFull">Tam surətini öz adıma aç</button></div></div>`);
   m.querySelectorAll("input,textarea,select").forEach(e=>{e.disabled=true});
-  m.querySelectorAll("button").forEach(b=>{if(b.dataset.go||b.dataset.dev||b.dataset.lang||b.dataset.dedit||["bPdf","bPrint","bXls","bHist","svcCopy"].includes(b.id))return;b.disabled=true});
+  m.querySelectorAll("button").forEach(b=>{if(b.dataset.go||b.dataset.dev||b.dataset.lang||b.dataset.dedit||["bPdf","bPrint","bXls","bHist","svcCopy","fkNext","fkFull"].includes(b.id))return;b.disabled=true});
+  const fn=$("#fkNext");if(fn)fn.onclick=()=>startCopy(state.rep);
+  const ff=$("#fkFull");if(ff)ff.onclick=()=>{const r=forkReport(state.rep);startReport(r);state.tab="svc";renderEditor();window.scrollTo(0,0);toast("Sizin adınıza yeni hesabat açıldı: "+(r.svc.repno||"")+" — orijinal hesabat dəyişmir")};
   const ad=$("#addDev");if(ad)ad.disabled=true;const fk=$("#flukeCard");if(fk)fk.hidden=true;m.querySelectorAll(".drop").forEach(d=>{d.style.pointerEvents="none";d.ondrop=e=>e.preventDefault()})}
 function canDelete(r){if(r.sample)return true;if(state.remote[r.id])return state.me.role==="admin";return true}
 async function showHistory(){const box=$("#histBox"),id=state.cur.id;box.innerHTML='<div class="card"><p class="note" style="margin:0">Versiyalar yüklənir…</p></div>';
   try{const h=await api("history",{id});
-    box.innerHTML=`<div class="card"><h3>Əvvəlki versiyalar</h3><p class="note" style="margin:0">Hər sətir hesabatın həmin vaxta qədərki halıdır; adı o versiyanı saxlayan işçidir. “Bərpa et” hesabatı həmin hala qaytarır, indiki hal da yeni versiya kimi saxlanılır.</p>${h.items.length?h.items.map(v=>`<div class="mhead"><b>${esc((d=>isNaN(d)?v.at:fmtDate(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"))+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"))(new Date(v.at)))}</b><span class="note">${esc(v.by||"")}</span><button class="btn sm" data-rev="${esc(v.rev)}">Bərpa et</button></div>`).join(""):'<p class="note" style="margin:0">Hələ əvvəlki versiya yoxdur.</p>'}</div>`;
+    box.innerHTML=`<div class="card"><h3>Əvvəlki versiyalar</h3><p class="note" style="margin:0">Hər sətir hesabatın həmin vaxta qədərki halıdır; adı o versiyanı saxlayan işçidir. “Bərpa et” hesabatı həmin hala qaytarır, indiki hal da yeni versiya kimi saxlanılır. “Ayrıca hesabat kimi” — köhnə versiya ayrıca hesabat olur, indiki hesabat da qalır (məs. başqa işçi sizin hesabatınızın üstündə yeni iş yazıbsa).</p>${h.items.length?h.items.map(v=>`<div class="mhead"><b>${esc((d=>isNaN(d)?v.at:fmtDate(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"))+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"))(new Date(v.at)))}</b><span class="note">${esc(v.by||"")}</span><button class="btn sm" data-rev="${esc(v.rev)}">Bərpa et</button><button class="btn sm" data-revnew="${esc(v.rev)}" title="Bu versiya ayrıca hesabat kimi açılır, indiki hesabat dəyişmir">Ayrıca hesabat kimi</button></div>`).join(""):'<p class="note" style="margin:0">Hələ əvvəlki versiya yoxdur.</p>'}</div>`;
+    box.querySelectorAll("[data-revnew]").forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent="açılır…";
+      try{await flush();const res=await api("restore",{id,rev:b.dataset.revnew});const old=normalize(res.report),cur=realOf(state.rep);
+        const r=normalize(clone(old));r.id=newId();r.createdAt=Date.now();r.updatedAt=Date.now();r.by=state.me.name;r.forkOf=id;delete r.appr;delete r.sub;
+        if(String(r.svc.repno||"")===String(cur.svc.repno||"")){r.svc.repno="";r.svc.repnoAuto=true;applyRepNo(r,true)}
+        state.reports[r.id]=r;state.pending.add(r.id);savePending();saveLocalReports([r]);toast("Versiya ayrıca hesabat kimi açıldı: "+(r.svc.repno||"")+" · "+fmtDate(r.svc.date));openReport(r);sync()}
+      catch(e){b.disabled=false;b.textContent="Ayrıca hesabat kimi";toast("Açmaq alınmadı")}});
     box.querySelectorAll("[data-rev]").forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent="bərpa olunur…";
       try{await flush();const res=await api("restore",{id,rev:b.dataset.rev});const rep=normalize(res.report);
         await api("save",{report:rep,summary:summaryOf(rep),blocks:blocksOf(rep),items:itemsOf(rep),force:true});
@@ -1607,7 +1750,7 @@ function tChartsHTML(r,a,hd){
 let REPORT_TITLE="UPS TEXNİKİ SERVİS HESABATI";
 /* report blocks of the kind of service (installation checks, diagnostics, call-out, repair, hand-over list) */
 function xPaper(V,PF,head,kv,pc,tv,dash,W){const X=V.x||{},esc2=v=>esc(ft(v||"")),rowsOf=(L,items)=>items.map((c,j)=>[c,(L||[])[j]||{}]).filter(([,o])=>o.s&&o.s!=="Tətbiq olunmur");let h="";
-  const tbl=(title,L,items)=>{const R=rowsOf(L,items);return R.length?W(head(title)+`<table><tr><th>#</th><th style="text-align:left">${t("Yoxlanılan bənd")}</th><th>${t("Nəticə")}</th><th style="text-align:left">${t("Qeyd")}</th></tr>${R.map(([c,o],q)=>`<tr><td class="c">${q+1}</td><td>${esc(t(c))}</td><td class="c ${o.s==="Uğurlu"?"p-ok":o.s==="Uğursuz"?"p-bad":pc(o.s)}">${tv(o.s)}</td><td>${esc2(o.n)}</td></tr>`).join("")}</table>`):""};
+  const tbl=(title,L,items)=>{const R=rowsOf(L,items);return R.length?W(head(title)+`<table><tr><th>#</th><th style="text-align:left">${t("Yoxlanılan bənd")}</th><th>${t("Nəticə")}</th><th style="text-align:left">${t("Qeyd")}</th></tr>${R.map(([c,o],q)=>`<tr${o.s==="Nasaz"||o.s==="Uğursuz"?' class="r-nasaz"':""}><td class="c">${q+1}</td><td>${esc(t(c))}</td><td class="c ${o.s==="Uğurlu"?"p-ok":o.s==="Uğursuz"||o.s==="Nasaz"?"":pc(o.s)}">${tv(o.s)}</td><td>${esc2(o.n)}</td></tr>`).join("")}</table>`):""};
   const txt=(rows)=>{const R=rows.filter(([,v])=>String(v||"").trim());return R.length?kv(R.map(([k,v])=>[[k,esc2(v).replace(/\n/g,"<br>")]])):""};
   if(PF==="inst"){const I=X.inst||{};const info=[["Quraşdırma yeri",I.place],["Giriş kabeli",I.cin&&I.cin+" mm²"],["Çıxış kabeli",I.cout&&I.cout+" mm²"],["Giriş avtomatı",I.bin&&I.bin+" A"],["Çıxış / bypass avtomatı",I.bout&&I.bout+" A"],["Torpaqlama müqaviməti",I.earth&&I.earth+" Ω"]].filter(x=>x[1]);
     if(info.length){const rw=[];for(let q=0;q<info.length;q+=2)rw.push(info.slice(q,q+2).map(([k,v])=>[k,esc(v)]));h+=W(head("Quraşdırma məlumatları")+kv(rw))}
@@ -1663,7 +1806,7 @@ function paperHTML(R,_a,lang){PL=lang||state.plang||"az";const r=realOf(R),keep=
       mIdx.map(j=>[MEAS[j],j]).map(([m,j])=>`<tr><td>${esc(t(m[0]))}</td>${mPh(V,j)===3?[0,1,2].map(q=>`<td class="c num">${esc(V.meas[j].v[q])}</td>`).join(""):`<td class="c num"${tri?' colspan="3"':""}>${esc(V.meas[j].v[0])}</td>`}<td class="c">${esc(m[1])}</td><td class="c num">${norm(j)}</td><td class="c ${pc(a.ms[j])}">${esc(t(a.ms[j]))}</td></tr>`).join("")+`</table>`);
     const cIdx=CHK.map((c,j)=>j).filter(j=>!chkHidden(V,j)&&V.chk[j].s&&V.chk[j].s!=="Yoxlanılmadı"&&V.chk[j].s!=="Tətbiq olunmur");
     if(cIdx.length)h+=W(head("Vizual və funksional yoxlama")+`<table><tr><th>#</th><th style="text-align:left">${t("Yoxlanılan bənd")}</th><th>${t("Nəticə")}</th><th style="text-align:left">${t("Qeyd")}</th></tr>`+
-      cIdx.map((j,q)=>[CHK[j],j,q]).map(([c,j,q])=>`<tr><td class="c">${q+1}</td><td>${esc(t(c))}</td><td class="c ${pc(V.chk[j].s)}">${tv(V.chk[j].s)}</td><td>${esc(ft(V.chk[j].n))}</td></tr>`).join("")+`</table>`);
+      cIdx.map((j,q)=>[CHK[j],j,q]).map(([c,j,q])=>`<tr${V.chk[j].s==="Nasaz"?' class="r-nasaz"':""}><td class="c">${q+1}</td><td>${esc(t(c))}</td><td class="c ${V.chk[j].s==="Nasaz"?"":pc(V.chk[j].s)}">${tv(V.chk[j].s)}</td><td>${esc(ft(V.chk[j].n))}</td></tr>`).join("")+`</table>`);
     const wIdx=WORKS.map((w,j)=>j).filter(j=>V.works[j]==="Bəli");
     if(wIdx.length||V.wExtra)h+=W(head(PF==="call"&&!wIdx.length?"Görülən işlər":"Görülən işlər")+(wIdx.length?`<table>`+wIdx.map((j,q)=>[WORKS[j],j,q]).map(([w,j,q])=>`<tr><td class="c" style="width:4%">${q+1}</td><td>${esc(t(w))}</td><td class="c" style="width:14%">${tv(V.works[j])}</td></tr>`).join("")+`</table>`:"")+`${V.wExtra?`<p><i>${t("Əlavə:")} ${esc(ft(V.wExtra))}</i></p>`:""}`);
     h+=logPaper(d,head,kv,W);
@@ -1683,8 +1826,8 @@ function paperHTML(R,_a,lang){PL=lang||state.plang||"az";const r=realOf(R),keep=
         const rowsH=[];for(let q=0;q<rpf;q++){let rr="<tr>";for(let f=0;f<fold;f++)rr+=cell(f*rpf+q);rowsH.push(rr+"</tr>")}
         const chunks=rowsH.length>45?tblChunks(hdr,rowsH,30):[rowsH];
         h+=(V.bat.tblB==="0"?"":chunks.map((c,ci)=>W((ci===0?head("Akkumulyator ölçmə cədvəli (V / mΩ)"):"")+`<table class="bt">${hdr}${c.join("")}</table>`)).join(""))+(V.bat.chartR!=="0"?rChartsHTML(V,a,head("Daxili müqavimət — qruplar üzrə diaqram")):"")+(V.bat.chartV!=="0"?vChartsHTML(V,a,head("Blok gərginliyi — qruplar üzrə diaqram")):"")+(V.bat.chartT!=="0"?tChartsHTML(V,a,head("Blok temperaturu — qruplar üzrə diaqram")):"")}}
-    const BD=(V.bad||[]).filter(x=>x.name);if(BD.length)h+=W(head("Yararsız / dəyişdirilməli detallar")+`<table><tr><th>#</th><th style="text-align:left">${t("Detal")}</th><th>${t("Kod / Part №")}</th><th>${t("Say")}</th><th style="text-align:left">${t("Səbəb / qeyd")}</th></tr>${BD.map((x,j)=>`<tr><td class="c">${j+1}</td><td>${esc(ft(x.name))}</td><td class="c">${esc(x.code)}</td><td class="c">${esc(x.qty)}</td><td>${esc(ft(x.note))}</td></tr>`).join("")}</table>`);
-    const PT=(V.parts||[]).filter(x=>x.name);if(PT.length)h+=W(head("Dəyişdirilən / quraşdırılan hissələr")+`<table><tr><th>#</th><th style="text-align:left">${t("Hissə")}</th><th>${t("Kod / Part №")}</th><th>${t("Say")}</th><th style="text-align:left">${t("Qeyd")}</th></tr>${PT.map((x,j)=>`<tr><td class="c">${j+1}</td><td>${esc(ft(x.name))}</td><td class="c">${esc(x.code)}</td><td class="c">${esc(x.qty)}</td><td>${esc(ft(x.note))}</td></tr>`).join("")}</table>`);
+    const BD=(V.bad||[]).filter(x=>x.name);if(BD.length)h+=W(head("Yararsız / dəyişdirilməli detallar")+`<table><tr><th>#</th><th style="text-align:left">${t("Detal")}</th><th>${t("Kod / Part №")}</th><th>${t("Say")}</th><th style="text-align:left">${t("Səbəb / qeyd")}</th></tr>${BD.map((x,j)=>`<tr class="r-bad"><td class="c">${j+1}</td><td>${esc(ft(x.name))}</td><td class="c">${esc(x.code)}</td><td class="c">${esc(x.qty)}</td><td>${esc(ft(x.note))}</td></tr>`).join("")}</table>`);
+    const PT=(V.parts||[]).filter(x=>x.name);if(PT.length)h+=W(head("Dəyişdirilən / quraşdırılan hissələr")+`<table><tr><th>#</th><th style="text-align:left">${t("Hissə")}</th><th>${t("Kod / Part №")}</th><th>${t("Say")}</th><th style="text-align:left">${t("Qeyd")}</th></tr>${PT.map((x,j)=>`<tr class="r-part"><td class="c">${j+1}</td><td>${esc(ft(x.name))}</td><td class="c">${esc(x.code)}</td><td class="c">${esc(x.qty)}</td><td>${esc(ft(x.note))}</td></tr>`).join("")}</table>`);
     const PH=(V.photos||[]);if(PH.length){const cells=PH.map((p,q)=>`<figure class="pfig">${PHOTO_CACHE[p.id]?`<div class="pbox"><img src="${PHOTO_CACHE[p.id]}" alt=""></div>`:`<div class="pmiss">${t("Şəkil yüklənmədi")}</div>`}<figcaption>${q+1}. ${esc(ft(p.cap))}</figcaption></figure>`);
       const rowsP=[];for(let q=0;q<cells.length;q+=2)rowsP.push(`<div class="prow2">${cells.slice(q,q+2).join("")}</div>`);
       h+=rowsP.map((rw,q)=>W((q===0?head("Şəkillər"):"")+rw)).join("")}
@@ -1863,12 +2006,17 @@ async function prepareFolder(){if(!canDir())return null;
   try{let root=await getRoot();if(!root){toast("Hesabatların saxlanacağı qovluğu seçin (bir dəfə)");root=await pickRoot()}
     let p=await root.queryPermission({mode:"readwrite"});if(p!=="granted")p=await root.requestPermission({mode:"readwrite"});return p==="granted"?root:null}
   catch(e){if(e&&e.name==="SecurityError")state.noDir=true;return null}}
-async function writeToDir(root,client,filename,blob,sub){let d=await root.getDirectoryHandle(safeName(client),{create:true});if(sub)d=await d.getDirectoryHandle(sub,{create:true});
-  const fh=await d.getFileHandle(filename,{create:true});const w=await fh.createWritable();await w.write(blob);await w.close();return root.name+"\\"+safeName(client)+(sub?"\\"+sub:"")+"\\"+filename}
+const cdir=(client,sep)=>(Array.isArray(client)?client:[client]).map(safeName).join(sep);
+/* the folder of a report: the customer, or — when the bill goes to an intermediary / contractor — <intermediary>\<customer> */
+const cfolder=r=>{r=realOf(r);const pay=String(r.cl.payer||"").trim(),nm=r.cl.name||"";return pay&&safeName(pay)!==safeName(nm)?[pay,nm||"Müştərisiz"]:nm};
+async function writeToDir(root,client,filename,blob,sub){let d=root;for(const sg of (Array.isArray(client)?client:[client]))d=await d.getDirectoryHandle(safeName(sg),{create:true});if(sub)d=await d.getDirectoryHandle(sub,{create:true});
+  const fh=await d.getFileHandle(filename,{create:true});const w=await fh.createWritable();await w.write(blob);await w.close();return root.name+"\\"+cdir(client,"\\")+(sub?"\\"+sub:"")+"\\"+filename}
 const SUB_REP="Servis hesabatları",SUB_ACT="Aktlar";
 /* where a report's files were saved (per kind: rep / act / qa) — for the folder buttons */
 const savedKey=(id,k)=>"ups.saved."+id+"."+k;
-function updFolderBtns(){const r=state.rep&&realOf(state.rep);document.querySelectorAll("[data-openf]").forEach(b=>{b.hidden=!(r&&LS.get(savedKey(r.id,b.dataset.openf)))})}
+function updFolderBtns(){const r=state.rep&&realOf(state.rep);document.querySelectorAll("[data-openf]").forEach(b=>{const id=b.dataset.openid||(r&&r.id);b.hidden=!(id&&LS.get(savedKey(id,b.dataset.openf)))})}
+/* the folder button of a list page (files of lists are not tied to a report) */
+function listFolderBtn(k){if(!canDir())return "";return `<button class="btn" data-openf="${k}" data-openid="__list" title="Faylın yerləşdiyi qovluğu aç" aria-label="Faylın yerləşdiyi qovluğu aç" style="padding:0 12px"${LS.get(savedKey("__list",k))?"":" hidden"}>${FOLDER_SVG}</button>`}
 const FOLDER_SVG='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.6l2 2h8.4A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
 function folderBtn(k){if(!canDir())return "";const r=state.rep&&realOf(state.rep);return `<button class="btn" data-openf="${k}" title="Faylın yerləşdiyi qovluğu aç" aria-label="Faylın yerləşdiyi qovluğu aç" style="padding:0 12px"${r&&LS.get(savedKey(r.id,k))?"":" hidden"}>${FOLDER_SVG}</button>`}
 function askRootPath(name){return new Promise(res=>{const ov=document.createElement("div");ov.className="sigpad";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");
@@ -1880,13 +2028,13 @@ function fixRootPath(rp,rootName,info){let seg=String(rp||"").replace(/^"|"$/g,"
   if(rootName){const ix=seg.map(lo).lastIndexOf(lo(rootName));if(ix>=0)seg=seg.slice(0,ix+1)}
   if(info&&info.dir){const ds=info.dir.split(/[\\\/]+/).map(lo);for(let n=ds.length;n>0;n--){const tail=seg.slice(-n).map(lo);if(tail.length===n&&tail.every((x,j)=>x===ds[j])){seg=seg.slice(0,-n);break}}}
   return (/^[\\]{2}/.test(String(rp||""))?"\\\\":"")+seg.join("\\").replace(/^([A-Za-z]:)$/,"$1\\")}
-async function openSaved(k){const r=realOf(state.rep),info=LS.get(savedKey(r.id,k));if(!info){toast("Əvvəlcə faylı hazırlayın");return}
+async function openSaved(k,lid){const r=lid?{id:lid}:realOf(state.rep),info=LS.get(savedKey(r.id,k));if(!info){toast("Əvvəlcə faylı hazırlayın");return}
   const h0=await getRoot();let rp=LS.get("ups.rootpath");if(!rp){rp=await askRootPath(h0&&h0.name);if(!rp)return}
   const fx=fixRootPath(rp,h0&&h0.name,info);if(fx&&fx!==rp){rp=fx;LS.set("ups.rootpath",fx)}
   const full=rp+"\\"+info.dir+"\\"+info.file,u8=new TextEncoder().encode(full);let bin="";u8.forEach(c=>bin+=String.fromCharCode(c));
   const a=document.createElement("a");a.href="upsservis:"+btoa(bin).split("+").join("-").split("/").join("_").replace(/=+$/,"");document.body.appendChild(a);a.click();a.remove();
   toast("Açılır: "+full)}
-document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-openf]");if(b){e.preventDefault();openSaved(b.dataset.openf)}});
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-openf]");if(b){e.preventDefault();openSaved(b.dataset.openf,b.dataset.openid)}});
 const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 const IS_MOBILE_WEB=!IS_APP&&(IS_IOS||/Android/i.test(navigator.userAgent));
 function shareLater(file){const ov=document.createElement("div");ov.className="sigpad";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");
@@ -1899,10 +2047,10 @@ async function saveFile(filename,blob,client,root,sub,tag){
   try{
     if(IS_APP){const P=Capacitor.Plugins||{};const FS=P.Filesystem||Capacitor.registerPlugin("Filesystem"),SH=P.Share||Capacitor.registerPlugin("Share");
       const data=await blobToB64(blob);let saved="";
-      if(client!==undefined){const pth="UPS Servis Hesabatları/"+safeName(client)+"/"+(sub?sub+"/":"")+filename;try{await FS.writeFile({path:pth,data,directory:"DOCUMENTS",recursive:true});saved="Documents/"+pth}catch(e){}}
+      if(client!==undefined){const pth="UPS Servis Hesabatları/"+cdir(client,"/")+"/"+(sub?sub+"/":"")+filename;try{await FS.writeFile({path:pth,data,directory:"DOCUMENTS",recursive:true});saved="Documents/"+pth}catch(e){}}
       const w=await FS.writeFile({path:filename,data,directory:"CACHE"});if(saved)toast("Saxlanıldı: "+saved);
       await SH.share({title:filename,url:w.uri,dialogTitle:"Göndər (WhatsApp, e-poçt…) və ya bağla"});return true}
-    if(root&&client!==undefined){const note=fn=>{if(tag&&tag.id){LS.set(savedKey(tag.id,tag.k),{dir:safeName(client)+(sub?"\\"+sub:""),file:fn});updFolderBtns()}};
+    if(root&&client!==undefined){const note=fn=>{if(tag&&tag.id){LS.set(savedKey(tag.id,tag.k),{dir:cdir(client,"\\")+(sub?"\\"+sub:""),file:fn});updFolderBtns()}};
       try{toast("Saxlanıldı: "+await writeToDir(root,client,filename,blob,sub));note(filename);return true}
       catch(e){const m=/^(.*?)(\.[^.]+)?$/.exec(filename);for(let n=2;n<=20;n++){const alt=m[1]+" ("+n+")"+(m[2]||"");try{const pth=await writeToDir(root,client,alt,blob,sub);note(alt);toast("Əvvəlki fayl açıqdır (PDF / Word proqramında) — yeni adla saxlanıldı: "+pth,6000);return true}catch(e2){}}
         toast("Qovluğa yazmaq alınmadı ("+((e&&e.name)||"xəta")+") — fayl Yükləmələr qovluğuna saxlanılır")}}
@@ -2003,7 +2151,7 @@ function actHTML(R){const D=actData(R),r=D.r,sg=(r.sig||{}),e=x=>esc(x||"");
 async function exportAct(){const root=await prepareFolder();await flush();const btn=$("#bAct");btn.disabled=true;btn.textContent="Akt hazırlanır…";const r=state.cur;
   try{if(!window.html2pdf)throw new Error("lib");const host=document.createElement("div");host.style.cssText="position:absolute;left:-12000px;top:0";host.innerHTML=actHTML(r);document.body.appendChild(host);
     let pdf;try{pdf=await buildPdf(host.firstElementChild)}finally{host.remove()}const n=pdf.internal.getNumberOfPages();for(let i=1;i<=n;i++){pdf.setPage(i);pdf.addImage(pageFooterPNG(i,n,"az","TƏHVİL-TƏSLİM AKTI"),"PNG",8,284,194,5)}
-    await saveFile(fname(r,"pdf").replace(/\.pdf$/,"_Tehvil-teslim-akti.pdf"),pdf.output("blob"),r.cl.name||"",root,SUB_ACT,{id:realOf(r).id,k:"act"})}
+    await saveFile(fname(r,"pdf").replace(/\.pdf$/,"_Tehvil-teslim-akti.pdf"),pdf.output("blob"),cfolder(r),root,SUB_ACT,{id:realOf(r).id,k:"act"})}
   catch(e){toast("Aktı yaratmaq alınmadı")}btn.disabled=false;btn.textContent="Təhvil-təslim aktı (PDF)"}
 /* Word: a real .docx (Office Open XML) built here — a stored ZIP with document.xml */
 function crc32(u){let c,t=crc32.t;if(!t){t=crc32.t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}}c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=t[(c^u[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0}
@@ -2034,7 +2182,7 @@ function actDocx(R){const D=actData(R),r=D.r,H2="http:"+"/"+"/",x=v=>String(v==n
   const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="${W_NS}" xmlns:r="${R_NS}"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="850" w:bottom="1134" w:left="1418" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   return zipStore([["[Content_Types].xml",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="${P_NS}content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`],
     ["_rels/.rels",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${P_NS}relationships"><Relationship Id="rId1" Type="${R_NS}/officeDocument" Target="word/document.xml"/></Relationships>`],["word/document.xml",doc]])}
-async function exportActWord(){const root=await prepareFolder();await flush();const r=state.cur;try{await saveFile(fname(r,"pdf").replace(/\.pdf$/,"_Tehvil-teslim-akti.docx"),actDocx(r),r.cl.name||"",root,SUB_ACT,{id:realOf(r).id,k:"act"})}catch(e){toast("Word faylı yaradılmadı")}}
+async function exportActWord(){const root=await prepareFolder();await flush();const r=state.cur;try{await saveFile(fname(r,"pdf").replace(/\.pdf$/,"_Tehvil-teslim-akti.docx"),actDocx(r),cfolder(r),root,SUB_ACT,{id:realOf(r).id,k:"act"})}catch(e){toast("Word faylı yaradılmadı")}}
 /* ================= QÜSUR AKTI (the company's form): letterhead, approval of both heads, the text, signatures; battery table as an attachment =================
    The defects are collected from the report: "Nasaz" checks, failed installation tests, out-of-norm measurements,
    blocks to replace, diagnostics / repair / call-out findings and the "Yararsız detallar" list. */
@@ -2111,7 +2259,7 @@ function qaHTML(R){const Q=qaData(R),r=Q.r,S=Q.S,e=x=>esc(x||""),sg=r.sig||{};
 async function exportQa(){const root=await prepareFolder();await flush();const btn=$("#bQa");btn.disabled=true;btn.textContent="Akt hazırlanır…";const r=state.cur;
   try{if(!window.html2pdf)throw new Error("lib");const host=document.createElement("div");host.style.cssText="position:absolute;left:-12000px;top:0";host.innerHTML=qaHTML(r);document.body.appendChild(host);
     let pdf;try{pdf=await buildPdf(host.firstElementChild)}finally{host.remove()}const n=pdf.internal.getNumberOfPages();for(let i=1;i<=n;i++){pdf.setPage(i);pdf.addImage(pageFooterPNG(i,n,"az","QÜSUR AKTI"),"PNG",8,284,194,5)}
-    await saveFile(fname(r,"pdf").replace(/\.pdf$/,"_Qusur-akti.pdf"),pdf.output("blob"),r.cl.name||"",root,SUB_ACT,{id:realOf(r).id,k:"qa"})}
+    await saveFile(fname(r,"pdf").replace(/\.pdf$/,"_Qusur-akti.pdf"),pdf.output("blob"),cfolder(r),root,SUB_ACT,{id:realOf(r).id,k:"qa"})}
   catch(e){toast("Qüsur aktını yaratmaq alınmadı")}btn.disabled=false;btn.textContent="Qüsur aktı (PDF)"}
 function qaDocx(R){const Q=qaData(R),r=Q.r,S=Q.S,H2="http:"+"/"+"/",x=v=>String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const run=(t,o={})=>`<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>${o.b?"<w:b/>":""}${o.c?`<w:color w:val="${o.c}"/>`:""}<w:sz w:val="${o.sz||24}"/></w:rPr><w:t xml:space="preserve">${x(t)}</w:t></w:r>`;
@@ -2139,13 +2287,13 @@ function qaDocx(R){const Q=qaData(R),r=Q.r,S=Q.S,H2="http:"+"/"+"/",x=v=>String(
   const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="${W_NS}" xmlns:r="${R_NS}"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1000" w:right="850" w:bottom="1000" w:left="1300" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   return zipStore([["[Content_Types].xml",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="${P_NS}content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`],
     ["_rels/.rels",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${P_NS}relationships"><Relationship Id="rId1" Type="${R_NS}/officeDocument" Target="word/document.xml"/></Relationships>`],["word/document.xml",doc]])}
-async function exportQaWord(){const root=await prepareFolder();await flush();const r=state.cur;try{await saveFile(fname(r,"pdf").replace(/\.pdf$/,"_Qusur-akti.docx"),qaDocx(r),r.cl.name||"",root,SUB_ACT,{id:realOf(r).id,k:"qa"})}catch(e){toast("Word faylı yaradılmadı")}}
+async function exportQaWord(){const root=await prepareFolder();await flush();const r=state.cur;try{await saveFile(fname(r,"pdf").replace(/\.pdf$/,"_Qusur-akti.docx"),qaDocx(r),cfolder(r),root,SUB_ACT,{id:realOf(r).id,k:"qa"})}catch(e){toast("Word faylı yaradılmadı")}}
 async function exportPdf(){const root=await prepareFolder();await flush();const btn=$("#bPdf");btn.disabled=true;btn.textContent="PDF hazırlanır…";const r=state.cur;
   try{const L=state.plang||"az";
     const pdf=await makePdf(r,L,(i,n)=>{btn.textContent="PDF hazırlanır… "+i+"/"+n});
     btn.textContent="Saxlanılır…";const blob=pdf.output("blob");
     const name=fname(r,"pdf").replace(/\.pdf$/,(L!=="az"?"_"+L.toUpperCase():"")+".pdf");
-    await saveFile(name,blob,r.cl.name||"",root,SUB_REP,{id:realOf(r).id,k:"rep"});
+    await saveFile(name,blob,cfolder(r),root,SUB_REP,{id:realOf(r).id,k:"rep"});
     if(LS.get("ups.pdfdrive")&&hasServer()&&!r.sample){btn.textContent="Drive-a yüklənir…";
       try{await sync();if(state.pending.has(r.id))throw new Error("pending");
         const res=await api("pdf",{id:r.id,client:r.cl.name,name,data:await blobToB64(blob)});
@@ -2279,7 +2427,7 @@ async function exportXlsx(){const root=await prepareFolder();await flush();const
     useType(keep);
     const wb=buildXlsx(window.ExcelJS,M,{sheet:L==="ru"?"Отчёт":L==="en"?"Report":"Hesabat",footer:tl(L,REPORT_TITLE),extra});
     const buf=await wb.xlsx.writeBuffer();
-    await saveFile(fname(r,"xlsx").replace(/\.xlsx$/,(L!=="az"?"_"+L.toUpperCase():"")+".xlsx"),new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),r.cl.name||"",root,SUB_REP,{id:realOf(r).id,k:"rep"})}
+    await saveFile(fname(r,"xlsx").replace(/\.xlsx$/,(L!=="az"?"_"+L.toUpperCase():"")+".xlsx"),new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),cfolder(r),root,SUB_REP,{id:realOf(r).id,k:"rep"})}
   catch(e){toast("Excel yaratmaq alınmadı")}
   finally{btn.disabled=false;btn.textContent="Excel (.xlsx)"}}
 
@@ -2321,7 +2469,7 @@ function renderLists(){state.view="lists";$("#tabs").hidden=true;$("#hBack").hid
       <label class="f"><span>İl</span><select id="lfYear"><option value="all"${F.year==="all"?" selected":""}>Bütün illər</option>${years.map(y=>`<option${y===F.year?" selected":""}>${y}</option>`).join("")}</select></label>
       <label class="f"><span>Müştəri</span><select id="lfClient"><option value="">Bütün müştərilər</option>${clients.map(c=>`<option${c===F.client?" selected":""}>${esc(c)}</option>`).join("")}</select></label>
       <label class="f"><span>Siyahı</span><select id="lfKind"><option value="all"${F.kind==="all"?" selected":""}>Hamısı</option><option value="Yararsız"${F.kind==="Yararsız"?" selected":""}>Yararsız detallar</option><option value="Dəyişdirilib"${F.kind==="Dəyişdirilib"?" selected":""}>Dəyişdirilmiş detallar</option></select></label></div>
-      <div class="actions"><button class="btn pri" id="lPdf">PDF</button><button class="btn" id="lXls">Excel</button><button class="btn" id="lRe">Yenilə</button></div>
+      <div class="actions"><button class="btn pri" id="lPdf">PDF</button><button class="btn" id="lXls">Excel</button>${listFolderBtn("lst")}<button class="btn" id="lRe">Yenilə</button></div>
       ${cs.length?`<h3 style="margin-top:6px">${F.year==="all"?"Ümumi":F.year+"-ci il"} — müştərilər üzrə</h3><div class="maptbl"><table class="ltbl"><tr><th style="text-align:left">Müştəri</th><th>Servis sayı</th><th>Yararsız</th><th>Dəyişdirilmiş</th></tr>
       ${cs.map(c=>`<tr><td><a href="#" data-lc="${esc(c)}">${esc(c)}</a></td><td class="c">${svc.filter(x=>(x.client||"Adsız müştəri")===c).length}</td><td class="c">${cnt(c,"Yararsız")||"—"}</td><td class="c">${cnt(c,"Dəyişdirilib")||"—"}</td></tr>`).join("")}</table></div>`:`<p class="note">Seçilən dövrdə məlumat yoxdur.</p>`}
       ${Object.keys(by).sort((a,b)=>a.localeCompare(b)).map(c=>`<h3 style="margin-top:12px">${esc(c)}</h3><div class="maptbl"><table class="ltbl"><tr><th>Tarix</th><th>Hesabat №</th><th style="text-align:left">Cihaz</th><th>Növ</th><th style="text-align:left">Detal</th><th>Kod</th><th>Say</th><th style="text-align:left">Qeyd</th></tr>
@@ -2345,7 +2493,7 @@ async function exportList(kind){const root=await prepareFolder();const F=state.l
   const base=safeName(what+"_"+(F.client||"hamisi")+"_"+(F.year==="all"?"butun":F.year)).replace(/\s+/g,"_");
   const by={};rows.forEach(x=>{(by[x.client]=by[x.client]||[]).push(x)});
   const body=Object.keys(by).map(c=>`<div class="blk"><h4>${esc(c)}</h4><table><tr><th>Tarix</th><th>Hesabat №</th><th style="text-align:left">Cihaz</th><th>Növ</th><th style="text-align:left">Detal</th><th>Kod</th><th>Say</th><th style="text-align:left">Qeyd</th></tr>${by[c].map(x=>`<tr><td class="c">${esc(fmtDate(x.date))}</td><td class="c">${esc(x.repno||"—")}</td><td>${esc(x.dev)}${x.sn?" · SN "+esc(x.sn):""}</td><td class="c ${x.kind==="Yararsız"?"p-bad":"p-ok"}">${esc(x.kind)}</td><td>${esc(x.name)}</td><td class="c">${esc(x.code||"")}</td><td class="c">${esc(x.qty||"")}</td><td>${esc(x.note||"")}</td></tr>`).join("")}</table></div>`).join("");
-  await exportDoc(kind,{title:what.toUpperCase(),sub:per,body,head,data,base,client:F.client||undefined,root,widths:[24,16,11,14,28,16,12,30,16,6,30]})}
+  await exportDoc(kind,{title:what.toUpperCase(),sub:per,body,head,data,base,client:F.client||undefined,root,tag:"lst",widths:[24,16,11,14,28,16,12,30,16,6,30]})}
 /* shared PDF / Excel export for lists and the schedule */
 async function exportDoc(kind,o){const btn=document.activeElement;const old=btn&&btn.textContent;if(btn)btn.disabled=true;
   try{let blob,name;
@@ -2364,7 +2512,7 @@ async function exportDoc(kind,o){const btn=document.activeElement;const old=btn&
       const head=await pageHeaderPNG({svc:{repno:"",date:todayISO()}},"az",o.title.length>38?o.title.slice(0,38)+"…":o.title),n=pdf.internal.getNumberOfPages();
       for(let i=1;i<=n;i++){pdf.setPage(i);pdf.addImage(head,"PNG",8,5,194,15,"zhead","FAST");pdf.addImage(pageFooterPNG(i,n,"az",o.title),"PNG",8,284,194,5)}
       blob=pdf.output("blob");name=o.base+".pdf"}
-    await saveFile(name,blob,o.client!==undefined?o.client:"_Siyahılar",o.root)}
+    await saveFile(name,blob,o.client!==undefined?o.client:"_Siyahılar",o.root,undefined,o.tag?{id:"__list",k:o.tag}:undefined)}
   catch(e){toast("Faylı hazırlamaq alınmadı")}
   finally{if(btn){btn.disabled=false;btn.textContent=old}}}
 
@@ -2386,7 +2534,7 @@ function renderPlan(){state.view="plan";$("#tabs").hidden=true;$("#hBack").hidde
   $("#main").innerHTML=`<h2 class="sec">Servis cədvəli</h2><p class="hint">Hər müştəri / cihaz üçün son hesabatın tarixi + servis intervalı. Servisə ${REMIND_DAYS} gün qalmış xəbərdarlıq edilir (ana səhifədə, telefonda bildiriş, rəhbərə e-poçt). Növbəti hesabat yazılan kimi sətir “servis olunub” olur. Diaqnostika hesabatları cədvələ düşmür.</p>
   <div class="card"><div class="stats"><div class="stat bad"><b>${n.over}</b><span>Gecikən</span></div><div class="stat warn"><b>${n.soon}</b><span>${REMIND_DAYS} gün ərzində</span></div><div class="stat"><b>${n.month}</b><span>30 gün ərzində</span></div></div>
    <label class="f" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="plDone" style="width:auto;min-height:0" ${showDone?"checked":""}><span>Servis olunmuşları da göstər (yaşıl)</span></label>
-   <div class="actions"><button class="btn pri" id="plPdf">PDF</button><button class="btn" id="plXls">Excel</button></div></div>
+   <div class="actions"><button class="btn pri" id="plPdf">PDF</button><button class="btn" id="plXls">Excel</button>${listFolderBtn("plan")}</div></div>
   ${rows.length?`<div class="maptbl"><table class="ltbl"><tr><th>Növbəti servis</th><th style="text-align:left">Müştəri / obyekt</th><th style="text-align:left">Cihaz</th><th>Son servis</th><th>Vəziyyət</th><th></th></tr>
    ${rows.map(x=>{const mo=(x.next||"").slice(0,7),sep=mo!==lastM?`<tr class="msep"><td colspan="6">${esc(monthName(mo))}</td></tr>`:"";lastM=mo;
      return sep+`<tr class="pl-${x.st}"><td class="c"><b>${esc(fmtDate(x.next))}</b></td><td>${esc(x.client||"Adsız müştəri")}${x.obj?`<br><span class="note">${esc(x.obj)}</span>`:""}</td><td>${esc([x.brand,x.model].filter(Boolean).join(" "))}${x.sn?`<br><span class="note">SN ${esc(x.sn)}</span>`:""}</td><td class="c">${esc(fmtDate(x.date))}<br><span class="note">${esc(x.repno||"")}</span></td><td class="c"><b>${esc(planTxt(x))}</b></td>
@@ -2400,7 +2548,7 @@ function renderPlan(){state.view="plan";$("#tabs").hidden=true;$("#hBack").hidde
     const data=R.map(x=>[fmtDate(x.next),x.client||"",x.obj||"",[x.brand,x.model].filter(Boolean).join(" "),x.sn||"",fmtDate(x.date),x.repno||"",planTxt(x)]);
     const col={done:["p-ok","FFD7EFDF"],over:["p-bad","FFF8D3CD"],soon:["p-warn","FFFAEDC4"]};
     const body=`<div class="blk"><table><tr><th>Növbəti servis</th><th style="text-align:left">Müştəri / obyekt</th><th style="text-align:left">Cihaz</th><th>Son servis</th><th>Vəziyyət</th></tr>${R.map(x=>`<tr><td class="c"><b>${esc(fmtDate(x.next))}</b></td><td>${esc(x.client||"")}${x.obj?" · "+esc(x.obj):""}</td><td>${esc([x.brand,x.model].filter(Boolean).join(" "))}${x.sn?" · SN "+esc(x.sn):""}</td><td class="c">${esc(fmtDate(x.date))} ${esc(x.repno||"")}</td><td class="c ${(col[x.st]||[""])[0]}">${esc(planTxt(x))}</td></tr>`).join("")}</table></div>`;
-    prepareFolder().then(root=>exportDoc(kind,{title:"SERVİS CƏDVƏLİ",sub:"Hazırlanma tarixi: "+fmtDate(todayISO()),body,head,data,base:"Servis_cedveli_"+todayISO(),root,widths:[13,28,20,26,18,12,16,22],cls:(rw,i)=>i===7?(col[R[data.indexOf(rw)].st]||[])[1]:null}))};
+    prepareFolder().then(root=>exportDoc(kind,{title:"SERVİS CƏDVƏLİ",sub:"Hazırlanma tarixi: "+fmtDate(todayISO()),body,head,data,base:"Servis_cedveli_"+todayISO(),root,tag:"plan",widths:[13,28,20,26,18,12,16,22],cls:(rw,i)=>i===7?(col[R[data.indexOf(rw)].st]||[])[1]:null}))};
   $("#plPdf").onclick=()=>exp("pdf");$("#plXls").onclick=()=>exp("xlsx");window.scrollTo(0,0)}
 const MONTHS_AZ=["Yanvar","Fevral","Mart","Aprel","May","İyun","İyul","Avqust","Sentyabr","Oktyabr","Noyabr","Dekabr"];
 const monthName=ym=>{const m=/^(\d{4})-(\d{2})$/.exec(ym||"");return m?MONTHS_AZ[+m[2]-1]+" "+m[1]:ym};
@@ -2477,7 +2625,7 @@ async function workersCard(){const box=$("#wkBox");if(!box)return;
     $("#wkAdd").onclick=async()=>{const n=$("#wkName").value.trim();if(!n){toast("Adı yazın");return}try{draw(await api("worker_save",{w:(v=>v.startsWith("pos:")?{name:n,role:"worker",pos:v.slice(4)}:{name:n,role:v})($("#wkRole").value)}));toast("İşçi əlavə olundu — açarını ona verin")}catch(e){toast("Alınmadı")}};
     $("#wkShared").onchange=async e=>{try{draw(await api("shared_off",{off:e.target.checked}));toast(e.target.checked?"Ortaq açar söndürüldü":"Ortaq açar yenidən aktivdir")}catch(err){toast("Alınmadı")}}};
   box.innerHTML='<h3>İşçilər və şəxsi açarlar</h3><p class="note" style="margin:0">Yüklənir…</p>';
-  try{draw(await api("workers"))}catch(e){box.innerHTML='<h3>İşçilər və şəxsi açarlar</h3><p class="note" style="margin:0">'+(e&&e.message==="unknown_action"?"Ofis serverindəki hub köhnə versiyadır — hub-ı yeniləyin.":"Yükləmək alınmadı (internet?)")+'</p>'}}
+  try{const WR=await api("workers");try{LS.set("ups.workerNames",(WR.workers||[]).filter(w=>w.active!==false).map(w=>w.name))}catch(_){}draw(WR)}catch(e){box.innerHTML='<h3>İşçilər və şəxsi açarlar</h3><p class="note" style="margin:0">'+(e&&e.message==="unknown_action"?"Ofis serverindəki hub köhnə versiyadır — hub-ı yeniləyin.":"Yükləmək alınmadı (internet?)")+'</p>'}}
 /* client base: the manager edits and deletes customers and their devices (stored on the office hub) */
 const CU_DEV=[["loc","Filial / otaq"],["brand","Brend"],["model","Model"],["kva","kVA"],["sn","Seriya №"],["blocks","Blok"],["ah","Ah"],["period","Dövr"]];
 const CU_PER=["","Aylıq","Rüblük","Yarımillik","İllik"];
@@ -2528,6 +2676,87 @@ function inPeriod(d,p){if(p==="all")return true;const t=new Date(),y=t.getFullYe
 function onTimeMap(){const G={},out={};listItems().forEach(it=>{if(state.reports[it.id]&&state.reports[it.id].sample)return;(G[planKey(it)]=G[planKey(it)]||[]).push(it)});
   Object.values(G).forEach(L=>{L.sort((a,b)=>(a.date||"").localeCompare(b.date||""));for(let k=1;k<L.length;k++){const prev=L[k-1],it=L[k];if(!prev.next||it.type==="Diaqnostika")continue;
     const late=Math.round((Date.parse(it.date)-Date.parse(prev.next))/864e5);if(Number.isFinite(late))out[it.id]=late}});return out}
+/* ---------- customers and their devices, collected from every report (manager only) ---------- */
+const cuKey=x=>String(x||"").trim().replace(/\s+/g," ").toLocaleLowerCase("az");
+function customerBook(){const C={};const tt=t=>t&&TYPES[t]?TYPES[t].title:"";
+  listItems().forEach(it=>{if(it.local&&state.reports[it.id]&&state.reports[it.id].sample)return;if(!String(it.client||"").trim())return;
+    const full=state.reports[it.id]?realOf(state.reports[it.id]):null,k=cuKey(it.client);
+    const c=C[k]=C[k]||{name:String(it.client).trim(),objs:new Set(),addr:"",person:"",tel:"",payer:"",payers:new Set(),reps:0,last:"",lastId:"",next:"",devs:{}};
+    const py=String(it.payer||(full&&full.cl&&full.cl.payer)||"").trim();if(py&&cuKey(py)!==k){c.payers.add(py);if(!c.payer||(it.date||"")>=(c.last||""))c.payer=py}
+    c.reps++;if(it.obj)c.objs.add(String(it.obj).trim());
+    const newer=(it.date||"")>=(c.last||"");if(newer){c.last=it.date||"";c.lastId=it.id;if(it.next)c.next=it.next}
+    if(full&&full.cl&&(newer||!c.person)){const L=full.cl;if(L.addr)c.addr=L.addr;if(L.person)c.person=L.person;if(L.tel)c.tel=L.tel;if(L.payer)c.payer=L.payer}
+    const devs=full?full.devices.filter(d=>d.type!=="pq").map(d=>({sn:String((d.info||{}).sn||"").trim(),type:d.type,brand:(d.info||{}).brand||"",model:(d.info||{}).model||"",kva:(d.info||{}).kva||"",loc:d.loc||""})):snDevs(it);
+    devs.forEach(d=>{if(!d.sn&&!d.brand&&!d.model)return;const dk=d.sn?"sn:"+snNorm(d.sn):"m:"+cuKey([d.type,d.brand,d.model,d.kva,d.loc].join("|"));
+      const o=c.devs[dk]=c.devs[dk]||{...d,first:it.date||"",last:"",lastId:"",next:"",n:0};o.n++;
+      if((it.date||"")>=(o.last||"")){Object.assign(o,{type:d.type||o.type,brand:d.brand||o.brand,model:d.model||o.model,kva:d.kva||o.kva,loc:d.loc||o.loc,sn:d.sn||o.sn,last:it.date||"",lastId:it.id,next:it.next||""})}
+      if((it.date||"")&&(!o.first||(it.date<o.first)))o.first=it.date;o.tt=tt(o.type)})});
+  return Object.values(C).map(c=>({...c,objs:[...c.objs],payers:[...c.payers],devs:Object.values(c.devs).sort((a,b)=>(a.tt||"").localeCompare(b.tt||"","az")||String(a.brand+a.model).localeCompare(b.brand+b.model,"az"))}))
+    .sort((a,b)=>a.name.localeCompare(b.name,"az"))}
+function renderCustomers(){if(state.me.role!=="admin"){toast("Bu bölmə yalnız rəhbər üçündür");return}
+  state.view="customers";$("#tabs").hidden=true;$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#hTitle").innerHTML='Müştərilər və cihazlar<small>Bütün hesabatlardan toplanır</small>';
+  const book=customerBook(),q=cuKey(state.cuQ||""),sel=state.cuSel||"";
+  /* intermediary companies (who pays) and the end customers served through them */
+  const VIA={};book.forEach(c=>c.payers.forEach(p=>{const k=cuKey(p);(VIA[k]=VIA[k]||{name:p,n:0}).n++}));const vias=Object.entries(VIA).sort((a,b)=>a[1].name.localeCompare(b[1].name,"az"));
+  if(state.cuVia&&!VIA[state.cuVia])state.cuVia="";const via=state.cuVia||"",viaName=via?VIA[via].name:"";
+  const match=c=>(!via||c.payers.some(p=>cuKey(p)===via))&&(!q||cuKey([c.name,c.objs.join(" "),c.payers.join(" "),c.addr,...c.devs.map(d=>[d.brand,d.model,d.sn,d.loc].join(" "))].join(" ")).includes(q));
+  const list=book.filter(match),nDev=list.reduce((x,c)=>x+c.devs.length,0),cur=sel?book.find(c=>cuKey(c.name)===sel):null;
+  const devRow=(d,i)=>`<tr><td class="c">${i+1}</td><td>${esc(d.tt||"")}</td><td><b>${esc([d.brand,d.model].filter(Boolean).join(" ")||"—")}</b>${d.kva?" · "+esc(d.kva)+" kVA":""}</td><td class="mono">${esc(d.sn||"—")}</td><td>${esc(d.loc||"")}</td><td class="c">${esc(fmtDate(d.last)||"")}</td><td class="c">${d.n}</td><td class="c">${esc(fmtDate(d.next)||"")}</td><td>${d.lastId?`<button class="btn sm" data-cuopen="${esc(d.lastId)}">Son hesabat</button>`:""}</td></tr>`;
+  const devTable=c=>c.devs.length?`<div class="tw" style="overflow-x:auto"><table class="cut"><tr><th>#</th><th>Növ</th><th>Marka / model</th><th>Seriya №</th><th>Yerləşmə</th><th>Son servis</th><th>Servis sayı</th><th>Növbəti</th><th></th></tr>${c.devs.map(devRow).join("")}</table></div>`:'<p class="note" style="margin:0">Cihaz məlumatı yoxdur.</p>';
+  let h=`<h2 class="sec">Müştərilər və cihazlar</h2><p class="hint">Siyahı bütün servis hesabatlarından avtomatik toplanır: müştəri, obyektlər, əlaqə və hər cihaz (seriya № üzrə bir dəfə), son və növbəti servis. Müştəriyə basın — onun cihazları açılır.</p>
+   <div class="card"><div class="actions" style="align-items:center"><input id="cuQ" type="search" placeholder="Axtar: müştəri, vasitəçi, obyekt, model, seriya №" value="${esc(state.cuQ||"")}" style="flex:1;min-width:200px">
+     ${vias.length?`<select id="cuVia" style="max-width:280px" title="Vasitəçi şirkət"><option value="">Vasitəçi şirkət: hamısı</option>${vias.map(([k,v])=>`<option value="${esc(k)}"${k===via?" selected":""}>${esc(v.name)} · ${v.n} müştəri</option>`).join("")}</select>`:""}
+     <button class="btn pri" id="cuPdf">PDF</button><button class="btn" id="cuXls">Excel</button>${listFolderBtn("cust")}</div>
+     <p class="note" style="margin:6px 0 0">${via?"Vasitəçi: <b>"+esc(viaName)+"</b> · ":""}${list.length} müştəri · ${nDev} cihaz${q?" (axtarışa uyğun)":""} · PDF / Excel ${cur?"<b>seçilən müştərini</b>":"görünən siyahını"} çıxarır.</p></div>`;
+  /* an intermediary chosen (or found by search): all devices of its customers in one table */
+  if(!cur&&(via||(q&&list.length&&list.every(c=>c.payers.some(p=>cuKey(p).includes(q)))))){const rows=[];list.forEach(c=>c.devs.forEach(d=>rows.push({c,d})));
+    h+=`<div class="card"><h3>${via?esc(viaName):"Vasitəçi şirkət üzrə"} — bütün cihazlar · ${rows.length}</h3>${rows.length?`<div class="tw" style="overflow-x:auto"><table class="cut"><tr><th>#</th><th>Müştəri / obyekt</th><th>Növ</th><th>Marka / model</th><th>Seriya №</th><th>Yerləşmə</th><th>Son servis</th><th>Növbəti</th><th></th></tr>${rows.map(({c,d},i)=>`<tr><td class="c">${i+1}</td><td><b>${esc(c.name)}</b></td><td>${esc(d.tt||"")}</td><td>${esc([d.brand,d.model].filter(Boolean).join(" ")||"—")}${d.kva?" · "+esc(d.kva)+" kVA":""}</td><td class="mono">${esc(d.sn||"—")}</td><td>${esc(d.loc||"")}</td><td class="c">${esc(fmtDate(d.last)||"")}</td><td class="c">${esc(fmtDate(d.next)||"")}</td><td>${d.lastId?`<button class="btn sm" data-cuopen="${esc(d.lastId)}">Son hesabat</button>`:""}</td></tr>`).join("")}</table></div>`:'<p class="note" style="margin:0">Cihaz məlumatı yoxdur.</p>'}</div>`}
+  if(cur){h+=`<div class="card"><div class="actions" style="justify-content:space-between;align-items:center"><h3 style="margin:0">${esc(cur.name)}</h3><button class="btn sm" id="cuAll">← Bütün müştərilər</button></div>
+     <p class="note" style="margin:4px 0 8px">${[cur.objs.length?"Obyekt: "+cur.objs.join(", "):"",cur.addr?"Ünvan: "+cur.addr:"",cur.person?"Əlaqə: "+cur.person+(cur.tel?" · "+cur.tel:""):"",cur.payers.length?"Vasitəçi (hesab): "+cur.payers.join(", "):"",cur.reps+" hesabat · son servis "+(fmtDate(cur.last)||"—")+(cur.next?" · növbəti "+fmtDate(cur.next):"")].filter(Boolean).map(esc).join("<br>")}</p>${devTable(cur)}</div>`}
+  else h+=`<div class="rlist">${list.map(c=>`<button class="rcard" data-cu="${esc(cuKey(c.name))}"><span class="t">${esc(c.name)}</span><span class="chip">${c.devs.length} cihaz</span>${(()=>{if(!payOn())return "";const k=ckey(c.name),t=(PAY.items||[]).filter(x=>x.st==="inv"&&(ckey(x.client)===k||ckey(x.site)===k)).reduce((a,x)=>a+x.total,0);return t?`<span class="chip warn">borc ${azn(t)}</span>`:""})()}<span class="m"><span>${c.reps} hesabat</span><span>son: ${esc(fmtDate(c.last)||"—")}</span>${c.next?`<span>növbəti: ${esc(fmtDate(c.next))}</span>`:""}${c.objs.length?`<span>${esc(c.objs.slice(0,3).join(", "))}${c.objs.length>3?"…":""}</span>`:""}${c.payers.length?`<span class="chip">vasitəçi: ${esc(c.payers.join(", "))}</span>`:""}</span></button>`).join("")||'<div class="empty"><h3>Müştəri tapılmadı</h3></div>'}</div>`;
+  h+=`<button class="btn ghost" id="cuBack">← Geri</button>`;
+  $("#main").innerHTML=h;
+  const qi=$("#cuQ");qi.oninput=e=>{state.cuQ=e.target.value;const p=e.target.selectionStart;renderCustomers();const n=$("#cuQ");n.focus();n.setSelectionRange(p,p)};
+  document.querySelectorAll("[data-cu]").forEach(b=>b.onclick=()=>{state.cuSel=b.dataset.cu;renderCustomers();window.scrollTo(0,0)});
+  const cv=$("#cuVia");if(cv)cv.onchange=()=>{state.cuVia=cv.value;state.cuSel="";renderCustomers()};
+  const ca=$("#cuAll");if(ca)ca.onclick=()=>{state.cuSel="";renderCustomers()};$("#cuBack").onclick=renderHome;
+  document.querySelectorAll("[data-cuopen]").forEach(b=>b.onclick=async()=>{b.disabled=true;try{openReport(normalize(clone(await getFull(b.dataset.cuopen))))}catch(e){b.disabled=false;toast("Hesabatı açmaq üçün internet lazımdır")}});
+  const exp=kind=>{const L=cur?[cur]:list;if(!L.length){toast("Siyahı boşdur");return}
+    const head=["Müştəri","Obyekt","Ünvan","Əlaqə","Telefon","Hesab kimə","Cihaz növü","Marka","Model","Güc, kVA","Seriya №","Yerləşmə","İlk servis","Son servis","Servis sayı","Növbəti servis"];
+    const data=[];L.forEach(c=>{const base=[c.name,c.objs.join(", "),c.addr,c.person,c.tel,c.payers.join(", ")];if(!c.devs.length)data.push([...base,"","","","","","","","",fmtDate(c.last),c.reps,fmtDate(c.next)]);
+      c.devs.forEach(d=>data.push([...base,d.tt||"",d.brand,d.model,d.kva,d.sn,d.loc,fmtDate(d.first),fmtDate(d.last),d.n,fmtDate(d.next)]))});
+    const body=L.map(c=>`<div class="blk"><h4>${esc(c.name)}</h4><p style="margin:0 0 4px;font-size:9pt">${[c.objs.length?"Obyekt: "+c.objs.join(", "):"",c.addr?"Ünvan: "+c.addr:"",c.person?"Əlaqə: "+c.person+(c.tel?", "+c.tel:""):"",c.payers.length?"Vasitəçi: "+c.payers.join(", "):"",c.reps+" hesabat · son servis "+(fmtDate(c.last)||"—")].filter(Boolean).map(esc).join(" · ")}</p>${c.devs.length?`<table><tr><th>#</th><th style="text-align:left">Növ</th><th style="text-align:left">Marka / model</th><th>Güc, kVA</th><th>Seriya №</th><th style="text-align:left">Yerləşmə</th><th>Son servis</th><th>Növbəti</th></tr>${c.devs.map((d,i)=>`<tr><td class="c">${i+1}</td><td>${esc(d.tt||"")}</td><td>${esc([d.brand,d.model].filter(Boolean).join(" "))}</td><td class="c">${esc(d.kva||"")}</td><td class="c">${esc(d.sn||"")}</td><td>${esc(d.loc||"")}</td><td class="c">${esc(fmtDate(d.last))}</td><td class="c">${esc(fmtDate(d.next))}</td></tr>`).join("")}</table>`:""}</div>`).join("");
+    const nm=cur?safeName(cur.name).replace(/\s+/g,"_"):via?"vasiteci_"+safeName(viaName).replace(/\s+/g,"_"):"hamisi";
+    prepareFolder().then(root=>exportDoc(kind,{title:cur?"MÜŞTƏRİNİN CİHAZLARI":via?"VASİTƏÇİ ŞİRKƏTİN MÜŞTƏRİLƏRİ VƏ CİHAZLARI":"MÜŞTƏRİLƏR VƏ CİHAZLAR",sub:(cur?cur.name+" · ":via?"Vasitəçi: "+viaName+" · ":"")+L.length+" müştəri · "+L.reduce((x,c)=>x+c.devs.length,0)+" cihaz",body,head,data,base:"Musteriler_ve_cihazlar_"+nm+"_"+todayISO(),root,client:"_Siyahılar",tag:"cust",widths:[28,22,26,18,15,20,18,14,20,9,18,18,11,11,9,12]}))};
+  $("#cuPdf").onclick=()=>exp("pdf");$("#cuXls").onclick=()=>exp("xlsx")}
+/* bonus rules: kept on the manager's device */
+const bnMoney=n=>{n=Math.round((+n||0)*100)/100;const [i,f]=Math.abs(n).toFixed(2).split(".");return (n<0?"−":"")+i.replace(/\B(?=(\d{3})+(?!\d))/g," ")+","+f};
+const BONUS_DEF={wLead:1,wHelp:0.7,fillB:0,pt:10,plan:1,diag:0.7,em:1.5,inst:2,bat:0.6,rep:1.2,dev:0.25,minFill:60,wF:40,wT:30,wS:30,kMin:0.5,kMax:1.2,appr:false};
+const BONUS_TYPES=[["plan","Planlı profilaktik servis"],["diag","Diaqnostika"],["em","Qəza çağırışı"],["inst","Quraşdırma / işə salma"],["bat","Akkumulyator testi"],["rep","Təmir"]];
+const bonusCfg=()=>({...BONUS_DEF,...(LS.get("ups.bonus")||{})});
+const typeKey=t=>{t=t||"Planlı profilaktik servis";const f=BONUS_TYPES.find(x=>x[1]===t);return f?f[0]:"plan"};
+function repPoints(s,B){const fill=s.fill==null||s.fill===""?null:+s.fill;
+  if(B.appr&&!s.appr)return {p:0,why:"təsdiqlənməyib"};
+  if(fill!==null&&fill<num(B.minFill))return {p:0,why:"doluluq "+fill+"% < "+num(B.minFill)+"%"};
+  return {p:Math.round(((num(B[typeKey(s.type)])||0)+(num(B.dev)||0)*Math.max(0,(s.devn||1)-1))*100)/100,why:""}}
+/* the share of one person in a job: role weight ÷ sum of the weights of everybody in the job */
+function jobShare(it,name,B){const T=teamOfItem(it),wl=num(B.wLead),wh=num(B.wHelp),tot=wl+T.reduce((x,y)=>x+(y.r==="m"?wl:wh),0);if(!tot)return 1;
+  if(nameKey(name)===nameKey(whoOf(it)))return wl/tot;const m=T.find(x=>nameKey(x.n)===nameKey(name));return m?(m.r==="m"?wl:wh)/tot:0}
+function workerBonus(w,B,OT){let pts=0;w.list.forEach(x=>{const rp=repPoints(x,B).p;pts+=rp*jobShare(x,w.name,B)+(rp>0?num(B.fillB)||0:0)});(w.help||[]).forEach(x=>{pts+=repPoints(x,B).p*jobShare(x,w.name,B)});pts=Math.round(pts*100)/100;
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,f=avg(w.fill),sc=avg(w.sc),tShare=w.ok+w.late?w.ok/(w.ok+w.late):null;
+  const parts=[[f==null?null:f/100,num(B.wF)],[tShare,num(B.wT)],[sc==null?null:sc/5,num(B.wS)]].filter(x=>x[0]!==null&&x[1]>0);
+  const wsum=parts.reduce((x,y)=>x+y[1],0);let K=wsum?parts.reduce((x,y)=>x+y[0]*y[1],0)/wsum:1;K=Math.min(num(B.kMax)||9,Math.max(num(B.kMin)||0,K));K=Math.round(K*100)/100;
+  return {pts,K,sum:Math.round(pts*num(B.pt)*K*100)/100}}
+function bonusForm(B){const n=(k,l,step)=>`<label class="f"><span>${l}</span><input class="num" inputmode="decimal" data-bk="${k}" value="${esc(String(B[k]))}"${step?` step="${step}"`:""}></label>`;
+  return `<details class="card" id="bnBox" style="margin:10px 0"${state.bnOpen?" open":""}><summary style="cursor:pointer"><b>Mükafat hesablanması</b> <span class="note">· 1 xal = ${esc(String(B.pt))} ₼ · minimum doluluq ${esc(String(B.minFill))}% — dəyişmək üçün açın</span></summary>
+   <p class="note" style="margin:8px 0">Mükafat = <b>xal × 1 xalın dəyəri × keyfiyyət əmsalı (K)</b>. Xal: hər hesabat növünün çəkisi + hesabatdakı hər əlavə cihaz üçün əlavə xal. K = doluluq, vaxtında payı və rəhbər balının (÷5) çəkili ortası; məlumatı olmayan göstərici nəzərə alınmır. Ayarlar bu kompüterdə saxlanılır.</p>
+   <h4 style="margin:6px 0 2px">Bir neçə işçi işdə iştirak edəndə — xal rol çəkisinə görə bölünür</h4><div class="grid3">${n("wLead","Məsulun çəkisi")}${n("wHelp","Köməkçinin çəkisi")}${n("fillB","Hesabatı doldurana əlavə xal")}</div>
+   <p class="note" style="margin:0 0 6px">Məs. 2,75 xallıq iş, məsul + köməkçi: ${(()=>{const t=num(B.wLead)+num(B.wHelp);return t?"məsul "+Math.round(2.75*num(B.wLead)/t*100)/100+", köməkçi "+Math.round(2.75*num(B.wHelp)/t*100)/100+" xal":"—"})()}. Keyfiyyət (doluluq, vaxtında, bal) işin bütün iştirakçılarına aiddir.</p>
+   <div class="grid3">${n("pt","1 xalın dəyəri, ₼")}${n("dev","Hər əlavə cihaz, xal")}${n("minFill","Minimum doluluq, % (az olsa — 0 xal)")}</div>
+   <h4 style="margin:6px 0 2px">Hesabat növünün çəkisi, xal</h4><div class="grid3">${BONUS_TYPES.map(([k,l])=>n(k,l)).join("")}</div>
+   <h4 style="margin:6px 0 2px">Keyfiyyət əmsalının tərkibi, %</h4><div class="grid3">${n("wF","Doluluq")}${n("wT","Vaxtında")}${n("wS","Rəhbər balı")}</div>
+   <div class="grid3">${n("kMin","K — ən az")}${n("kMax","K — ən çox")}<label style="display:flex;align-items:center;gap:8px;align-self:end;padding:10px 0;font-size:14px;cursor:pointer"><input type="checkbox" data-bk="appr" style="width:18px;height:18px;min-height:0;margin:0;flex:0 0 auto"${B.appr?" checked":""}> Yalnız təsdiqlənmiş hesabatlar</label></div>
+   <div class="actions"><button class="btn sm" id="bnDef">Standart dəyərləri qaytar</button></div></details>`}
 async function renderStaff(){if(state.me.role!=="admin"){toast("İşçi paneli yalnız rəhbər üçündür");return}
   state.view="staff";$("#tabs").hidden=true;$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#hTitle").innerHTML='İşçi paneli<small>İşçilərin işi və qiymətləndirmə</small>';
   const P=state.stP=state.stP||"month";
@@ -2542,28 +2771,42 @@ async function renderStaff(){if(state.me.role!=="admin"){toast("İşçi paneli y
       w.list.push(s);const t=s.type||"";if(t==="Planlı profilaktik servis"||!t)w.plan++;else if(t==="Qəza çağırışı")w.em++;else if(t==="Diaqnostika")w.diag++;else w.other++;
       w.dev+=s.devn||1;if(s.id in OT){if(OT[s.id]<=7)w.ok++;else w.late++}if(s.fill!=null&&s.fill!=="")w.fill.push(+s.fill);
       const it=IT[s.id];if(it){w.bad+=it.bad;w.rep+=it.rep}if(R[s.id]&&R[s.id].score)w.sc.push(R[s.id].score)});
+    reps.forEach(s=>teamOfItem(s).forEach(m=>{const k=Object.keys(W).find(x=>nameKey(x)===nameKey(m.n))||String(m.n).trim(),w=W[k]=W[k]||{name:k,list:[],plan:0,em:0,diag:0,other:0,dev:0,ok:0,late:0,fill:[],bad:0,rep:0,sc:[]};
+      (w.help=w.help||[]).push(s);if(s.id in OT){if(OT[s.id]<=7)w.ok++;else w.late++}if(s.fill!=null&&s.fill!=="")w.fill.push(+s.fill);if(R[s.id]&&R[s.id].score)w.sc.push(R[s.id].score)}));
     const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,rows=Object.values(W).sort((a,b)=>b.list.length-a.list.length);state.stRows=rows;
+    const B=bonusCfg();rows.forEach(w=>w.bn=workerBonus(w,B,OT));const bnTot=Math.round(rows.reduce((x,w)=>x+w.bn.sum,0)*100)/100;
     const sel=state.stW&&W[state.stW]?W[state.stW]:null;
     $("#stBox").innerHTML=`<div class="actions" role="group" aria-label="Dövr">${PERIODS.map(([k,l])=>`<button class="btn sm${k===P?" pri":""}" data-per="${k}">${l}</button>`).join("")}</div>
-     <div class="actions"><button class="btn" id="stPdf">PDF</button><button class="btn" id="stXls">Excel</button></div>
-     ${rows.length?`<div class="maptbl"><table class="ltbl"><tr><th style="text-align:left">İşçi</th><th>Hesabat</th><th>Planlı</th><th>Qəza</th><th>Diaq.</th><th>Cihaz</th><th>Vaxtında / gecikmiş</th><th>Orta doluluq</th><th>Yararsız tapıb</th><th>Dəyişdirib</th><th>Orta bal</th><th>Tapşırıq: görülüb / verilib</th></tr>
+     <div class="actions"><button class="btn" id="stPdf">PDF</button><button class="btn" id="stXls">Excel</button>${listFolderBtn("staff")}</div>
+     ${bonusForm(B)}
+     ${rows.length?`<div class="maptbl sttbl"><table class="ltbl"><tr><th style="text-align:left">İşçi</th><th>Hesa­bat</th><th>Plan­lı</th><th>Qəza</th><th>Diaq.</th><th>Cihaz</th><th>Vaxtında / gecikmiş</th><th>Dolu­luq</th><th>Yarar­sız</th><th>Dəyiş­dirib</th><th>Orta bal</th><th>Tapşırıq gör./ver.</th><th>İştirak (köm.)</th><th>Xal</th><th>K</th><th>Mükafat, ₼</th></tr>
       ${rows.map(w=>{const f=avg(w.fill),sc=avg(w.sc),tk=taskStat(w.name,P);return `<tr${sel===w?' class="pl-soon"':""}><td><a href="#" data-sw="${esc(w.name)}">${esc(w.name)}</a></td><td class="c"><b>${w.list.length}</b></td><td class="c">${w.plan}</td><td class="c">${w.em}</td><td class="c">${w.diag}</td><td class="c">${w.dev}</td>
-        <td class="c">${w.ok+w.late?`<span class="chip ok">${w.ok}</span> / <span class="chip ${w.late?"bad":""}">${w.late}</span>`:"—"}</td><td class="c"><span class="chip ${f==null?"":f>=85?"ok":f>=60?"warn":"bad"}">${f==null?"—":Math.round(f)+"%"}</span></td><td class="c">${w.bad||"—"}</td><td class="c">${w.rep||"—"}</td><td class="c">${sc==null?"—":"★ "+sc.toFixed(1)+` <span class="note">(${w.sc.length})</span>`}</td><td class="c">${tk.given?tk.done+" / "+tk.given:"—"}</td></tr>`}).join("")}</table></div>`:`<p class="note">Bu dövrdə hesabat yoxdur.</p>`}
-     ${sel?`<h3 style="margin-top:14px">${esc(sel.name)} — hesabatlar (${sel.list.length})</h3><div class="maptbl"><table class="ltbl"><tr><th>Tarix</th><th style="text-align:left">Müştəri</th><th>Növ</th><th>Cihaz</th><th>Doluluq</th><th>Vaxtında</th><th>Yararsız / dəyiş.</th><th>Rəhbər qiyməti</th><th></th></tr>
-      ${sel.list.sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(s=>{const it=IT[s.id]||{bad:0,rep:0},r=R[s.id]||{};return `<tr><td class="c">${esc(fmtDate(s.date))}<br><span class="note">${esc(s.repno||"")}</span></td><td>${esc(s.client||"Adsız müştəri")}</td><td class="c">${esc(s.type||"—")}</td><td class="c">${s.devn||1}</td>
+        <td class="c">${w.ok+w.late?`<span class="chip ok">${w.ok}</span> / <span class="chip ${w.late?"bad":""}">${w.late}</span>`:"—"}</td><td class="c"><span class="chip ${f==null?"":f>=85?"ok":f>=60?"warn":"bad"}">${f==null?"—":Math.round(f)+"%"}</span></td><td class="c">${w.bad||"—"}</td><td class="c">${w.rep||"—"}</td><td class="c">${sc==null?"—":"★ "+sc.toFixed(1)+` <span class="note">(${w.sc.length})</span>`}</td><td class="c">${tk.given?tk.done+" / "+tk.given:"—"}</td><td class="c">${(w.help||[]).length||"—"}</td><td class="c">${w.bn.pts}</td><td class="c">${w.bn.K.toFixed(2)}</td><td class="c"><b>${bnMoney(w.bn.sum)}</b></td></tr>`}).join("")}
+      <tr><td colspan="13" style="text-align:right"><b>Cəmi mükafat</b></td><td class="c">${Math.round(rows.reduce((x,w)=>x+w.bn.pts,0)*100)/100}</td><td></td><td class="c"><b>${bnMoney(bnTot)} ₼</b></td></tr></table></div>`:`<p class="note">Bu dövrdə hesabat yoxdur.</p>`}
+     ${sel?`<h3 style="margin-top:14px">${esc(sel.name)} — hesabatlar (${sel.list.length})</h3><div class="maptbl"><table class="ltbl"><tr><th>Tarix</th><th style="text-align:left">Müştəri</th><th>Növ</th><th>Cihaz</th><th>Doluluq</th><th>Vaxtında</th><th>Yararsız / dəyiş.</th><th>Rəhbər qiyməti</th><th>Rol / pay</th><th>Xal</th><th></th></tr>
+      ${[...sel.list,...(sel.help||[])].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(s=>{const it=IT[s.id]||{bad:0,rep:0},r=R[s.id]||{};return `<tr><td class="c">${esc(fmtDate(s.date))}<br><span class="note">${esc(s.repno||"")}</span></td><td>${esc(s.client||"Adsız müştəri")}</td><td class="c">${esc(s.type||"—")}</td><td class="c">${s.devn||1}</td>
         <td class="c">${s.fill==null||s.fill===""?"—":s.fill+"%"}</td><td class="c">${s.id in OT?(OT[s.id]<=7?'<span class="chip ok">bəli</span>':`<span class="chip bad">+${OT[s.id]} gün</span>`):"—"}</td><td class="c">${it.bad} / ${it.rep}</td>
-        <td class="c">${s.remote?stars(r.score||0,s.id)+(r.note?`<br><span class="note">${esc(r.note)}</span>`:""):'<span class="note">göndərilməyib</span>'}</td><td class="c"><button class="btn sm" data-sopen="${esc(s.id)}">Aç</button></td></tr>`}).join("")}</table></div>`:rows.length?`<p class="note" style="margin-top:10px">İşçinin adına basın — hesabatları və qiymətləndirmə açılacaq.</p>`:""}`;
+        <td class="c">${s.remote?stars(r.score||0,s.id)+(r.note?`<br><span class="note">${esc(r.note)}</span>`:""):'<span class="note">göndərilməyib</span>'}</td><td class="c">${(()=>{const own=nameKey(whoOf(s))===nameKey(sel.name),T=teamOfItem(s),sh=jobShare(s,sel.name,B);return (own?"Məsul (hesabat)":TEAM_ROLE[(T.find(x=>nameKey(x.n)===nameKey(sel.name))||{}).r==="m"?"m":"k"])+(T.length?`<br><span class="note">${Math.round(sh*100)}% · ${T.length+1} nəfər</span>`:"")})()}</td><td class="c">${(rp=>rp.why?`<span class="chip bad" title="${esc(rp.why)}">0</span><br><span class="note">${esc(rp.why)}</span>`:Math.round((rp.p*jobShare(s,sel.name,B)+(nameKey(whoOf(s))===nameKey(sel.name)?num(B.fillB)||0:0))*100)/100+(teamOfItem(s).length?`<br><span class="note">işin xalı ${rp.p}</span>`:""))(repPoints(s,B))}</td><td class="c"><button class="btn sm" data-sopen="${esc(s.id)}">Aç</button></td></tr>`}).join("")}</table></div>`:rows.length?`<p class="note" style="margin-top:10px">İşçinin adına basın — hesabatları və qiymətləndirmə açılacaq.</p>`:""}`;
     document.querySelectorAll("[data-per]").forEach(b=>b.onclick=()=>{state.stP=b.dataset.per;draw()});
+    const bx=$("#bnBox");if(bx){bx.ontoggle=()=>{state.bnOpen=bx.open};
+      bx.querySelectorAll("[data-bk]").forEach(el=>el.onchange=()=>{const C=LS.get("ups.bonus")||{},k=el.dataset.bk;if(k==="appr")C.appr=el.checked;else{const v=num(el.value);if(v===null||v<0){toast("Düzgün rəqəm yazın");el.value=bonusCfg()[k];return}C[k]=v}
+        LS.set("ups.bonus",C);const y=window.scrollY;draw();window.scrollTo(0,y);toast("Saxlanıldı — mükafat yenidən hesablandı")});
+      $("#bnDef").onclick=()=>{LS.set("ups.bonus",{});draw();toast("Standart dəyərlər qaytarıldı")}}
     document.querySelectorAll("[data-sw]").forEach(a=>a.onclick=e=>{e.preventDefault();state.stW=state.stW===a.dataset.sw?"":a.dataset.sw;draw()});
     document.querySelectorAll("[data-sopen]").forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await getFull(b.dataset.sopen);const n=normalize(clone(r));state.reports[n.id]=n;openReport(n);state.tab="rep";renderEditor()}catch(e){b.disabled=false;toast("Açmaq üçün internet lazımdır")}});
     document.querySelectorAll("#stBox [data-rate]").forEach(b=>b.onclick=async()=>{const s=listItems().find(x=>x.id===b.dataset.rate);if(!s)return;const cur=(state.ratings||{})[s.id]||{};
       const v=+b.dataset.v===cur.score?0:+b.dataset.v;try{await saveRating(s,v,cur.note||"");draw()}catch(e){toast("Saxlamaq alınmadı")}});
     const exp=kind=>{const rws=state.stRows||[];if(!rws.length){toast("Bu dövrdə məlumat yoxdur");return}const per=PERIODS.find(x=>x[0]===state.stP)[1];
-      const head=["İşçi","Hesabat","Planlı","Qəza","Diaqnostika","Cihaz","Vaxtında","Gecikmiş","Orta doluluq, %","Yararsız tapıb","Dəyişdirib","Orta bal","Qiymət sayı"];
-      const data=rws.map(w=>{const f=avg(w.fill),sc=avg(w.sc);return [w.name,w.list.length,w.plan,w.em,w.diag,w.dev,w.ok,w.late,f==null?"":Math.round(f),w.bad,w.rep,sc==null?"":+sc.toFixed(1),w.sc.length]});
-      const body=`<div class="blk"><table><tr>${head.map(h=>`<th>${esc(h)}</th>`).join("")}</tr>${data.map(r=>`<tr>${r.map((v,i)=>`<td class="${i?"c":""}">${esc(v)}</td>`).join("")}</tr>`).join("")}</table></div>`+
-        rws.map(w=>`<div class="blk"><h4>${esc(w.name)}</h4><table><tr><th>Tarix</th><th style="text-align:left">Müştəri</th><th>Növ</th><th>Doluluq</th><th>Vaxtında</th><th>Bal</th><th style="text-align:left">Şərh</th></tr>${w.list.map(s=>{const r=(state.ratings||{})[s.id]||{};return `<tr><td class="c">${esc(fmtDate(s.date))}</td><td>${esc(s.client||"")}</td><td class="c">${esc(s.type||"")}</td><td class="c">${s.fill==null||s.fill===""?"—":s.fill+"%"}</td><td class="c">${s.id in OT?(OT[s.id]<=7?"bəli":"+"+OT[s.id]+" gün"):"—"}</td><td class="c">${r.score||"—"}</td><td>${esc(r.note||"")}</td></tr>`}).join("")}</table></div>`).join("");
-      prepareFolder().then(root=>exportDoc(kind,{title:"İŞÇİLƏRİN FƏALİYYƏTİ",sub:per+" · hazırlanıb: "+fmtDate(todayISO()),body,head,data,base:"Isci_paneli_"+state.stP+"_"+todayISO(),root,client:"_Siyahılar",widths:[24,9,8,8,11,8,10,10,13,13,11,9,10]}))};
+      const head=["İşçi","Hesabat","Planlı","Qəza","Diaqnostika","Cihaz","Vaxtında","Gecikmiş","Orta doluluq, %","Yararsız tapıb","Dəyişdirib","Orta bal","Qiymət sayı","İştirak (köməkçi)","Xal","Əmsal (K)","Mükafat, ₼"];
+      const data=rws.map(w=>{const f=avg(w.fill),sc=avg(w.sc);return [w.name,w.list.length,w.plan,w.em,w.diag,w.dev,w.ok,w.late,f==null?"":Math.round(f),w.bad,w.rep,sc==null?"":+sc.toFixed(1),w.sc.length,(w.help||[]).length,w.bn.pts,w.bn.K,w.bn.sum]});
+      data.push(["Cəmi","","","","","","","","","","","","","",Math.round(rws.reduce((x,w)=>x+w.bn.pts,0)*100)/100,"",bnTot]);
+      const rule="Mükafat: 1 xal = "+B.pt+" ₼ · rol çəkisi: məsul "+B.wLead+", köməkçi "+B.wHelp+(num(B.fillB)?", hesabatı doldurana +"+B.fillB+" xal":"")+" · çəkilər: "+BONUS_TYPES.map(([k,l])=>l.split(" ")[0]+" "+B[k]).join(", ")+", əlavə cihaz "+B.dev+" · min. doluluq "+B.minFill+"% · K = doluluq "+B.wF+"% + vaxtında "+B.wT+"% + bal "+B.wS+"% ("+B.kMin+"–"+B.kMax+")"+(B.appr?" · yalnız təsdiqlənmiş":"");
+      const ph=["İşçi","Hesabat (plan / qəza / diaq.) + köm.","Cihaz","Vaxtında / gecikmiş","Doluluq","Yararsız / dəyiş.","Orta bal","Xal","K","Mükafat, ₼"];
+      const prow=rws.map(w=>{const f=avg(w.fill),sc=avg(w.sc);return [w.name,w.list.length+" ("+w.plan+" / "+w.em+" / "+w.diag+")"+((w.help||[]).length?" + "+w.help.length:""),w.dev,w.ok+w.late?w.ok+" / "+w.late:"—",f==null?"—":Math.round(f)+"%",(w.bad||0)+" / "+(w.rep||0),sc==null?"—":sc.toFixed(1)+" ("+w.sc.length+")",w.bn.pts,w.bn.K.toFixed(2),bnMoney(w.bn.sum)]});
+      prow.push(["Cəmi","","","","","","",Math.round(rws.reduce((x,w)=>x+w.bn.pts,0)*100)/100,"",bnMoney(bnTot)]);
+      const body=`<div class="blk"><table style="font-size:8.5pt;table-layout:fixed;width:100%"><colgroup><col style="width:16%"><col style="width:14%"><col style="width:6%"><col style="width:11%"><col style="width:8%"><col style="width:9%"><col style="width:9%"><col style="width:7%"><col style="width:6%"><col style="width:14%"></colgroup><tr>${ph.map(h=>`<th style="white-space:normal;word-break:normal;line-height:1.2">${esc(h)}</th>`).join("")}</tr>${prow.map((r,j)=>`<tr${j===prow.length-1?' style="font-weight:700"':""}>${r.map((v,i)=>`<td class="${i?"c":""}"${i===9?' style="font-weight:700"':""}>${esc(v)}</td>`).join("")}</tr>`).join("")}</table><p style="font-size:8pt;margin:4px 0 0">${esc(rule)}</p></div>`+
+        rws.map(w=>`<div class="blk"><h4>${esc(w.name)}</h4><table><tr><th>Tarix</th><th style="text-align:left">Müştəri</th><th>Növ</th><th>Doluluq</th><th>Vaxtında</th><th>Bal</th><th>Xal</th><th style="text-align:left">Şərh</th></tr>${[...w.list,...(w.help||[])].map(s=>{const r=(state.ratings||{})[s.id]||{},rp0=repPoints(s,B),own=nameKey(whoOf(s))===nameKey(w.name),T=teamOfItem(s),sh=jobShare(s,w.name,B),rp={p:Math.round((rp0.p*sh+(own&&rp0.p>0?num(B.fillB)||0:0))*100)/100,why:rp0.why};return `<tr><td class="c">${esc(fmtDate(s.date))}</td><td>${esc(s.client||"")}${T.length?`<br><span style="font-size:7.5pt">${own?"məsul":TEAM_ROLE[(T.find(x=>nameKey(x.n)===nameKey(w.name))||{}).r==="m"?"m":"k"].toLowerCase()} · ${Math.round(sh*100)}% (${T.length+1} nəfər)</span>`:""}</td><td class="c">${esc(s.type||"")}</td><td class="c">${s.fill==null||s.fill===""?"—":s.fill+"%"}</td><td class="c">${s.id in OT?(OT[s.id]<=7?"bəli":"+"+OT[s.id]+" gün"):"—"}</td><td class="c">${r.score||"—"}</td><td class="c">${rp.why?"0 ("+esc(rp.why)+")":rp.p}</td><td>${esc(r.note||"")}</td></tr>`}).join("")}<tr><td colspan="6" style="text-align:right"><b>Xal ${w.bn.pts} × ${B.pt} ₼ × K ${w.bn.K.toFixed(2)} = mükafat</b></td><td class="c" colspan="2"><b>${bnMoney(w.bn.sum)} ₼</b></td></tr></table></div>`).join("");
+      prepareFolder().then(root=>exportDoc(kind,{title:"İŞÇİLƏRİN FƏALİYYƏTİ",sub:per+" · hazırlanıb: "+fmtDate(todayISO()),body,head,data,base:"Isci_paneli_"+state.stP+"_"+todayISO(),root,client:"_Siyahılar",tag:"staff",widths:[24,9,8,8,11,8,10,10,13,13,11,9,10,12,8,9,12]}))};
     $("#stPdf").onclick=()=>exp("pdf");$("#stXls").onclick=()=>exp("xlsx")};
   draw();window.scrollTo(0,0)}
 
@@ -2630,7 +2873,7 @@ async function startFromTask(t){if(!t)return;const key=s=>String(s||"").trim().t
   const prev=listItems().filter(x=>key(x.client)===key(t.client)&&(!t.obj||!x.obj||key(x.obj)===key(t.obj))&&!(state.reports[x.id]&&state.reports[x.id].sample)).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
   const go=r=>{r.taskId=t.id;if(!r.cl.name)r.cl.name=t.client||"";if(!r.cl.obj)r.cl.obj=t.obj||"";if(!r.cl.addr)r.cl.addr=t.addr||"";startReport(r);state.tab="svc";renderEditor();toast("Tapşırıq üçün hesabat açıldı — saxlananda tapşırıq sizin adınıza görülmüş sayılacaq")};
   if(prev){try{go(nextFrom(normalize(clone(await getFull(prev.id)))));return}catch(e){}}
-  typePicker("Xidmət olunacaq cihaz nədir?","“"+(t.client||"Müştəri")+"” üçün əvvəlki hesabat tapılmadı. Cihaz növünü seçin.",tp=>go(blankReport(state.settings,tp)),()=>renderTasks())}
+  typePicker("Xidmət olunacaq cihaz nədir?","“"+(t.client||"Müştəri")+"” üçün əvvəlki hesabat tapılmadı. Cihaz növünü seçin.",tp=>go(freshReport(state.settings,tp)),()=>renderTasks())}
 async function taskForm(t,back){state.view="tasks";let W=[];try{W=((await api("workers")).workers||[]).filter(w=>w.active!==false)}catch(e){}
   const clients=[...new Set(listItems().map(x=>x.client).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   $("#main").innerHTML=`<h2 class="sec">${t.id?"Tapşırığı düzəlt":"Yeni tapşırıq"}</h2><div class="card">
@@ -2707,6 +2950,176 @@ if(IS_APP){try{const AP=(Capacitor.Plugins&&Capacitor.Plugins.App)||Capacitor.re
   AP.addListener("backButton",async()=>{if(state.sigOpen){state.sigOpen();return}if(["edit","settings","lists","plan","staff","tasks"].includes(state.view)){await flush();state.cur=null;state.rep=null;renderHome();sync()}else AP.exitApp()})}catch(e){}}
 loadLocal();
 (async()=>{await loadReportsDB();if(!state.me.name)renderWelcome();else{renderHome();if(autoSync())sync();else updateSyncBadge();autoBackup()}})();
+</script>
+<script>/* one window only (Windows app): a second window hands over to the first one and closes */
+(function(){try{if(!(location.protocol==="file:"||(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&location.port)))return;
+  var K="oneapp."+location.pathname.replace(/[^\w]+/g,"_"),me=Math.random().toString(36).slice(2),dup=false,t0=Date.now();
+  var put=function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+  addEventListener("storage",function(e){if(!e.newValue)return;var v;try{v=JSON.parse(e.newValue)}catch(x){return}
+    if(e.key===K+".ping"&&v.id!==me&&!dup){put(K+".pong",{to:v.id,t:Date.now()});try{window.focus()}catch(x){}
+      var o=document.title,n=0,iv=setInterval(function(){document.title=(n%2?o:"● Proqram artıq açıqdır");if(++n>7){clearInterval(iv);document.title=o}},500);
+      try{if(typeof toast==="function")toast("Proqram artıq açıqdır — bu pəncərədən istifadə edin")}catch(x){}}
+    if(e.key===K+".pong"&&v.to===me&&Date.now()-t0<15000){dup=true;
+      document.body.innerHTML='<div style="position:fixed;inset:0;display:grid;place-items:center;background:#0f1514;color:#fff;font:16px system-ui,sans-serif;text-align:center;padding:20px"><div><div style="font-size:20px;font-weight:700;margin-bottom:8px">Proqram artıq açıqdır</div><div style="opacity:.8;margin-bottom:16px">Açıq olan pəncərədən istifadə edin (aşağıdakı tapşırıqlar panelində).</div><button onclick="window.close()" style="font-size:15px;padding:10px 18px;border-radius:8px;border:0;cursor:pointer">Bağla</button></div></div>';
+      setTimeout(function(){try{window.close()}catch(x){}},1200)}});
+  put(K+".ping",{id:me,t:Date.now()})}catch(e){}})();</script>
+<script>/* ZUVAND — görünüş: rəng, düymə forması və effekti, kartlar, arxa fon, loqo, şrift, sıxlıq (hər cihazda ayrıca) */
+window.ZSLOOK=(function(){
+  let KEY="zs.look";
+  const D={acc:"",accC:"",btn:"std",fx:"flat",anim:"1",card:"std",bg:"plain",bgImg:"",bgOp:"0.22",hdr:"std",fs:"n",dens:"n",logo:"",logoM:"both"};
+  const get=()=>{try{return Object.assign({},D,JSON.parse(localStorage.getItem(KEY)||"{}"))}catch(e){return Object.assign({},D)}};
+  const put=L=>{try{localStorage.setItem(KEY,JSON.stringify(L));return true}catch(e){return false}};
+  const ACC=[["","Standart (yaşıl)","#0E6A5B"],["blue","Göy","#1D5FBF"],["indigo","İndiqo","#4338CA"],["violet","Bənövşəyi","#7C3AED"],["teal","Firuzəyi","#0F766E"],["orange","Narıncı","#C2410C"],["red","Qırmızı","#B91C1C"],["pink","Çəhrayı","#BE185D"],["gold","Qızılı","#A16207"],["slate","Qrafit","#334155"],["custom","Öz rəngim…",""]];
+  const OPT={
+    btn:[["std","Standart"],["round","Yumru (kapsul)"],["soft","Yumşaq künc"],["sharp","Kəskin künc"]],
+    fx:[["flat","Düz"],["shadow","Kölgəli"],["raised","Qabarıq (3D)"],["gloss","Parlaq (qradiyent)"],["glass","Şüşə"],["glow","İşıldayan"],["outline","Kontur"]],
+    anim:[["1","Var (üstünə gələndə qalxır)"],["0","Yoxdur"]],
+    card:[["std","Standart"],["shadow","Kölgəli"],["float","Havada (dərin kölgə)"],["edge","Rəngli kənar"],["outline","Qalın haşiyə"],["glass","Şüşə"]],
+    bg:[["plain","Sadə"],["grad","Yumşaq qradiyent"],["dots","Nöqtəli"],["grid","Dama"],["lines","Çəp xətlər"],["img","Öz şəklim…"]],
+    hdr:[["std","Standart"],["accent","Rəngli"],["glass","Şüşə"]],
+    fs:[["s","Kiçik"],["n","Normal"],["l","Böyük"],["xl","Çox böyük"]],
+    dens:[["c","Yığcam"],["n","Normal"],["w","Geniş"]],
+    logoM:[["both","Loqo + ad"],["logo","Yalnız loqo"]]};
+  function accOf(L){if(L.acc==="custom")return L.accC||"";const a=ACC.find(x=>x[0]===L.acc);return a&&a[0]?a[2]:""}
+  function css(L){const A=accOf(L),c=[];
+    if(A)c.push(`:root,:root[data-theme]{--accent:${A};--accent-soft:color-mix(in srgb,${A} 18%,var(--surface));--paper-head:color-mix(in srgb,${A} 70%,#000)}`);
+    c.push({std:"",round:".btn,.seg button,.chip{border-radius:999px!important}",soft:".btn{border-radius:14px!important}",sharp:".btn,.card,.rcard,input,select,textarea{border-radius:3px!important}"}[L.btn]||"");
+    c.push({flat:"",
+      shadow:".btn{box-shadow:0 2px 6px rgba(0,0,0,.12)}.btn.pri{box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 45%,transparent)}",
+      raised:".btn{box-shadow:0 3px 0 rgba(0,0,0,.18)}.btn.pri{box-shadow:0 3px 0 color-mix(in srgb,var(--accent) 55%,#000)}.btn:active{transform:translateY(2px)!important;box-shadow:0 1px 0 rgba(0,0,0,.2)!important}",
+      gloss:".btn{background:linear-gradient(180deg,var(--surface),var(--surface2))}.btn.pri{background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 72%,#fff),var(--accent) 55%,color-mix(in srgb,var(--accent) 85%,#000));text-shadow:0 1px 0 rgba(0,0,0,.25)}",
+      glass:".btn{background:color-mix(in srgb,var(--surface) 55%,transparent);backdrop-filter:blur(8px);border-color:color-mix(in srgb,var(--line) 70%,transparent)}.btn.pri{background:color-mix(in srgb,var(--accent) 80%,transparent);backdrop-filter:blur(8px)}",
+      glow:".btn.pri{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 35%,transparent),0 0 18px color-mix(in srgb,var(--accent) 65%,transparent)}.btn:hover{box-shadow:0 0 12px color-mix(in srgb,var(--accent) 40%,transparent)}",
+      outline:".btn{background:transparent;border-width:2px}.btn.pri{background:transparent;color:var(--accent);border:2px solid var(--accent)}.btn.pri:hover{background:var(--accent);color:var(--accent-ink)}"}[L.fx]||"");
+    if(L.anim==="1")c.push(".btn,.rcard,.tab{transition:transform .12s ease,box-shadow .15s ease,filter .12s ease,background .15s}.btn:hover:not(:disabled),.rcard:hover{transform:translateY(-1px);filter:brightness(1.04)}");
+    c.push({std:"",shadow:".card,.rcard{box-shadow:0 2px 10px rgba(0,0,0,.08);border-color:transparent}",float:".card,.rcard{box-shadow:0 12px 30px rgba(0,0,0,.13);border-color:transparent}",
+      edge:".card{border-left:4px solid var(--accent)!important}",outline:".card,.rcard{border-width:2px!important}",glass:".card,.rcard{background:color-mix(in srgb,var(--surface) 68%,transparent)!important;backdrop-filter:blur(10px)}"}[L.card]||"");
+    c.push({plain:"",grad:"body{background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 14%,var(--bg)),var(--bg) 55%,color-mix(in srgb,var(--accent) 6%,var(--bg))) fixed}",
+      dots:"body{background-image:radial-gradient(color-mix(in srgb,var(--ink) 14%,transparent) 1px,transparent 1.4px);background-size:18px 18px;background-attachment:fixed}",
+      grid:"body{background-image:linear-gradient(color-mix(in srgb,var(--ink) 7%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--ink) 7%,transparent) 1px,transparent 1px);background-size:24px 24px;background-attachment:fixed}",
+      lines:"body{background-image:repeating-linear-gradient(135deg,color-mix(in srgb,var(--accent) 7%,transparent) 0 2px,transparent 2px 16px);background-attachment:fixed}",
+      img:L.bgImg?`body::before{content:"";position:fixed;inset:0;background:url(${L.bgImg}) center/cover no-repeat;opacity:${+L.bgOp||0.22};z-index:-1;pointer-events:none}`:""}[L.bg]||"");
+    c.push({std:"",accent:"header.top{background:var(--accent)!important;color:var(--accent-ink)}header.top .brand,header.top .brand small,header.top .tab{color:var(--accent-ink)!important}header.top .brand small{opacity:.85}header.top .tab[aria-selected=\"true\"]{background:var(--accent-ink)!important;color:var(--accent)!important}header.top .btn{background:color-mix(in srgb,var(--accent-ink) 14%,transparent);color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent-ink) 35%,transparent)}",
+      glass:"header.top{background:color-mix(in srgb,var(--bg) 65%,transparent)!important;backdrop-filter:blur(12px)}"}[L.hdr]||"");
+    c.push({s:"body{zoom:.92}",n:"",l:"body{zoom:1.08}",xl:"body{zoom:1.18}"}[L.fs]||"");
+    c.push({c:".card{padding:10px!important;gap:8px!important}.btn{min-height:36px;padding:6px 11px}.rcard{padding:8px 10px!important}",n:"",w:".card{padding:18px!important;gap:14px!important}.btn{min-height:46px;padding:11px 18px}"}[L.dens]||"");
+    if(L.logo)c.push(`#zsLogo{height:36px;max-width:140px;object-fit:contain;margin-right:10px;border-radius:6px;flex:none}${L.logoM==="logo"?"#hTitle{font-size:0!important}#hTitle small{font-size:12px!important}":""}`);
+    return c.filter(Boolean).join("\n")}
+  function apply(){const L=get();let st=document.getElementById("zsLook");if(!st){st=document.createElement("style");st.id="zsLook";document.head.appendChild(st)}st.textContent=css(L);
+    let im=document.getElementById("zsLogo");const t=document.getElementById("hTitle");
+    if(L.logo&&t){if(!im){im=document.createElement("img");im.id="zsLogo";im.alt="Loqo";t.parentNode.insertBefore(im,t)}if(im.src!==L.logo)im.src=L.logo}else if(im)im.remove()}
+  function shrink(file,max,type,q){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);res(c.toDataURL(type,q))};im.onerror=rej;im.src=fr.result};fr.onerror=rej;fr.readAsDataURL(file)})}
+  function card(toast,esc){const m=document.getElementById("main");if(!m)return;const L=get(),old=document.getElementById("lookCard");
+    const sel=(k,l)=>`<label class="f"><span>${l}</span><select data-lk="${k}">${OPT[k].map(([v,t])=>`<option value="${v}"${L[k]===v?" selected":""}>${t}</option>`).join("")}</select></label>`;
+    const h=`<div class="card" id="lookCard" style="margin-top:12px"><h3>Görünüş</h3><p class="note" style="margin:0 0 4px">Proqramın rəngi, düymələri, kartları, arxa fonu və loqosu. Dəyişiklik dərhal görünür və bu cihazda yadda qalır.</p>
+      <div class="f"><span>Əsas rəng</span><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${ACC.map(([k,t,c])=>k==="custom"?`<label class="btn sm" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer${L.acc==="custom"?";outline:2px solid var(--accent)":""}">${t}<input type="color" id="lkColor" value="${esc(L.accC||"#0E6A5B")}" style="width:28px;height:22px;min-height:0;padding:0;border:0;background:none"></label>`
+        :`<button type="button" class="btn sm" data-acc="${k}" title="${t}" style="display:inline-flex;gap:6px;align-items:center${L.acc===k?";outline:2px solid var(--accent);outline-offset:1px":""}"><span style="width:16px;height:16px;border-radius:50%;background:${c};display:inline-block"></span>${t}</button>`).join("")}</div></div>
+      <div class="grid2">${sel("btn","Düymə forması")}${sel("fx","Düymə effekti")}</div>
+      <div class="grid2">${sel("anim","Hərəkət effekti")}${sel("card","Kartların görünüşü")}</div>
+      <div class="grid2">${sel("hdr","Yuxarı panel")}${sel("bg","Arxa fon")}</div>
+      ${L.bg==="img"?`<div class="grid2"><label class="f"><span>Arxa fon şəkli</span><input type="file" id="lkBg" accept="image/*"></label><label class="f"><span>Şəklin görünmə dərəcəsi: ${Math.round((+L.bgOp||.22)*100)}%</span><input type="range" id="lkOp" min="0.05" max="0.8" step="0.05" value="${esc(L.bgOp)}"></label></div>`:""}
+      <div class="grid2">${sel("fs","Yazı və elementlərin ölçüsü")}${sel("dens","Sıxlıq")}</div>
+      <div class="grid2"><label class="f"><span>Loqo (şəkil faylı)</span><input type="file" id="lkLogo" accept="image/*"></label>${L.logo?sel("logoM","Başlıqda"):""}</div>
+      ${L.logo?`<div style="display:flex;gap:10px;align-items:center"><img src="${L.logo}" alt="" style="height:40px;max-width:160px;object-fit:contain;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff"><button type="button" class="btn sm" id="lkLogoDel">Loqonu sil</button></div>`:""}
+      <div class="actions" style="margin-top:4px"><button type="button" class="btn" id="lkReset">Standart görünüşə qaytar</button></div></div>`;
+    if(old)old.outerHTML=h;else m.insertAdjacentHTML("beforeend",h);
+    const save=(L2,redraw)=>{if(!put(L2)){toast("Yadda saxlamaq alınmadı — şəkil çox böyükdür");return}apply();if(redraw)card(toast,esc)};
+    document.querySelectorAll("[data-lk]").forEach(x=>x.onchange=()=>{const L2=get();L2[x.dataset.lk]=x.value;save(L2,["bg","logoM"].includes(x.dataset.lk))});
+    document.querySelectorAll("[data-acc]").forEach(b=>b.onclick=()=>{const L2=get();L2.acc=b.dataset.acc;save(L2,true)});
+    const co=document.getElementById("lkColor");if(co)co.oninput=()=>{const L2=get();L2.acc="custom";L2.accC=co.value;save(L2,false)},co&&(co.onchange=()=>card(toast,esc));
+    const bg=document.getElementById("lkBg");if(bg)bg.onchange=async()=>{const f=bg.files[0];if(!f)return;try{const L2=get();L2.bgImg=await shrink(f,1600,"image/jpeg",0.72);save(L2,true);toast("Arxa fon şəkli qoyuldu")}catch(e){toast("Şəkil oxunmadı")}};
+    const op=document.getElementById("lkOp");if(op){op.oninput=()=>{const L2=get();L2.bgOp=op.value;put(L2);apply()};op.onchange=()=>card(toast,esc)}
+    const lg=document.getElementById("lkLogo");if(lg)lg.onchange=async()=>{const f=lg.files[0];if(!f)return;try{const L2=get();L2.logo=await shrink(f,320,"image/png");save(L2,true);toast("Loqo qoyuldu")}catch(e){toast("Şəkil oxunmadı")}};
+    const ld=document.getElementById("lkLogoDel");if(ld)ld.onclick=()=>{const L2=get();L2.logo="";save(L2,true)};
+    document.getElementById("lkReset").onclick=()=>{put({});apply();card(toast,esc);toast("Standart görünüş qaytarıldı")}}
+  function init(prefix){KEY=prefix+".look";apply();const t=document.getElementById("hTitle");if(t&&window.MutationObserver)new MutationObserver(()=>{if(get().logo&&!document.getElementById("zsLogo"))apply()}).observe(t.parentNode,{childList:true})}
+  return {init,apply,card,get}})();
+</script>
+<script>/* ZUVAND — ehtiyat nüsxə (backup): əl ilə və ya avtomatik (hər gün / həftə / ay); ZUVAND Servis-də bərpa */
+window.ZSBK=(function(){
+  let O=null,busy=false;
+  const LSg=k=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}},LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+  const K=s=>O.ls+".bk."+s;
+  const pad=n=>String(n).padStart(2,"0"),stamp=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"-"+pad(d.getHours())+pad(d.getMinutes());
+  const fmt=iso=>{if(!iso)return "—";const d=new Date(iso);return pad(d.getDate())+"."+pad(d.getMonth()+1)+"."+d.getFullYear()+" "+pad(d.getHours())+":"+pad(d.getMinutes())};
+  const FREQ=[["","Söndürülüb"],["d","Hər gün"],["w","Hər həftə"],["m","Hər ay"]];
+  function due(){const f=LSg(K("freq"));if(!f)return false;const l=LSg(K("last"));if(!l)return true;const a=new Date(l),n=new Date(),days=(n-a)/864e5;
+    if(f==="d")return a.toDateString()!==n.toDateString();if(f==="w")return days>=7-0.01;return a.getFullYear()!==n.getFullYear()||a.getMonth()!==n.getMonth()}
+  async function dirH(){try{return O.canDir()?await O.fidb("readonly",st=>st.get("bkroot"))||null:null}catch(e){return null}}
+  async function pickDir(){const h=await showDirectoryPicker({id:O.ls+"-bk",mode:"readwrite"});await O.fidb("readwrite",st=>st.put(h,"bkroot"));LSs(K("dir"),h.name);return h}
+  async function write(blob,name,silent){
+    const h=await dirH();
+    if(h){let p=await h.queryPermission({mode:"readwrite"});if(p!=="granted"&&!silent){try{p=await h.requestPermission({mode:"readwrite"})}catch(e){}}
+      if(p==="granted"){const fh=await h.getFileHandle(name,{create:true}),w=await fh.createWritable();await w.write(blob);await w.close();return h.name+"\\"+name}}
+    if(silent)return null;await O.saveFile(name,blob);return "Yükləmələr / paylaşım: "+name}
+  async function run(silent){if(busy)return;busy=true;const msg=t=>{const e=document.getElementById("bkMsg");if(e)e.textContent=t};
+    try{msg("Məlumatlar toplanır…");const data=await O.collect(!!LSg(K("ph"))&&!silent,(i,n)=>msg("Toplanır: "+i+" / "+n));
+      const B=Object.assign({kind:"zuvand-backup",app:O.app,v:1,at:new Date().toISOString(),by:O.who(),from:O.hub?"hub":"server"},data);
+      const name=O.file+"-ehtiyat-"+stamp(new Date())+".json",blob=new Blob([JSON.stringify(B)],{type:"application/json"});
+      const where=await write(blob,name,silent);
+      if(!where){busy=false;return false}
+      LSs(K("last"),B.at);O.toast("Ehtiyat nüsxə saxlanıldı: "+where+" ("+Math.round(blob.size/1024)+" KB)");msg("Saxlanıldı: "+where);busy=false;if(document.getElementById("bkCard"))card();return true}
+    catch(e){busy=false;msg("Alınmadı: "+(e&&e.message||e));if(!silent)O.toast("Ehtiyat nüsxə alınmadı: "+(O.err?O.err(e):(e&&e.message||e)));return false}}
+  /* automatic: when the time has come — silently into the chosen folder; otherwise a reminder (or a download on a computer) */
+  async function tick(){try{if(!O||!O.isAdmin()||!O.ready()||!due())return;const ok=await run(true);if(ok)return;
+      const t=new Date().toDateString();if(LSg(K("nag"))===t)return;LSs(K("nag"),t);
+      if(!O.mobile&&!O.canDir()){await run(false);return}
+      O.toast("Ehtiyat nüsxə vaxtıdır — Ayarlar → “Ehtiyat nüsxə” → “İndi çıxar”"+(O.canDir()?" (qovluq seçsəniz, sonra avtomatik yazılacaq)":""),9000)}catch(e){}}
+  async function restore(file){const msg=t=>{const e=document.getElementById("bkMsg");if(e)e.innerHTML=t};
+    let B;try{B=JSON.parse(await file.text())}catch(e){O.toast("Fayl oxunmadı — JSON ehtiyat nüsxəsi deyil");return}
+    const ok=O.accept(B);if(!ok){O.toast("Bu fayl "+O.title+" ehtiyat nüsxəsi deyil");return}
+    const box=document.getElementById("bkAsk");if(!box)return;
+    box.hidden=false;box.innerHTML=`<p style="margin:0 0 6px"><b>${O.esc(file.name)}</b> · ${fmt(B.at)}${B.by?" · "+O.esc(B.by):""}<br>${O.esc(ok)}</p><p class="note" style="margin:0 0 8px">${O.esc(O.restoreNote)}</p>
+      <div class="actions"><button class="btn pri" id="bkGo">Bəli, bərpa et</button><button class="btn" id="bkNo">Ləğv et</button></div>`;
+    document.getElementById("bkNo").onclick=()=>{box.hidden=true};
+    document.getElementById("bkGo").onclick=async()=>{box.hidden=true;busy=true;
+      try{const r=await O.restore(B,(i,n,t)=>msg((t||"Bərpa olunur")+": "+i+" / "+n));msg("Bərpa olundu: "+O.esc(r||""));O.toast("Ehtiyat nüsxə bərpa olundu"+(r?": "+r:""),8000)}
+      catch(e){msg("Bərpa alınmadı: "+O.esc(O.err?O.err(e):(e&&e.message||e)))}busy=false}}
+  function card(){const m=document.getElementById("main");if(!m)return;const old=document.getElementById("bkCard");
+    const adm=O.isAdmin(),f=LSg(K("freq"))||"",dn=LSg(K("dir")),last=LSg(K("last"));
+    const h=`<div class="card" id="bkCard" style="margin-top:12px"><h3>Ehtiyat nüsxə (backup)</h3>
+      ${adm?`<p class="note" style="margin:0 0 8px">${O.esc(O.what)} bir JSON faylına yazılır. Avtomatik rejimdə proqram açıq olanda vaxtı gələndə özü çıxarır${O.canDir()?" — seçilmiş qovluğa":""}. Fayl ZUVAND Servis-də “Ehtiyat nüsxədən bərpa et” ilə geri yüklənir.</p>
+      <div class="actions"><button class="btn pri" id="bkNow">İndi ehtiyat nüsxə çıxar</button>${O.canDir()?`<button class="btn" id="bkDir">${dn?"Qovluğu dəyiş":"Qovluq seç"}</button>`:""}</div>
+      <label class="f" style="max-width:320px"><span>Avtomatik ehtiyat nüsxə</span><select id="bkFreq">${FREQ.map(([k,l])=>`<option value="${k}"${k===f?" selected":""}>${l}</option>`).join("")}</select></label>
+      ${O.photos?`<label style="display:flex;gap:8px;align-items:center;cursor:pointer;margin:4px 0"><input type="checkbox" id="bkPh" style="width:16px;height:16px;min-height:0;margin:0"${LSg(K("ph"))?" checked":""}> Şəkilləri də daxil et (əl ilə çıxaranda; fayl xeyli böyük olur)</label>`:""}
+      <p class="note" style="margin:4px 0 0">Son ehtiyat nüsxə: <b>${fmt(last)}</b>${f?" · növbəti: "+(due()?"<b>indi</b>":({d:"sabah",w:"1 həftəyə",m:"gələn ay"})[f]):""}${O.canDir()?" · qovluq: <b>"+O.esc(dn||"seçilməyib (Yükləmələr qovluğu)")+"</b>":""}</p>`
+      :`<p class="note" style="margin:0">Ehtiyat nüsxəni yalnız rəhbər çıxara bilər.</p>`}
+      ${adm&&O.hub&&O.restore?`<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><b>Ehtiyat nüsxədən bərpa et</b><p class="note" style="margin:2px 0 6px">${O.esc(O.restoreHelp)}</p>
+        <label class="btn" style="display:inline-flex;align-items:center;cursor:pointer">Fayl seç (.json)<input type="file" id="bkFile" accept=".json,application/json" hidden></label><div id="bkAsk" class="banner" hidden style="margin-top:8px"></div></div>`:""}
+      <p class="note" id="bkMsg" style="margin:6px 0 0"></p></div>`;
+    if(old)old.outerHTML=h;else m.insertAdjacentHTML("beforeend",h);
+    const g=id=>document.getElementById(id);
+    if(g("bkNow"))g("bkNow").onclick=()=>run(false);
+    if(g("bkDir"))g("bkDir").onclick=async()=>{try{await pickDir();card();O.toast("Ehtiyat nüsxələr bu qovluğa yazılacaq")}catch(e){}};
+    if(g("bkFreq"))g("bkFreq").onchange=e=>{LSs(K("freq"),e.target.value);card();O.toast(e.target.value?"Avtomatik ehtiyat nüsxə: "+FREQ.find(x=>x[0]===e.target.value)[1].toLowerCase():"Avtomatik ehtiyat nüsxə söndürüldü");setTimeout(tick,1500)};
+    if(g("bkPh"))g("bkPh").onchange=e=>LSs(K("ph"),e.target.checked);
+    if(g("bkFile"))g("bkFile").onchange=e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)restore(f)}}
+  function init(o){O=o;setTimeout(tick,25000);setInterval(tick,30*60000)}
+  return {init,card,run,tick,due}})();
+</script>
+<script>/* UPS Servis: ehtiyat nüsxə — Ayarlarda kart, avtomatik rejim, ZUVAND Servis-də bərpa */
+(function(){try{
+  ZSBK.init({app:"ups-servis",ls:"ups",file:"UPS-Servis",title:"UPS Servis Jurnalı",hub:!!CFG.hub,photos:true,
+    what:"Bütün servis hesabatları (cihazlar, ölçmələr, işlər, imzalar), tapşırıqlar və ayarlar",
+    mobile:IS_APP||IS_MOBILE_WEB,isAdmin:()=>state.me.role==="admin"||!hasServer(),ready:()=>!!state.me.name,who:()=>state.me.name||"",
+    canDir:()=>canDir(),fidb:(m,f)=>fidb(m,f),saveFile:(n,b)=>saveFile(n,b),toast:(t,ms)=>toast(t,ms),esc:x=>esc(x),err:e=>(e&&(e.data&&e.data.error||e.message))||String(e),
+    collect:async(ph,prog)=>{const ids=[...new Set(listItems().map(s=>s.id))],out=[],photos={};let i=0;
+      for(const id of ids){i++;prog(i,ids.length);let r=state.reports[id];if(r&&r.sample)continue;try{if(!r||!realOf(r).devices)r=await getFull(id)}catch(e){r=null}if(!r)continue;r=clone(realOf(r));if(r.sample)continue;out.push(r);
+        if(ph)for(const d of (r.devices||[]))for(const p of (d.photos||[])){try{const x=await photoData(p);if(x)photos[p.id]=x}catch(e){}}}
+      return {reports:out,tasks:state.tasks||[],settings:state.settings||{},photos:ph?photos:undefined}},
+    accept:B=>B&&B.app==="ups-servis"&&Array.isArray(B.reports)?B.reports.length+" hesabat, "+(B.tasks||[]).length+" tapşırıq"+(B.photos?", "+Object.keys(B.photos).length+" şəkil":"")+".":"",
+    restoreHelp:"Google serverdəki və ya başqa kompüterdəki UPS Servis Jurnalından çıxarılmış ehtiyat nüsxəni bu ZUVAND Servis-ə yükləyir.",
+    restoreNote:"Hesabatlar bu serverə yazılır: eyni hesabat burada varsa, ehtiyat nüsxədəki ilə əvəz olunur (köhnə variant Versiyalarda qalır). Bərpadan əvvəl hazırkı məlumatların surəti serverin backup qovluğuna saxlanılır. Satış sənədləri yaradılmır — Satış və Anbarı ayrıca bərpa edin.",
+    restore:async(B,prog)=>{const R=B.reports||[],P=B.photos||{};let ok=0,bad=0,ph=0,tk=0;try{await api("bk_snapshot")}catch(e){}
+      for(let i=0;i<R.length;i++){prog(i+1,R.length,"Hesabatlar");let r;try{r=normalize(clone(R[i]))}catch(e){bad++;continue}
+        for(const d of (r.devices||[]))for(const p of (d.photos||[])){if(P[p.id]){PHOTO_CACHE[p.id]=P[p.id];try{await idbPut(p.id,P[p.id])}catch(e){}p.fid="";ph++}}
+        try{await uploadPhotos(r);await api("save",{report:r,summary:summaryOf(r),blocks:blocksOf(r),items:itemsOf(r),force:true,restore:true});state.reports[r.id]=r;state.remote[r.id]=summaryOf(r);state.pending.delete(r.id);saveLocalReports([r]);ok++}catch(e){bad++}}
+      savePending();const T=B.tasks||[];for(let i=0;i<T.length;i++){prog(i+1,T.length,"Tapşırıqlar");try{await api("task_save",{task:T[i]});tk++}catch(e){}}
+      try{await sync({all:true})}catch(e){}
+      return ok+" hesabat"+(bad?" ("+bad+" alınmadı)":"")+", "+tk+" tapşırıq"+(ph?", "+ph+" şəkil":"")}});
+  ZSLOOK.init("ups");
+  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{ZSBK.card()}catch(e){}return r};
+}catch(e){console.log("backup",e)}})();
 </script>
 </body>
 </html>

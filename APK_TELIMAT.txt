@@ -1,0 +1,25 @@
+﻿ZUVAND Servis — telefon (Android APK)
+======================================
+
+APK-nı GitHub pulsuz yığır (köhnə proqramlardakı kimi):
+
+1. github.com → New repository → ad: zuvand-servis → Public → Create.
+2. "uploading an existing file" → bu qovluqdakı BÜTÜN faylları sürükləyin
+   (index.html, config.js, satis-index.html, satis-config.js, favicon.ico, capacitor.config.json, package.json, debug.keystore,
+    icon-only.png, icon-foreground.png, icon-background.png, splash.png) → Commit changes.
+3. Add file → Create new file → ad sahəsinə dəqiq yazın:  .github/workflows/build-apk.yml
+   → build-apk.yml faylının məzmununu (Notepad ilə açıb) tam kopyalayıb yapışdırın → Commit changes.
+4. Actions bölməsi → yığım 5-8 dəqiqə → yaşıl ✓ → içəri girin → aşağıda Artifacts → APK zip-ini endirin.
+5. Zip-i açın, APK-nı telefona köçürüb quraşdırın ("naməlum mənbə" icazəsi soruşula bilər).
+
+İLK AÇILIŞ
+- Adınız, hub ünvanı (ofis kompüterindəki ACARLAR.txt: məs. 192.168.1.10:8787) və şəxsi açarınız.
+- Telefon ofis Wi-Fi-na qoşulu olmalıdır ki, ilk dəfə qoşulsun; sonra internetsiz də işləyir.
+
+YENİLƏMƏ
+- Yeni index.html və ya satis-index.html gələndə repoda köhnəsini onunla əvəz edin (Add file → Upload files) → APK yenidən yığılır,
+  telefonda köhnəsinin üstündən quraşdırın (məlumat qalır).
+
+SATIŞ · ANBAR · MÜHASİBAT
+- Eyni APK-dadır. Hansı bölmələri görəcəyinizi rəhbər Ayarlar → İşçilər cədvəlində işarələyir.
+- İnternet ünvanı (ofisdən kənarda): Ayarlar → Sinxronlaşma → "İnternet ünvanı" (məs. Tailscale 100.x.x.x:8787).
