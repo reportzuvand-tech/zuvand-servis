@@ -1,6 +1,78 @@
 <!doctype html>
 <html lang="az">
 <head>
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110401;window.ZS_APP="zs";(function(){
+/* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
+var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
+if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
+if(v<ZS_BUILD){if(v){localStorage.removeItem(K+".v")}return}if(v===ZS_BUILD)return;
+window.ZS_UPD_LOADING=1;document.write("<plaintext style=\"display:none\">");
+var bad=function(){try{localStorage.removeItem(K+".v")}catch(e){}L.reload()};
+var r=indexedDB.open("zsupd",1);r.onupgradeneeded=function(){r.result.createObjectStore("f")};r.onerror=bad;
+r.onsuccess=function(){try{var g=r.result.transaction("f").objectStore("f").get(ZS_APP);g.onerror=bad;g.onsuccess=function(){var x=g.result;
+if(x&&x.v===v&&x.html&&x.html.indexOf("ZS_BUILD="+v+";")>0&&x.html.indexOf('ZS_APP="'+ZS_APP+'"')>0){document.open();document.write(x.html);document.close()}else bad()}}catch(e){bad()}}}catch(e){}})();</script>
+<script>/* ZUVAND — proqramı yeniləmək: Ayarlar → "Yeniləmə". Telefon (APK) və Windows proqramı yeni versiyanı GitHub-dan yükləyir;
+   ZUVAND Servis kompüterində (hub) rəhbər hub-ı özü yeniləyir; Google və iPhone versiyaları həmişə son versiyadadır. */
+window.ZSUPD=(function(){
+  const RAW="https://raw.githubusercontent.com/reportzuvand-tech/";
+  const SRC={ups:["ups-servis/main/www/","version.json"],sa:["satis-anbar/main/","version.json"],zs:["zuvand-servis/main/","version.json"],zssa:["zuvand-servis/main/","version.json"]};
+  let O=null,info=null,busy=false;
+  const app=()=>window.ZS_APP||"",cur=()=>+window.ZS_BUILD||0,K=s=>"zsupd."+app()+"."+s;
+  const LSg=k=>{try{return localStorage.getItem(k)}catch(e){return null}},LSs=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
+  const L=location,packaged=()=>L.protocol==="file:"||!!window.Capacitor||(L.hostname==="localhost"&&!L.port);
+  const mode=()=>{if(packaged())return "app";if(O&&O.hub&&O.hub())return "hub";if(O&&O.gas&&O.gas())return "gas";if(/github\.io$/.test(L.hostname))return "pwa";return "web"};
+  const fmtV=v=>{v=String(v||"");return v.length>=10?v.slice(6,8)+"."+v.slice(4,6)+"."+v.slice(0,4)+" №"+(+v.slice(8)):(v||"—")};
+  const esc=x=>String(x==null?"":x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+  const toast=(t,ms)=>{try{O&&O.toast?O.toast(t,ms):0}catch(e){}};
+  function idb(fn){return new Promise((res,rej)=>{const r=indexedDB.open("zsupd",1);r.onupgradeneeded=()=>r.result.createObjectStore("f");r.onerror=()=>rej(r.error);
+    r.onsuccess=()=>{const tx=r.result.transaction("f","readwrite"),st=tx.objectStore("f");let out;Promise.resolve(fn(st)).then(x=>{out=x});tx.oncomplete=()=>res(out);tx.onerror=()=>rej(tx.error)}})}
+  async function getText(u){const r=await fetch(u+(u.includes("?")?"&":"?")+"t="+Date.now(),{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);return r.text()}
+  async function hubCall(action,d){const r=await fetch(L.origin+"/api",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({action,key:O.key?O.key():""},d||{}))});const j=await r.json();if(!j.ok)throw new Error(j.error||"server");return j}
+  /* is there a newer version? */
+  async function check(silent){const m=mode();try{
+      if(m==="app"){const s=SRC[app()];if(!s)return null;const j=JSON.parse(await getText(RAW+s[0]+s[1]));info={latest:+j.v||0,notes:j.notes||"",files:j.files||{},base:RAW+s[0]}}
+      else if(m==="hub"){if(!O.isAdmin())return null;const j=await hubCall("upd_check");info={latest:+j.latest||0,hubCur:+j.cur||0,notes:j.notes||""}}
+      else return null;
+      info.at=Date.now();LSs(K("seen"),String(info.latest));
+      const newer=m==="hub"?info.latest>info.hubCur:info.latest>cur();
+      if(newer&&silent)toast("Yeni versiya var ("+fmtV(info.latest)+") — Ayarlar → “Yeniləmə” → “Yenilə”",9000);
+      return info}catch(e){if(!silent)toast("Yeniləməni yoxlamaq alınmadı: "+(e&&e.message||e)+" (internet?)");return null}finally{if(document.getElementById("updCard"))card()}}
+  /* download and switch to the new version */
+  async function apply(){if(busy)return;busy=true;const msg=t=>{const e=document.getElementById("updMsg");if(e)e.textContent=t};
+    try{const m=mode();
+      if(m==="hub"){msg("Hub yenilənir…");const r=await hubCall("upd_apply");msg("Hub yeniləndi ("+fmtV(r.v)+") — yenidən başlayır…");
+        let n=0;const wait=async()=>{n++;try{const s=await fetch(L.origin+"/status?t="+Date.now(),{cache:"no-store"});if(s.ok&&n>2){L.reload();return}}catch(e){}if(n<40)setTimeout(wait,1500);else msg("Hub cavab vermir — Hub-ı əl ilə başladın")};setTimeout(wait,2500);return}
+      if(!info||!info.latest)await check(false);if(!info||!(info.latest>cur())){msg("Artıq son versiyadır");busy=false;return}
+      const v=info.latest,F=Object.entries(info.files||{});if(!F.length)throw new Error("versiya faylı natamamdır");
+      const got=[];for(let i=0;i<F.length;i++){const [a,f]=F[i];msg("Yüklənir: "+(i+1)+" / "+F.length);const html=await getText(info.base+f);
+        if(html.indexOf("ZS_BUILD="+v+";")<0||html.indexOf('ZS_APP="'+a+'"')<0)throw new Error("yüklənən fayl yoxlamadan keçmədi");got.push([a,html])}
+      await idb(st=>{got.forEach(([a,html])=>st.put({v,html,at:Date.now()},a))});
+      got.forEach(([a])=>{LSs("zsupd."+a+".v",String(v));try{sessionStorage.removeItem("zsupd."+a+".off")}catch(e){}});
+      msg("Yeni versiya quraşdırıldı — proqram yenidən açılır…");setTimeout(()=>L.reload(),900)}
+    catch(e){msg("Yeniləmə alınmadı: "+(e&&e.message||e));toast("Yeniləmə alınmadı: "+(e&&e.message||e))}finally{busy=false}}
+  async function revert(){const a=Object.keys(SRC).filter(k=>SRC[k][0]===(SRC[app()]||[])[0]);try{await idb(st=>{a.forEach(k=>st.delete(k))})}catch(e){}a.forEach(k=>LSs("zsupd."+k+".v",null));L.reload()}
+  function card(){const main=document.getElementById("main");if(!main||!O)return;const m=mode(),old=document.getElementById("updCard");
+    let body="";
+    if(m==="gas")body=`<p class="note" style="margin:0">Bu Google (veb) versiyasıdır — həmişə son versiya açılır, yeniləmək lazım deyil.</p>`;
+    else if(m==="pwa")body=`<p class="note" style="margin:0">iPhone versiyası özü yenilənir: proqramı tam bağlayıb yenidən açın. Versiya: <b>${fmtV(cur())}</b></p><div class="actions"><button class="btn" id="updReload">Yenidən yüklə</button></div>`;
+    else if(m==="web")body=`<p class="note" style="margin:0">Versiya: <b>${fmtV(cur())}</b></p>`;
+    else if(m==="hub"&&!O.isAdmin())body=`<p class="note" style="margin:0">Versiya: <b>${fmtV(cur())}</b>. ZUVAND Servis-i rəhbər yeniləyir.</p>`;
+    else{const latest=info&&info.latest,have=m==="hub"?(info&&info.hubCur)||cur():cur(),newer=latest&&latest>have,stored=m==="app"&&+LSg(K("v"))===cur();
+      body=`<p class="note" style="margin:0 0 8px">${m==="hub"?"Bu kompüterdəki ZUVAND Servis (hub) yeni versiyanı internetdən yükləyib özü yenidən başlayır. Telefonlardakı ZUVAND Servis proqramı öz Ayarlarından yenilənir.":"Yeni versiya çıxanda burada “Yenilə” düyməsi görünür — basın, proqram yeni versiyanı yükləyib yenidən açılır. APK və ya proqramı yenidən quraşdırmaq lazım deyil. İnternet yoxdursa, köhnə versiya işləməyə davam edir."}</p>
+        <p style="margin:0 0 8px">Hazırkı versiya: <b>${fmtV(have)}</b>${latest?` · son versiya: <b>${fmtV(latest)}</b>`:""}${info&&info.at?` <span class="note">(yoxlanıldı ${new Date(info.at).toLocaleTimeString().slice(0,5)})</span>`:""}</p>
+        ${newer?`<div class="banner" style="margin:0 0 8px"><b>Yeni versiya var.</b>${info.notes?"<br>"+esc(info.notes).replace(/\n/g,"<br>"):""}</div>`:latest?`<p class="note" style="margin:0 0 8px">✓ Son versiyadır.</p>`:""}
+        <div class="actions">${newer?`<button class="btn pri" id="updGo">Yenilə</button>`:""}<button class="btn" id="updChk">Yeniləməni yoxla</button>${stored?`<button class="btn ghost" id="updRev">Quraşdırılmış versiyaya qayıt</button>`:""}</div>`}
+    const h=`<div class="card" id="updCard" style="margin-top:12px"><h3>Yeniləmə</h3>${body}<p class="note" id="updMsg" style="margin:6px 0 0"></p></div>`;
+    if(old)old.outerHTML=h;else main.insertAdjacentHTML("beforeend",h);
+    const g=id=>document.getElementById(id);
+    if(g("updChk"))g("updChk").onclick=async()=>{g("updMsg").textContent="Yoxlanılır…";const r=await check(false);if(r&&g("updMsg")&&!g("updGo"))g("updMsg").textContent="Son versiyadır"};
+    if(g("updGo"))g("updGo").onclick=()=>apply();
+    if(g("updRev"))g("updRev").onclick=()=>revert();
+    if(g("updReload"))g("updReload").onclick=async()=>{try{const r=await navigator.serviceWorker.getRegistration();if(r)await r.update()}catch(e){}L.reload()}}
+  function init(o){O=o;const m=mode();if(m!=="app"&&m!=="hub")return;
+    const last=+LSg(K("chk"))||0;if(Date.now()-last>6*3600e3)setTimeout(()=>{if(navigator.onLine===false)return;if(m==="hub"&&!O.isAdmin())return;LSs(K("chk"),String(Date.now()));check(true)},20000)}
+  return {init,card,check,apply,revert,mode}})();
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ZUVAND Servis</title>
@@ -3235,7 +3307,8 @@ window.ZSBK=(function(){
       savePending();const T=B.tasks||[];for(let i=0;i<T.length;i++){prog(i+1,T.length,"Tapşırıqlar");try{await api("task_save",{task:T[i]});tk++}catch(e){}}
       try{await sync({all:true})}catch(e){}
       return ok+" hesabat"+(bad?" ("+bad+" alınmadı)":"")+", "+tk+" tapşırıq"+(ph?", "+ph+" şəkil":"")}});
-  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{ZSBK.card()}catch(e){}return r};
+  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}return r};
+  try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>!!state.me.boss||(!(typeof CFG!=="undefined"&&CFG.hub)&&state.me.role==="admin"),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}
   /* the "Ayarlar" button was bound to the old function at start-up */
   const hs=document.getElementById("hSettings");if(hs)hs.onclick=()=>renderSettings();
 }catch(e){console.log("backup",e)}})();
