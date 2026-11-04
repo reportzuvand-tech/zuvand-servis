@@ -211,6 +211,7 @@ function saHandle(db,u,action,p){
       vat:inQ.vat!==false,vatRate:old?saNum(old.vatRate):S.vat,terms:{},lines:[],updatedAt:now,by:u.name};
     if(inQ.showCode!==undefined)q.showCode=!!inQ.showCode;else if(old&&old.showCode!==undefined)q.showCode=old.showCode;
     if(inQ.showDesc!==undefined)q.showDesc=!!inQ.showDesc;else if(old&&old.showDesc!==undefined)q.showDesc=old.showDesc;
+    if(inQ.shortName!==undefined)q.shortName=!!inQ.shortName;else if(old&&old.shortName!==undefined)q.shortName=old.shortName;
     if(inQ.per!==undefined)q.per=saStr(inQ.per,60).trim();else if(old&&old.per)q.per=old.per;
     if(inQ.conId!==undefined)q.conId=saStr(inQ.conId,60);else if(old&&old.conId)q.conId=old.conId;
     if(old&&old.src)q.src=old.src;if(old&&old.billedIn)q.billedIn=old.billedIn;if(old&&old.bill)q.bill=old.bill;if(old&&old.fromInv)q.fromInv=old.fromInv;
