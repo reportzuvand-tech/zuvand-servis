@@ -175,6 +175,25 @@ function updRestart() {
 }
 const ACTIONS = {
   ping: (u) => who(u),
+  /* the manager corrects a customer's name everywhere: service reports, the customer base and Satış və Anbar (sales, invoices, contracts, moves) */
+  client_rename: (u, b) => {
+    needBoss(u); const from = String(b.from || "").trim(), to = String(b.to || "").trim(), dry = !!b.dry; if (!from || !to) err("bad_name");
+    const core = x => lc(x).replace(/\u0307/g, "").replace(/ı/g, "i").replace(/ə/g, "e").replace(/ö/g, "o").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ç/g, "c").replace(/ğ/g, "g")
+      .replace(/[^a-z0-9]+/g, " ").replace(/\b(mmc|asc|qsc|ojsc|llc|ltd|mehdud mesuliyyetli cemiyyeti|aciq sehmdar cemiyyeti|qapali sehmdar cemiyyeti)\b/g, " ").replace(/\s+/g, " ").trim();
+    const nf = core(from); if (!nf) err("bad_name");
+    const hit = x => !!String(x || "").trim() && core(x) === nf && String(x).trim() !== to;
+    const names = {}, seen = x => { const k = String(x).trim(); names[k] = (names[k] || 0) + 1 }; let n = 0, nc = 0;
+    for (const rec of reports.values()) {
+      const cl = rec.report.cl || {}, mc = hit(cl.name), mp = hit(cl.payer); if (!mc && !mp) continue;
+      n++; seen(mc ? cl.name : cl.payer); if (dry) continue;
+      keepVersion(rec); if (mc) { cl.name = to; if (rec.summary) rec.summary.client = to } if (mp) { cl.payer = to; if (rec.summary) rec.summary.payer = to }
+      rec.report.updatedAt = now(); if (rec.summary) rec.summary.updatedAt = rec.report.updatedAt; saveReport(rec);
+    }
+    customers.forEach(c => { if (hit(c.name)) { nc++; seen(c.name); if (!dry) c.name = to } }); if (!dry && nc) writeJSON(P("customers.json"), customers);
+    let sa = null; try { sa = SAM.run({ name: u.name, role: "admin" }, "renameClient", { from, to, dry }) } catch (e) { sa = { error: e.code || e.message } }
+    if (!dry) log(u, "client-rename", from + " → " + to + " (" + n + " hesabat)");
+    return { reports: n, customers: nc, names, sa, dry };
+  },
   upd_check: async (u) => { needBoss(u); const j = await updVersion(); return { cur: updCur(), latest: +j.v || 0, notes: j.notes || "" } },
   upd_apply: async (u) => { needBoss(u); return await updApply() },
 

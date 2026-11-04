@@ -546,6 +546,19 @@ function saHandle(db,u,action,p){
     var row=(lc.plist||[])[Math.round(saNum(p.k))];if(!row)saErr("notfound");var fk=saFakeSn(lc.plist),sn0=String(row.sn||"").toLowerCase().replace(/\s+/g,""),nsn=saStr(p.sn,80).trim();
     if(nsn&&saRowCap(row)===1&&(!sn0||fk[sn0])){row.sn=nsn;lc.hist=(lc.hist||[]).slice(-49);lc.hist.push({at:now,by:u.name,what:"cihaz öyrənildi: "+row.name+" → SN "+nsn});lc.updatedAt=now;lc.by=u.name;ch.contracts.push(lc)}
     return {res:{contract:lc},ch:ch}}
+  /* the manager corrects a customer's name everywhere (sales, invoices, contracts, warehouse moves); the old spelling stays as an alias of the contract */
+  case "renameClient":{need(SA_CAN.admin(role));var rf=saStr(p.from,200).trim(),rt=saStr(p.to,200).trim(),rdry=!!p.dry;if(!rf||!rt)saErr("bad_name");
+    var core=function(x){return saNormName(x).replace(/\b(mmc|asc|qsc|ojsc|llc|ltd|mehdud mesuliyyetli cemiyyeti|aciq sehmdar cemiyyeti|qapali sehmdar cemiyyeti)\b/g," ").replace(/\s+/g," ").trim()},nf=core(rf);if(!nf)saErr("bad_name");
+    var hit=function(x){return !!String(x||"").trim()&&core(x)===nf&&String(x).trim()!==rt},cnt={quotes:0,invoices:0,contracts:0,moves:0},names={},seen=function(x){names[String(x).trim()]=(names[String(x).trim()]||0)+1};
+    db.quotes.forEach(function(q){var c=0;if(q.cl&&hit(q.cl.name)){c=1;seen(q.cl.name);if(!rdry)q.cl.name=rt}if(q.src&&hit(q.src.site)){c=1;if(!rdry)q.src.site=rt}
+      if(c){cnt.quotes++;if(!rdry){q.updatedAt=now;q.by=u.name;q.hist=(q.hist||[]).slice(-39);q.hist.push({at:now,by:u.name,st:"renamed",what:"müştəri adı: "+rt});ch.quotes.push(q)}}});
+    db.invoices.forEach(function(v){if(hit(v.supplier)){cnt.invoices++;seen(v.supplier);if(!rdry){v.supplier=rt;v.updatedAt=now;v.by=u.name;ch.invoices.push(v)}}});
+    db.contracts.forEach(function(c){var k=0;if(hit(c.client)){k=1;seen(c.client);if(!rdry){var al=String(c.aliases||"").split(/[,;\n]/).map(function(x){return x.trim()}).filter(Boolean);
+        if(!al.some(function(x){return x===c.client}))al.push(c.client);c.client=rt;c.aliases=al.join(", ")}}
+      var st=String(c.sites||"").split("\n");if(st.some(hit)){k=1;if(!rdry)c.sites=st.map(function(x){return hit(x)?rt:x}).join("\n")}
+      if(k){cnt.contracts++;if(!rdry){c.updatedAt=now;c.by=u.name;c.hist=(c.hist||[]).slice(-49);c.hist.push({at:now,by:u.name,what:"müştəri adı dəyişdirildi: "+rt});ch.contracts.push(c)}}});
+    db.moves.forEach(function(m){if(hit(m.party)){cnt.moves++;seen(m.party);if(!rdry){m.party=rt;ch.moves.push(m)}}});
+    return {res:{counts:cnt,names:names,dry:rdry},ch:ch}}
   case "mergeSvc":{need(SA_CAN.quote(role)||SA_CAN.contract(role));var ms=quoteById(p.id),mt=quoteById(p.target);
     if(!ms||ms.del||!ms.src||ms.src.type!=="service"||!mt||mt.del||mt.id===ms.id)saErr("notfound");
     if((ms.bill&&ms.bill.st)||ms.billedIn||mt.status==="rejected"||(mt.bill&&mt.bill.st==="paid")||mt.billedIn)saErr("locked");
