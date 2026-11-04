@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110403;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110405;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -660,6 +660,7 @@ function saHandle(db,u,action,p){
       vat:inQ.vat!==false,vatRate:old?saNum(old.vatRate):S.vat,terms:{},lines:[],updatedAt:now,by:u.name};
     if(inQ.showCode!==undefined)q.showCode=!!inQ.showCode;else if(old&&old.showCode!==undefined)q.showCode=old.showCode;
     if(inQ.showDesc!==undefined)q.showDesc=!!inQ.showDesc;else if(old&&old.showDesc!==undefined)q.showDesc=old.showDesc;
+    if(inQ.shortName!==undefined)q.shortName=!!inQ.shortName;else if(old&&old.shortName!==undefined)q.shortName=old.shortName;
     if(inQ.per!==undefined)q.per=saStr(inQ.per,60).trim();else if(old&&old.per)q.per=old.per;
     if(inQ.conId!==undefined)q.conId=saStr(inQ.conId,60);else if(old&&old.conId)q.conId=old.conId;
     if(old&&old.src)q.src=old.src;if(old&&old.billedIn)q.billedIn=old.billedIn;if(old&&old.bill)q.bill=old.bill;if(old&&old.fromInv)q.fromInv=old.fromInv;
@@ -1686,7 +1687,8 @@ function renderQuote(){const q=state.cur;if(!q){go("quotes");return}const ed=can
     h+=`<div class="cols2"><div class="col"><div class="card"><h3>Kataloqdan əlavə et</h3><input type="search" id="addq" placeholder="Ad, kod, brend və ya model yazın…" autocomplete="off"><div class="results" id="addRes"></div>
       <button class="btn" id="addFree">+ Sərbəst sətir (kataloqda olmayan)</button>
       <p class="note" style="margin:0"><b>Mal</b> — anbardan rezerv və məxaric olunur. <b>Xidmət</b> (quraşdırma, rəf hazırlanması, işçilik) — anbara düşmür, iş görüləndə “icra olundu” qeyd edilir. Sərbəst sətir standart olaraq “Xidmət” olur.</p></div>
-      <div class="card"><h3>Sətirlər · ${q.lines.length}</h3><label style="display:flex;gap:8px;align-items:center;margin:-4px 0 10px;cursor:pointer;font-size:14px"><input type="checkbox" id="descOn" style="width:18px;height:18px;min-height:0;margin:0"${qShowDesc(q)?" checked":""}${ed?"":" disabled"}> Təsviri təklifdə göstər <span class="note">(obyekt, seriya № və s. — işarəsiz olanda təklifdə təsvir boş qalır)</span></label><div style="display:grid;gap:10px" id="lines">${linesHTML()}</div></div></div>
+      <div class="card"><h3>Sətirlər · ${q.lines.length}</h3><label style="display:flex;gap:8px;align-items:center;margin:-4px 0 10px;cursor:pointer;font-size:14px"><input type="checkbox" id="descOn" style="width:18px;height:18px;min-height:0;margin:0"${qShowDesc(q)?" checked":""}${ed?"":" disabled"}> Təsviri təklifdə göstər <span class="note">(obyekt, seriya № və s. — işarəsiz olanda təklifdə təsvir boş qalır)</span></label>
+        <label style="display:flex;gap:8px;align-items:center;margin:-4px 0 10px;cursor:pointer;font-size:14px"><input type="checkbox" id="shortOn" style="width:18px;height:18px;min-height:0;margin:0"${qShortName(q)?" checked":""}${ed?"":" disabled"}> Adlarda “Texniki xidmət —”, seriya № və yeri göstərmə <span class="note">(təklifdə yalnız cihazın adı qalır, məs. “Siemens Masterguard 100KVA markalı UPS”)</span></label><div style="display:grid;gap:10px" id="lines">${linesHTML()}</div></div></div>
       <div class="col"><div class="card" id="totals">${totalsHTML()}</div>${can("seeCost")?`<div class="card" id="margin">${marginHTML()}</div>`:""}</div></div>
       <div class="nextbar"><button class="btn" data-goto="cl">← Müştəri</button><button class="btn pri" data-goto="terms">Şərtlər →</button></div>`}
   if(t==="terms"){
@@ -1715,6 +1717,7 @@ function bindQuote(){const q=state.cur;
   const aq=$("#addq");if(aq){aq.oninput=()=>searchItems(aq.value);aq.onkeydown=e=>{if(e.key==="Enter"){const f=$("#addRes .res");if(f)f.click()}}}
   const af=$("#addFree");if(af)af.onclick=()=>{q.lines.push({id:saId("l"),itemId:"",code:"",name:"",desc:"",unit:"xidmət",qty:1,price:0,disc:0,t:"xid"});markDirty();redrawLines(true);toast("Sərbəst sətir “Xidmət” kimi əlavə olundu — mal üçün “Mal” seçin")};
   bindLines();bindVat();bindBill(q);bindSaleCon(q);bindVia(q);
+  {const so=$("#shortOn");if(so)so.onchange=()=>{q.shortName=so.checked;LS.set("sa.shortname",so.checked);markDirty();toast(so.checked?"Təklifdə qısa adlar göstəriləcək":"Təklifdə tam adlar göstəriləcək")}}
   {const dc=$("#descOn");if(dc)dc.onchange=()=>{q.showDesc=dc.checked;LS.set("sa.showdesc",dc.checked);markDirty();toast(dc.checked?"Təsvir təklifdə göstəriləcək":"Təsvir təklifdə göstərilməyəcək")}}
   const bp=$("#bPdf");if(bp)bp.onclick=exportPdf;const pr=$("#bPrint");if(pr)pr.onclick=printQuote;
   const bx=$("#bXls");if(bx)bx.onclick=exportQuoteXlsx;const bfo=$("#bFolder");if(bfo)bfo.onclick=()=>openSaved(q);const btr=$("#bTr");if(btr)btr.onclick=()=>trPanel(q);
@@ -1868,6 +1871,13 @@ function perOptions(d){const y=+(String(d||today()).slice(0,4))||new Date().getF
   SA_MONTHS.forEach(m=>o.push(m+" "+y));o.push(y+" — I yarımil",y+" — II yarımil",y+"-ci il");return o}
 const qShowDesc=q=>q.showDesc!==undefined?!!q.showDesc:LS.get("sa.showdesc")!==false;
 const qShowCode=q=>q.showCode!==undefined?!!q.showCode:!!(LS.get("sa.showcode")||{})[q.id];
+const qShortName=q=>q.shortName!==undefined?!!q.shortName:LS.get("sa.shortname")===true;
+function shortLineName(n){let s=String(n||"");if(/müqavilə/i.test(s)&&!/SN/.test(s))return s;const svc=/^\s*(Texniki xidmət|Servis xidməti)\s*[—–-]\s*/i.test(s);
+  s=s.replace(/^\s*(Texniki xidmət|Servis xidməti)\s*[—–-]\s*/i,"");const sn=/\(\s*(SN|S\/N|Seriya)/i.test(s)||/\bSN\s*[:№]?\s*\w/.test(s);
+  s=s.replace(/\s*\(\s*(SN|S\/N|Seriya\s*№?)[^)]*\)/gi,"").replace(/[,;·]?\s*\bSN\s*[:№]?\s*[\w\-\/.]+/g,"");
+  if(svc||sn){const k=Math.max(s.lastIndexOf(" — "),s.lastIndexOf(" – "),s.lastIndexOf(" - "));if(k>0)s=s.slice(0,k)}
+  return s.replace(/\s{2,}/g," ").trim()||String(n||"")}
+const qLineName=(q,l)=>qShortName(q)?shortLineName(l.name):l.name;
 function marginHTML(){const q=state.cur,I=itemsById();let cost=0,miss=0,mal=0,xid=0;
   q.lines.forEach(l=>{const ty=saLineType(l,I),lc=lineCost(l,I),sum=saLineSum(l);if(ty==="mal")mal+=sum;else xid+=sum;if(lc>0)cost+=saNum(l.qty)*lc;else if(ty==="mal")miss++});
   const net=saTotals(q).net,pr=net-cost,mg=net?pr/net*100:0;
@@ -1881,7 +1891,7 @@ function paperHTML(q,lang){const prevDL=DL;DL=lang||qLang(q);try{return paperHTM
 function paperHTML0(q){const S=state.settings,T=saTotals(q),hasDisc=q.lines.some(l=>saNum(l.disc)>0),dash=v=>v?esc(v):"—",E=v=>esc(F(v));
   const coLine=[S.coaddr,S.cotel&&L("Tel:")+" "+S.cotel,S.coemail,S.covoen&&L("VÖEN:")+" "+S.covoen].filter(Boolean).map(esc).join(" · ");
   const I0=itemsById(),cols=hasDisc?7:6,typed=q.lines.map(l=>({l,t:saLineType(l,I0)})),two=typed.some(x=>x.t==="mal")&&typed.some(x=>x.t==="xid");
-  const row=(l,i)=>`<tr><td class="c">${i+1}</td><td><b>${E(l.name)}</b>${l.code&&qShowCode(q)?` <span class="c">${esc(l.code)}</span>`:""}${l.desc&&qShowDesc(q)?`<span class="d">${E(l.desc)}</span>`:""}</td><td class="c">${esc(U(l.unit))}</td><td class="r num">${qf(l.qty)}</td><td class="r num">${money(l.price)}</td>${hasDisc?`<td class="r num">${saNum(l.disc)?qf(l.disc)+"%":""}</td>`:""}<td class="r num">${money(saLineSum(l))}</td></tr>`;
+  const row=(l,i)=>`<tr><td class="c">${i+1}</td><td><b>${E(qLineName(q,l))}</b>${l.code&&qShowCode(q)?` <span class="c">${esc(l.code)}</span>`:""}${l.desc&&qShowDesc(q)?`<span class="d">${E(l.desc)}</span>`:""}</td><td class="c">${esc(U(l.unit))}</td><td class="r num">${qf(l.qty)}</td><td class="r num">${money(l.price)}</td>${hasDisc?`<td class="r num">${saNum(l.disc)?qf(l.disc)+"%":""}</td>`:""}<td class="r num">${money(saLineSum(l))}</td></tr>`;
   let rows;if(two){let k=0;const part=(t,title,sub)=>{const LL=typed.filter(x=>x.t===t).map(x=>x.l),sum=saR2(LL.reduce((a,l)=>a+saLineSum(l),0));
       return `<tr class="qsec"><td colspan="${cols}">${L(title)}<span>${L(sub)}</span></td></tr>`+LL.map(l=>row(l,k++)).join("")+`<tr class="qsub"><td colspan="${cols-1}" class="r">${L(t==="mal"?"Mallar üzrə cəmi":"Xidmətlər üzrə cəmi")}</td><td class="r num">${money(sum)}</td></tr>`};
     rows=part("mal","A. Mallar","anbardan təhvil verilir")+part("xid","B. Xidmətlər (işçilik)","yerində icra olunur")}
@@ -2055,7 +2065,7 @@ async function quoteXlsx(q){const prev=DL;DL=qLang(q);try{const S=state.settings
   r++;merge(r,L("Hörmətli")+" "+(q.cl.person||L("cənab / xanım"))+", "+L("intro"),{alignment:{wrapText:true},font:{size:10}});ws.getRow(r).height=30;r+=2;
   const hr=ws.getRow(r);C.forEach((h,k)=>{const c=hr.getCell(k+1);c.value=h+(q.vat&&k===4?" "+L("(ƏDV-siz)"):"");c.font={bold:true,color:{argb:"FFFFFFFF"},size:10};c.fill={type:"pattern",pattern:"solid",fgColor:{argb:GREEN}};c.alignment={horizontal:"center",vertical:"middle",wrapText:true};c.border=box});hr.height=30;r++;
   const typed=q.lines.map(l=>({l,t:saLineType(l,I0)})),two=typed.some(x=>x.t==="mal")&&typed.some(x=>x.t==="xid");let n=0;
-  const line=l=>{const R=ws.getRow(r);const v=[++n,F(l.name)+(l.code&&qShowCode(q)?"  ["+l.code+"]":"")+(l.desc&&qShowDesc(q)?"\n"+F(l.desc):""),U(l.unit),saNum(l.qty),saNum(l.price),...(hasDisc?[saNum(l.disc)?saNum(l.disc)/100:null]:[]),saLineSum(l)];
+  const line=l=>{const R=ws.getRow(r);const v=[++n,F(qLineName(q,l))+(l.code&&qShowCode(q)?"  ["+l.code+"]":"")+(l.desc&&qShowDesc(q)?"\n"+F(l.desc):""),U(l.unit),saNum(l.qty),saNum(l.price),...(hasDisc?[saNum(l.disc)?saNum(l.disc)/100:null]:[]),saLineSum(l)];
     v.forEach((x,k)=>{const c=R.getCell(k+1);c.value=x;c.border=box;c.alignment={vertical:"top",wrapText:k===1,horizontal:k===1?"left":k===2||k===0?"center":"right"};c.font={size:10}});
     R.getCell(4).numFmt="#,##0.##";R.getCell(5).numFmt="#,##0.00";if(hasDisc)R.getCell(6).numFmt="0%";R.getCell(N).numFmt="#,##0.00";
     const lines=Math.ceil(String(v[1]).length/(hasDisc?58:64))+String(v[1]).split("\n").length-1;R.height=Math.max(16,15*lines);r++};
@@ -2420,6 +2430,16 @@ async function pickQuote(id){MF.quoteId=id;const rem=state.remaining[id],q=state
   MF.lines=Object.keys(MF.rem).filter(k=>MF.rem[k].left>0).map(k=>({itemId:k,qty:qf(Math.min(MF.rem[k].left,Math.max(0,stk(k).q))),cost:""}))}
 
 /* ================= settings ================= */
+async function svcSyncCard(){const m=document.getElementById("main");if(!m||!can("admin")||isDemo()||CFG.hub)return;
+  const id="svcSyncCard";let box=document.getElementById(id);if(!box){m.insertAdjacentHTML("beforeend",`<div class="card" id="${id}" style="margin-top:12px"><h3>Servis hesabatlarının yoxlanması</h3><p class="note" style="margin:0">Yüklənir…</p></div>`);box=document.getElementById(id)}
+  let g;try{g=await api("svcSync_get")}catch(e){box.innerHTML=`<h3>Servis hesabatlarının yoxlanması</h3><p class="note" style="margin:0">Server bu ayarı hələ tanımır — Google serverdə Code.gs-i yeniləyin (New version).</p>`;return}
+  const cur=g.on?g.min:0,opts=[[0,"Söndürülüb (yalnız “İndi yoxla” ilə)"]].concat((g.mins||[5,10,15,30]).map(x=>[x,"Hər "+x+" dəqiqədən bir"]));
+  box.innerHTML=`<h3>Servis hesabatlarının yoxlanması</h3><p class="note" style="margin:0 0 8px">Rəhbərin təsdiqlədiyi servis hesabatları Satış və Anbar-a bu aralıqla avtomatik düşür (proqram bağlı olsa da). Dərhal lazımdırsa: Müştərilər və müqavilələr → “Servis hesabatlarını indi yoxla”.</p>
+   <label class="f" style="max-width:340px"><span>Yoxlama aralığı</span><select id="svcMin">${opts.map(([v,l])=>`<option value="${v}"${v===cur?" selected":""}>${esc(l)}</option>`).join("")}</select></label>
+   <p class="note" style="margin:4px 0 0">Google pulsuz hesabda gündəlik iş vaxtı limiti var — 5 dəqiqədən tez qoymaq olmur.</p><p class="note" id="svcMinMsg" style="margin:4px 0 0"></p>`;
+  document.getElementById("svcMin").onchange=async e=>{const msg=document.getElementById("svcMinMsg");msg.textContent="Saxlanılır…";
+    try{const r=await api("svcSync_set",{min:+e.target.value});msg.textContent=r.on?"Saxlanıldı: hər "+r.min+" dəqiqədən bir yoxlanılacaq":"Avtomatik yoxlama söndürüldü";toast(msg.textContent)}
+    catch(x){msg.textContent="Alınmadı: "+(x&&x.message||x)}}}
 function renderSettings(){state.view="settings";subPage(homeView());header();const S=state.settings,adm=can("admin"),demo=isDemo();
   const sf=(k,l,o={})=>o.ta?`<label class="f"><span>${l}</span><textarea data-s="${k}" rows="${o.rows||2}"${adm?"":" disabled"}>${esc(S[k])}</textarea></label>`:`<label class="f"><span>${l}</span><input data-s="${k}"${o.num?' class="num" inputmode="decimal"':""} value="${esc(S[k])}"${adm?"":" disabled"}></label>`;
   $("#main").innerHTML=`<h2 class="sec">Ayarlar</h2><p class="hint">Rolunuz: <span class="who">${esc(saRoleLabel(role()))}</span>${demo?' <span class="who demo">demo rejimi — məlumatlar yalnız bu cihazdadır</span>':""}</p>
@@ -3650,7 +3670,7 @@ window.ZSBK=(function(){
     restore:async(B,prog)=>{prog(1,1,"Göndərilir");const r=await api("restoreAll",{db:B.db});
       state.local={};state.pending.clear();try{saveLocal()}catch(e){}state.outbox=[];try{saveOutbox()}catch(e){}state.lastSync=0;try{saveCache()}catch(e){}
       try{await sync()}catch(e){}const n=r.restored||{};return `${n.items||0} mal, ${n.quotes||0} sənəd, ${n.invoices||0} qaimə, ${n.contracts||0} müqavilə, ${n.moves||0} hərəkət`}});
-  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}return r};
+  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{svcSyncCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}return r};
   try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>can("admin"),hub:()=>!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}
 }catch(e){console.log("look/backup",e)}})();
 </script>
