@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110402;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110403;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -376,7 +376,7 @@ const UPS_CHK_V1=["UPS-in ümumi vizual vəziyyəti","Ekran / panel göstəricil
 const UPS_CHK_REN={"DC kondensatorlar (şişmə / axma)":"DC kondensatorlar"};
 const UPS_WORKS_V1=["Daxili və xarici təmizlik (tozun təmizlənməsi)","Ventilyatorların yoxlanılması / dəyişdirilməsi","Güc klemmələrinin bərkidilməsi","Parametrlərin və kalibrovkanın yoxlanılması","Proqram təminatının (firmware) yenilənməsi","Hadisə jurnalının oxunması və təhlili","Akkumulyatorların gərginlik və daxili müqavimət ölçümü","Akkumulyator boşalma (avtonomluq) testi","Bypass keçid testi","Hava filtrlərinin təmizlənməsi / dəyişdirilməsi"];
 const UPS_WORKS_REN={"Güc klemmələrinin bərkidilməsi":"Bağlantı kabellərinin bərkidilməsi"};
-const UPS_PF=["0,8","0,9","1"];
+const UPS_PF=["0,7","0,8","0,9","1"];
 const TYPES={
  ups:{title:"UPS cihazı",short:"UPS",label:"UPS (fasiləsiz enerji mənbəyi)",hasBat:true,
   info:[["brand","Marka"],["model","Model"],["sn","Seriya №"],["kva","Güc, kVA",{n:1}],["kw","Güc, kW",{n:1}],["pf","Güc əmsalı (PF)",{sel:UPS_PF}],["topo","Topologiya",{sel:TOPO}],["phase","Faza (giriş/çıxış)",{sel:PHASE}],["fw","Firmware"],["inst","Quraşdırma tarixi",{date:1}],["year","İstehsal ili",{sel:YEARS}],["hours","İş saatı / sayğac"]],
@@ -1426,7 +1426,9 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
   else if(b.id==="kitStd"){const B=state.cur.bat||{},n=(num(B.per)||0)*(num(B.str)||1);(X.kit=X.kit||[]);
     [...(n&&bMulti(B)?(()=>{const G={},p=Math.floor(num(B.per))||0,ns=Math.floor(num(B.str))||0;for(let k=1;k<=ns;k++){const g=gBrand(B,k);G[g]=(G[g]||0)+p}return Object.entries(G).map(([g,c])=>["Akkumulyator "+[g,B.nom?B.nom+"V":"",B.ah?B.ah+"Ah":""].filter(Boolean).join(" "),String(c)])})():[[n?"Akkumulyator "+[B.brand,B.nom?B.nom+"V":"",B.ah?B.ah+"Ah":""].filter(Boolean).join(" "):"",n?String(n):""]]),["Akkumulyator rəfi / kabineti","1"],["Akkumulyator birləşdirici kabelləri (dəst)","1"],["İstifadəçi təlimatı və pasport","1"],["Zəmanət talonu","1"]].forEach(([nm,q])=>{if(nm&&!X.kit.some(k=>k.name===nm))X.kit.push({name:nm,sn:"",qty:q})})}
   markDirty();renderEditor();window.scrollTo(0,y)});
-document.addEventListener("input",e=>{const p=e.target.dataset&&e.target.dataset.path;if(!p||!state.cur||lockedRep(state.rep))return;setP(state.cur,p,e.target.value);markDirty();live()});
+document.addEventListener("input",e=>{const p=e.target.dataset&&e.target.dataset.path;if(!p||!state.cur||lockedRep(state.rep))return;setP(state.cur,p,e.target.value);
+  if(p==="ups.kva"||p==="ups.pf"){const u=state.cur.ups,k=num(u.kva),f=num(String(u.pf||"").replace(",","."));if(k&&f){u.kw=String(Math.round(k*f*10)/10);const el=document.getElementById("f-ups-kw");if(el&&el!==e.target)el.value=u.kw}}
+  markDirty();live()});
 document.addEventListener("change",e=>{if(e.target.dataset&&e.target.dataset.chart&&state.cur&&!lockedRep(state.rep)){state.cur.bat[e.target.dataset.chart]=e.target.checked?"1":"0";markDirty();return}
   if(e.target.id==="batMulti"&&state.cur&&!lockedRep(state.rep)){const B=state.cur.bat;B.multi=e.target.checked?"1":"";if(B.multi&&!B.gbrand)B.gbrand=[];markDirty();const y=window.scrollY;renderEditor();window.scrollTo(0,y);return}
   if(e.target.id==="f-bat-vmode"&&state.cur){setTimeout(()=>{const y=window.scrollY;renderEditor();window.scrollTo(0,y)},0)}
@@ -1434,7 +1436,7 @@ document.addEventListener("change",e=>{if(e.target.dataset&&e.target.dataset.cha
   if(e.target.id==="batMid"&&state.cur&&!lockedRep(state.rep)){state.cur.bat.mid=e.target.checked;autoLimits(state.cur);markDirty();live();return}
   const p=e.target.dataset&&e.target.dataset.path;if(!p||!state.cur||lockedRep(state.rep))return;setP(state.cur,p,e.target.value);
   {const mm=/^meas\.(\d+)\.(min|max)$/.exec(p);if(mm)state.cur.meas[+mm[1]].man=1}
-  if(/^(ups\.(kva|kw|pf|phase)|bat\.(per|str|nom|ah))$/.test(p)){if(p==="ups.pf"||p==="ups.kva"){const u=state.cur.ups,k=num(u.kva),f=num(String(u.pf||"").replace(",","."));if(k&&f&&!num(u.kw)){u.kw=String(Math.round(k*f*10)/10);const el=document.getElementById("f-ups-kw");if(el)el.value=u.kw}}autoLimits(state.cur)}
+  if(/^(ups\.(kva|kw|pf|phase)|bat\.(per|str|nom|ah))$/.test(p)){if(p==="ups.pf"||p==="ups.kva"){const u=state.cur.ups,k=num(u.kva),f=num(String(u.pf||"").replace(",","."));if(k&&f){u.kw=String(Math.round(k*f*10)/10);const el=document.getElementById("f-ups-kw");if(el)el.value=u.kw}}autoLimits(state.cur)}
   if(p==="svc.repno"){const R=realOf(state.rep);R.svc.repnoAuto=!String(e.target.value).trim();if(R.svc.repnoAuto){applyRepNo(R);e.target.value=R.svc.repno}}
   else if(p==="svc.type"||p==="svc.date"||p==="svc.interval"){const R=realOf(state.rep);applyRepNo(R);const f=document.getElementById("f-svc-repno");if(f)f.value=R.svc.repno||""}
   markDirty();live()});
