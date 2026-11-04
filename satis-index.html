@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110405;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110506;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -995,6 +995,16 @@ function saHandle(db,u,action,p){
     var row=(lc.plist||[])[Math.round(saNum(p.k))];if(!row)saErr("notfound");var fk=saFakeSn(lc.plist),sn0=String(row.sn||"").toLowerCase().replace(/\s+/g,""),nsn=saStr(p.sn,80).trim();
     if(nsn&&saRowCap(row)===1&&(!sn0||fk[sn0])){row.sn=nsn;lc.hist=(lc.hist||[]).slice(-49);lc.hist.push({at:now,by:u.name,what:"cihaz öyrənildi: "+row.name+" → SN "+nsn});lc.updatedAt=now;lc.by=u.name;ch.contracts.push(lc)}
     return {res:{contract:lc},ch:ch}}
+  case "mergeSvc":{need(SA_CAN.quote(role)||SA_CAN.contract(role));var ms=quoteById(p.id),mt=quoteById(p.target);
+    if(!ms||ms.del||!ms.src||ms.src.type!=="service"||!mt||mt.del||mt.id===ms.id)saErr("notfound");
+    if((ms.bill&&ms.bill.st)||ms.billedIn||mt.status==="rejected"||(mt.bill&&mt.bill.st==="paid")||mt.billedIn)saErr("locked");
+    var mrep=String(ms.src.repno||""),mtag="Servis hesabatı № "+(mrep||"—")+(ms.src.date?", "+String(ms.src.date).split("-").reverse().join("."):"")+(ms.src.stype?" ("+ms.src.stype+")":"");
+    var ml=(ms.lines||[]).map(function(l){var c=JSON.parse(JSON.stringify(l));c.id=saId("l");delete c.crow;if(!mrep||String(c.desc||"").indexOf(mrep)<0)c.desc=[c.desc,mtag].filter(function(x){return String(x||"").trim()}).join("\n");return c});
+    if(!ml.length)ml.push({id:saId("l"),itemId:"",svc:1,name:"Servis işi"+(ms.src.stype?" — "+ms.src.stype:""),desc:mtag,unit:"xidmət",qty:1,price:0,disc:0});
+    mt.lines=(mt.lines||[]).concat(ml);mt.svcRefs=(mt.svcRefs||[]).concat([{repno:mrep,reportId:ms.src.reportId||"",date:ms.src.date||"",from:ms.no||"",at:now,by:u.name}]);
+    mt.hist=(mt.hist||[]).slice(-39);mt.hist.push({at:now,by:u.name,st:"merged",what:"servis hesabatı birləşdirildi: "+(mrep||ms.no)});mt.updatedAt=now;mt.by=u.name;
+    ms.del=true;ms.delAt=now;ms.delBy=u.name;ms.mergedInto=mt.id;ms.updatedAt=now;ms.by=u.name;
+    ch.quotes.push(mt);ch.quotes.push(ms);return {res:{quote:mt,stock:saStock(db)},ch:ch}}
   case "applyContract":{need(SA_CAN.contract(role));var aq=quoteById(p.id);if(!aq||aq.del||!aq.src)saErr("notfound");if(aq.status!=="draft"&&aq.status!=="sent")saErr("locked");
     var acon=null;db.contracts.forEach(function(x){if(x.id===p.contractId&&!x.del)acon=x});if(!acon)acon=saContractFor(db,aq.cl.name,aq.src.date)||saContractFor(db,aq.src.site||aq.cl.name,aq.src.date);if(!acon)saErr("nocontract");
     var asite=aq.src.site||aq.cl.name,adevs=aq.src.devs&&aq.src.devs.length?aq.src.devs:[{type:"",info:{}}];
@@ -1045,6 +1055,7 @@ function saHandle(db,u,action,p){
       /* approved again: a sale removed because of the withdrawn approval comes back with the same number; a kept one loses its warning */
       if(cur&&cur.del&&cur.src&&cur.src.revDel&&apAt>saNum(cur.src.rev&&cur.src.rev.at)){cur.del=false;delete cur.delAt;delete cur.delBy;cur.hist=(cur.hist||[]).slice(-39);cur.hist.push({at:now,by:"Servis Jurnalı",st:"restored"})}
       if(cur&&!cur.del&&cur.src&&cur.src.rev){var rs2={};for(var k6 in cur.src)if(k6!=="rev"&&k6!=="revDel")rs2[k6]=cur.src[k6];cur.src=rs2;cur.updatedAt=now;ch.quotes.push(cur)}
+      if(cur&&cur.mergedInto){skipped++;done.push(r.id);return}
       if(cur){var s0=cur.src||{};
         /* already made: deleted → only a new approval brings it back; otherwise follow later edits until the warehouse issued something */
         if(cur.del?!(apAt>saNum(cur.updatedAt)):(cur.status==="done"||cur.status==="rejected"||(saNum(s0.repAt)>=repAt&&saNum(s0.apprAt)===apAt)||Object.keys(issued).some(function(k){return k.indexOf(cur.id+"|")===0}))){skipped++;done.push(r.id);return}}
@@ -1702,7 +1713,7 @@ function renderQuote(){const q=state.cur;if(!q){go("quotes");return}const ed=can
       <span class="seg" id="qLang" role="group" aria-label="Təklifin dili" style="flex:0 0 auto">${QLANGS.map(([k,l])=>`<button data-qlang="${k}" aria-pressed="${lg===k}" style="min-height:36px;padding:6px 12px">${l}</button>`).join("")}</span>${lg!=="az"?'<button class="btn sm ghost" id="bTr">Tərcümələr…</button>':""}
       ${own?`<button class="btn" id="bIssue">Anbardan məxaric et</button>`:""}</div>
       ${!q.no?`<p class="note" style="margin:0">Nömrə serverə göndəriləndə veriləcək — PDF-dən əvvəl internetə qoşulun.</p>`:""}</div>
-      ${progCard(q)}${billCard(q)}
+      ${progCard(q)}${billCard(q)}${mergeCard(q)}
       <div class="paperwrap" id="pw"><div class="paperscale" id="ps">${paperHTML(q)}</div></div>`}
   $("#main").innerHTML=h;bindQuote();if(t==="doc")fitPaper()}
 function bindQuote(){const q=state.cur;
@@ -1716,7 +1727,7 @@ function bindQuote(){const q=state.cur;
   const tdef=$("#tDef");if(tdef)tdef.onclick=()=>{const S=state.settings;q.terms={pay:S.pay,delivery:S.delivery,warranty:S.warranty,note:S.note};markDirty();renderQuote()};
   const aq=$("#addq");if(aq){aq.oninput=()=>searchItems(aq.value);aq.onkeydown=e=>{if(e.key==="Enter"){const f=$("#addRes .res");if(f)f.click()}}}
   const af=$("#addFree");if(af)af.onclick=()=>{q.lines.push({id:saId("l"),itemId:"",code:"",name:"",desc:"",unit:"xidmət",qty:1,price:0,disc:0,t:"xid"});markDirty();redrawLines(true);toast("Sərbəst sətir “Xidmət” kimi əlavə olundu — mal üçün “Mal” seçin")};
-  bindLines();bindVat();bindBill(q);bindSaleCon(q);bindVia(q);
+  bindLines();bindVat();bindBill(q);bindMerge(q);bindSaleCon(q);bindVia(q);
   {const so=$("#shortOn");if(so)so.onchange=()=>{q.shortName=so.checked;LS.set("sa.shortname",so.checked);markDirty();toast(so.checked?"Təklifdə qısa adlar göstəriləcək":"Təklifdə tam adlar göstəriləcək")}}
   {const dc=$("#descOn");if(dc)dc.onchange=()=>{q.showDesc=dc.checked;LS.set("sa.showdesc",dc.checked);markDirty();toast(dc.checked?"Təsvir təklifdə göstəriləcək":"Təsvir təklifdə göstərilməyəcək")}}
   const bp=$("#bPdf");if(bp)bp.onclick=exportPdf;const pr=$("#bPrint");if(pr)pr.onclick=printQuote;
@@ -1783,6 +1794,20 @@ function bindProg(q){$$("[data-go]").forEach(b=>b.onclick=()=>setStatusLocal(q,b
   const pd=$("#pDone");if(pd&&!pd.disabled)pd.onclick=()=>{const I=itemsById(),X=q.lines.filter(l=>saLineType(l,I)==="xid"&&!l.done);
     if(X.length&&pd.dataset.sure!=="1"){pd.dataset.sure="1";pd.textContent=X.length+" xidmət icra qeyd olunmayıb — yenə də tamamla";return}
     X.forEach(l=>l.done={at:Date.now(),by:state.me.name});setStatusLocal(q,"done");toast("İş tamamlandı — “Təhvil verildi”")}}
+/* a document made from a service report (installation, repair …) can be added to an existing sale instead of being billed separately */
+function mergeCard(q){if(!q||q.del||!q.src||q.src.type!=="service"||(q.bill&&q.bill.st)||q.billedIn||!(can("quote")||can("contract")))return "";
+  const nm=x=>saNormName(x||""),me=nm(q.cl&&q.cl.name),site=nm(q.src.site);
+  const L=listQuotes().filter(s=>s.id!==q.id&&!s.del&&!s.svc&&s.status!=="rejected"&&s.no).map(s=>({s,hit:(me&&nm(s.client)===me)||(site&&nm(s.client)===site)?1:0}))
+    .sort((a,b)=>b.hit-a.hit||String(b.s.date).localeCompare(String(a.s.date))).slice(0,300);
+  if(!L.length)return "";
+  return `<div class="card" style="border-left:4px solid var(--accent)"><h3>Mövcud satışa birləşdir</h3><p class="note" style="margin:0 0 8px">Bu sənəd servis hesabatından (№ ${esc(q.src.repno||"—")}${q.src.stype?", "+esc(q.src.stype):""}) yaranıb. Məsələn, quraşdırma (montaj) hesabatıdırsa, həmin cihazın satışına əlavə edin: sətirlər və hesabat nömrəsi seçilən satışa köçür, bu sənəd isə silinir — iş iki dəfə hesablanmır.</p>
+   <label class="f"><span>Satış / təklif</span><select id="mgT">${L.map(({s,hit})=>`<option value="${esc(s.id)}">${esc(s.no)} · ${fmtDate(s.date)} · ${esc(s.client||"—")}${s.subj?" · "+esc(String(s.subj).slice(0,60)):""}${hit?" ★":""}</option>`).join("")}</select></label>
+   <div class="actions"><button class="btn pri" id="mgGo">Seçilən satışa birləşdir</button></div><p class="note" style="margin:6px 0 0">★ — eyni müştəri</p></div>`}
+function bindMerge(q){const b=$("#mgGo");if(!b)return;b.onclick=async()=>{const t=$("#mgT").value;if(!t)return;
+  if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Təsdiq: birləşdir və bu sənədi sil";return}
+  b.disabled=true;try{await flush();const r=await api("mergeSvc",{id:q.id,target:t});delete state.local[q.id];if(state.remote[q.id])delete state.remote[q.id];
+    if(r.quote){state.local[r.quote.id]=r.quote;r.quote.baseAt=r.quote.updatedAt}saveLocal();toast("Birləşdirildi: "+(r.quote&&r.quote.no||""));try{await sync()}catch(e){}openQuote(t)}
+  catch(e){b.disabled=false;b.dataset.sure="";b.textContent="Seçilən satışa birləşdir";toast(errMsg(e))}}}
 /* payment tracking for the accountant: work done → invoice written → paid */
 function billCard(q){const svc=q.src&&q.src.type==="service";
   if(svc&&q.src.nocon&&!q.del)return `<div class="card" style="border-left:4px solid var(--bad)"><h3>Müqavilə bağlanmalıdır</h3><p class="note" style="margin:0">Bu müştəri ilə xidməti müqavilə yoxdur, amma servis görülüb və ${esc(q.src.apprBy||"rəhbər")} tərəfindən təsdiqlənib (hesabat № ${esc(q.src.repno||"")}). Hesabatdakı cihazlardan müqavilə yaradın: hər cihaza qiymət yazın, müddəti və nömrəni qeyd edin — bu sənəd də həmin qiymətlərlə avtomatik qiymətləndiriləcək.</p>${can("contract")?`<div class="actions"><button class="btn pri" id="mkCon">Bu hesabatdan müqavilə yarat</button></div>`:""}</div>`;if(!can("setPrice")||!(svc||q.status==="accepted"||q.status==="done"||q.bill))return "";const B=q.bill||{};
@@ -3419,7 +3444,7 @@ if(!state.me.name)renderWelcome();else startApp();
    qaranlıq rejim vaxtı, açılış ekranı, ikonlar, animasiyalar, aşağı menyu (telefon), qrafiklər, rəhbərin görünüşü hamıya göndərməsi */
 window.ZSLOOK=(function(){
   let KEY="zs.look",O={};
-  const D={acc:"",accC:"",btn:"std",fx:"flat",anim:"1",card:"std",bg:"plain",bgImg:"",bgOp:"0.22",hdr:"std",fs:"n",dens:"n",logo:"",logoM:"both",logoPdf:"1",
+  const D={acc:"",accC:"",btn:"std",fx:"flat",anim:"1",card:"std",bg:"plain",bgImg:"",bgOp:"0.22",hdr:"std",fs:"n",dens:"n",logo:"",logoM:"right",logoH:"40",logoPdf:"1",
     icons:"1",splash:"1",nav:"1",field:"0",darkAuto:"0",darkFrom:"19:00",darkTo:"07:00"};
   const LSg=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
   const own=()=>LSg(KEY,{})||{},team=()=>LSg(KEY+".team",null),isAdm=()=>!!(O.isAdmin&&O.isAdmin());
@@ -3438,7 +3463,7 @@ window.ZSLOOK=(function(){
     hdr:[["std","Standart"],["accent","Rəngli"],["glass","Şüşə"]],
     fs:[["s","Kiçik"],["n","Normal"],["l","Böyük"],["xl","Çox böyük"]],
     dens:[["c","Yığcam"],["n","Normal"],["w","Geniş"]],
-    logoM:[["both","Loqo + ad"],["logo","Yalnız loqo"]],
+    logoM:[["right","Loqo solda, ad və istifadəçi sağda"],["both","Loqo + ad yan-yana (solda)"],["logo","Yalnız loqo"]],
     logoPdf:[["1","Bəli — PDF, akt və təkliflərdə də"],["0","Xeyr — yalnız proqramın başlığında"]],
     icons:[["1","Var"],["0","Yoxdur"]],splash:[["1","Var"],["0","Yoxdur"]],nav:[["1","Var (telefonda)"],["0","Yoxdur"]],
     field:[["0","Söndürülüb"],["1","Açıq — iri düymə, güclü kontrast"]],darkAuto:[["0","Söndürülüb"],["1","Açıq — vaxta görə"]]};
@@ -3468,7 +3493,9 @@ window.ZSLOOK=(function(){
       glass:"header.top{background:color-mix(in srgb,var(--bg) 65%,transparent)!important;backdrop-filter:blur(12px)}"}[L.hdr]||"");
     c.push({s:"body{zoom:.92}",n:"",l:"body{zoom:1.08}",xl:"body{zoom:1.18}"}[L.fs]||"");
     c.push({c:".card{padding:10px!important;gap:8px!important}.btn{min-height:36px;padding:6px 11px}.rcard{padding:8px 10px!important}",n:"",w:".card{padding:18px!important;gap:14px!important}.btn{min-height:46px;padding:11px 18px}"}[L.dens]||"");
-    if(L.logo)c.push(`#zsLogo{height:36px;max-width:140px;object-fit:contain;margin-right:10px;border-radius:6px;flex:none}${L.logoM==="logo"?"#hTitle{font-size:0!important}#hTitle small{font-size:12px!important}":""}`);
+    if(L.logo){const lm=L.logoM==="both"&&!L.lm2?"right":L.logoM,lh=Math.max(20,Math.min(100,+L.logoH||40));
+      c.push(`#zsLogo{height:${lh}px;max-width:${lh*5}px;object-fit:contain;margin-right:10px;border-radius:6px;flex:none}${lm==="logo"?"#hTitle{font-size:0!important}#hTitle small{font-size:12px!important}":""}`);
+      if(lm==="right")c.push(`header.top .bar>*{order:3}header.top .bar>#zsLogo{order:0;margin-right:auto}header.top .bar>#hTitle{order:1;flex:0 1 auto;text-align:right;margin-left:12px}header.top .bar>#hTitle small{text-align:right}@media (max-width:600px){header.top .bar{flex-wrap:wrap;row-gap:6px}header.top .bar::after{content:"";order:2;flex-basis:100%;height:0}header.top .bar>#hTitle{font-size:15px;max-width:58vw}header.top .bar>#syncState{margin-left:auto}#zsLogo{height:${Math.min(lh,44)}px;max-width:38vw}}`)}
     if(L.field==="1")c.push(".btn{min-height:56px!important;font-size:17px!important;padding:12px 18px!important;border-width:2px!important}input,select,textarea{min-height:52px!important;font-size:19px!important;border-width:2px!important}:root:not([data-theme=dark]){--line:#7d8a86;--muted:#2f3b38}.tab{font-size:15px!important;padding:11px 14px!important}.chk input,input[type=checkbox]{transform:scale(1.35)}");
     if(L.anim==="1")c.push("@keyframes zsIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}#main.zs-in{animation:zsIn .22s ease-out}@keyframes zsPop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}@keyframes zsFade{to{opacity:0}}");
     return c.filter(Boolean).join("\n")}
@@ -3566,7 +3593,8 @@ body.zs-hasnav{padding-bottom:78px}body.zs-hasnav .tabs [data-g],body.zs-hasnav 
       <div class="grid2">${sel("field","Sahə rejimi (əlcəklə / günəşdə)")}${sel("splash","Açılış ekranı")}</div>
       <div class="grid2">${sel("darkAuto","Qaranlıq rejim avtomatik")}${L.darkAuto==="1"?`<div class="grid2"><label class="f"><span>🌙 başlayır</span><input type="time" data-lt="darkFrom" value="${esc(L.darkFrom)}"${dis}></label><label class="f"><span>☀ bitir</span><input type="time" data-lt="darkTo" value="${esc(L.darkTo)}"${dis}></label></div>`:"<span></span>"}</div>
       <div class="grid2"><label class="f"><span>Loqo (şəkil faylı)</span><input type="file" id="lkLogo" accept="image/*"${dis}></label>${L.logo?sel("logoM","Başlıqda"):"<span></span>"}</div>
-      ${L.logo?`<div class="grid2"><div style="display:flex;gap:10px;align-items:center"><img src="${L.logo}" alt="" style="height:44px;max-width:170px;object-fit:contain;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff"><button type="button" class="btn sm" id="lkLogoDel"${dis}>Loqonu sil</button></div>${sel("logoPdf","Loqo sənədlərdə (PDF)")}</div>`:""}
+      ${L.logo?`<div class="grid2"><div style="display:flex;gap:10px;align-items:center"><img src="${L.logo}" alt="" style="height:44px;max-width:170px;object-fit:contain;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff"><button type="button" class="btn sm" id="lkLogoDel"${dis}>Loqonu sil</button></div>${sel("logoPdf","Loqo sənədlərdə (PDF)")}</div>
+      <label class="f" style="max-width:360px"><span>Loqonun ölçüsü (başlıqda): <b id="lkLHv">${L.logoH||40}</b> px</span><input type="range" id="lkLH" min="24" max="90" step="2" value="${L.logoH||40}"${dis}></label>`:""}
       ${adm&&O.teamSend?`<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:10px"><b>Bütün işçilərə</b><p class="note" style="margin:2px 0 6px">Bu görünüşü (rəng, loqo, düymələr, kartlar, funksiyalar) bütün işçilərin proqramına göndərin.${T&&T.at?" Son göndərmə: "+new Date(T.at).toLocaleString("az-AZ"):""}</p>
         <label style="display:flex;gap:8px;align-items:center;cursor:pointer;margin:0 0 8px"><input type="checkbox" id="lkAllow" style="width:16px;height:16px;min-height:0;margin:0"${LSg(KEY+".allow",false)?" checked":""}> İşçilər öz görünüşünü dəyişə bilsin</label>
         <div class="actions"><button type="button" class="btn pri" id="lkSend">📤 Hamıya göndər</button>${T?`<button type="button" class="btn" id="lkUnsend">Ümumi görünüşü ləğv et</button>`:""}</div></div>`:""}
@@ -3575,7 +3603,7 @@ body.zs-hasnav{padding-bottom:78px}body.zs-hasnav .tabs [data-g],body.zs-hasnav 
     const g=id=>document.getElementById(id);
     const save=(L2,redraw)=>{if(!put(L2)){toast("Yadda saxlamaq alınmadı — şəkil çox böyükdür");return}apply();if(redraw)card()};
     const base=()=>Object.assign({},get(),own());
-    document.querySelectorAll("[data-lk]").forEach(x=>x.onchange=()=>{const L2=base();L2[x.dataset.lk]=x.value;save(L2,["bg","logoM","darkAuto","logoPdf"].includes(x.dataset.lk));if(x.dataset.lk==="darkAuto"&&x.value==="0"&&O.resetTheme)O.resetTheme()});
+    document.querySelectorAll("[data-lk]").forEach(x=>x.onchange=()=>{const L2=base();L2[x.dataset.lk]=x.value;if(x.dataset.lk==="logoM")L2.lm2="1";save(L2,["bg","logoM","darkAuto","logoPdf"].includes(x.dataset.lk));if(x.dataset.lk==="darkAuto"&&x.value==="0"&&O.resetTheme)O.resetTheme()});
     document.querySelectorAll("[data-lt]").forEach(x=>x.onchange=()=>{const L2=base();L2[x.dataset.lt]=x.value;save(L2,false)});
     document.querySelectorAll("[data-acc]").forEach(b=>b.onclick=()=>{const L2=base();L2.acc=b.dataset.acc;save(L2,true)});
     document.querySelectorAll("[data-pre]").forEach(b=>b.onclick=()=>{const p=PRESETS[+b.dataset.pre][1],cur=own(),L2=Object.assign({},D,{logo:cur.logo||"",logoM:cur.logoM||"both",logoPdf:cur.logoPdf||"1",bgImg:cur.bgImg||""},p);save(L2,true);toast("Üslub: "+PRESETS[+b.dataset.pre][0])});
@@ -3583,6 +3611,7 @@ body.zs-hasnav{padding-bottom:78px}body.zs-hasnav .tabs [data-g],body.zs-hasnav 
     const bg=g("lkBg");if(bg)bg.onchange=async()=>{const f=bg.files[0];if(!f)return;try{const L2=base();L2.bgImg=await shrink(f,1600,"image/jpeg",0.72);save(L2,true);toast("Arxa fon şəkli qoyuldu")}catch(e){toast("Şəkil oxunmadı")}};
     const op=g("lkOp");if(op){op.oninput=()=>{const L2=base();L2.bgOp=op.value;put(L2);apply()};op.onchange=()=>card()}
     const lg=g("lkLogo");if(lg)lg.onchange=async()=>{const f=lg.files[0];if(!f)return;try{const L2=base();L2.logo=await shrink(f,360,"image/png");save(L2,true);toast("Loqo qoyuldu")}catch(e){toast("Şəkil oxunmadı")}};
+    const lh=g("lkLH");if(lh){lh.oninput=()=>{const L2=base();L2.logoH=lh.value;put(L2);apply();const v=g("lkLHv");if(v)v.textContent=lh.value}}
     const ld=g("lkLogoDel");if(ld)ld.onclick=()=>{const L2=base();L2.logo="";save(L2,true)};
     const al=g("lkAllow");if(al)al.onchange=()=>LSs(KEY+".allow",al.checked);
     const sd=g("lkSend");if(sd)sd.onclick=()=>teamSend(sd);
