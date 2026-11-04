@@ -391,7 +391,13 @@ const nameKey=x=>String(x||"").trim().replace(/\s+/g," ").toLocaleLowerCase("az"
 const ownerOf=r=>{r=realOf(r)||{};return String(r.creator||(state.remote[r.id]||{}).creator||"").trim()};
 /* someone else's report: a worker may look at it, but changes go into a new report of their own (the manager edits everything) */
 const foreignRep=r=>{if(!r||realOf(r).sample||!hasServer()||state.me.role==="admin")return false;const o=ownerOf(r);return !!o&&!!state.me.name&&nameKey(o)!==nameKey(state.me.name)};
-const lockedRep=r=>!!r&&!realOf(r).sample&&((!!apprOf(r)&&state.me.role!=="admin")||foreignRep(r));
+const SVP=[["rep","Hesabat yazmaq və doldurmaq"],["view","Bütün hesabatlara baxmaq, PDF yükləmək (dəyişmədən)"],["appr","Təsdiq və tapşırıq vermək (servis müdiri)"],["plan","Servis cədvəli"],["parts","Dəyişdirilmiş detallar siyahısı"],["staff","İşçi paneli və mükafat hesablanması"],["cust","Müştərilər və cihazlar"],["pay","Borclar və ödənişlər"],["stats","Statistika"]];
+const SV_POS=[["Servis mühəndisi",["rep","plan","parts"]],["Servis müdiri",["rep","view","appr","plan","parts","staff","cust","stats"]],["Mühasib",["view","staff","pay","stats","parts"]],["Anbardar",["view","parts"]]];
+function svPerms(){if(state.me.role==="admin"||!hasServer())return SVP.map(x=>x[0]);
+  if(typeof CFG!=="undefined"&&CFG.hub){const P=state.me.perms||["servis"],o=[];if(P.includes("servis"))o.push("rep");if(P.includes("tesdiq"))o.push("appr");P.forEach(m=>{if(/^sv_/.test(m))o.push(m.slice(3))});if(!P.some(m=>/^sv_/.test(m))&&o.includes("rep"))o.push("plan","parts");return o}
+  return Array.isArray(state.me.sv)?state.me.sv:["rep","plan","parts"]}
+const svCan=k=>svPerms().includes(k);
+const lockedRep=r=>!!r&&!realOf(r).sample&&((!!apprOf(r)&&state.me.role!=="admin")||foreignRep(r)||!svCan("rep"));
 /* a copy that belongs to me: new id and number, my name, no signatures / approval */
 function forkReport(src,keepDate){const r=normalize(clone(realOf(src)));r.id=newId();r.createdAt=Date.now();r.updatedAt=Date.now();r.creator=state.me.name;r.by=state.me.name;
   r.svc.eng=state.me.name;if(state.me.engCo)r.svc.engCo=state.me.engCo;if(state.me.engPos)r.svc.engPos=state.me.engPos;r.svc.repno="";r.svc.repnoAuto=true;if(!keepDate)r.svc.date=todayISO();
@@ -1039,7 +1045,7 @@ function renderHome(){
     ${dupOf[s.id]?`<span class="chip warn">+${dupOf[s.id].length} təkrar</span>`:""}${s.isDup?'<span class="chip bad">təkrar</span>':""}${s.appr?'<span class="chip ok">təsdiqlənib</span>':s.sub?'<span class="chip warn">təsdiq gözləyir</span>':state.me.role==="admin"&&needsAppr(s)?'<span class="chip">təsdiqlənməyib</span>':""}${s.pending?'<span class="chip warn">göndərilməyib</span>':""}${!s.local?'<span class="chip">serverdə</span>':""}${payChip(s.id)}</span></button>${canDelItem(s)?`<button class="rdel" data-del="${esc(s.id)}" title="Hesabatı sil" aria-label="Hesabatı sil">🗑</button>`:""}</div>`).join("")+`</div>`;
   $("#main").innerHTML=h;
   $("#bNew").onclick=()=>openNew();$("#bTasks").onclick=()=>renderTasks();document.querySelectorAll("[data-topen]").forEach(b=>b.onclick=()=>{state.tkF="open";renderTasks(b.dataset.topen)});$("#bPlan").onclick=renderPlan;$("#bLists").onclick=()=>renderLists();const bst=$("#bStaff");if(bst)bst.onclick=renderStaff;const bcu=$("#bCust");if(bcu)bcu.onclick=()=>{state.cuSel="";renderCustomers()};
-  const bsy=$("#bSync");if(bsy)bsy.onclick=()=>{sync();payRefresh(true)};const bdb=$("#bDebts");if(bdb)bdb.onclick=renderDebts;const bsx=$("#bStats");if(bsx)bsx.onclick=()=>renderStats();payRefresh();
+  const bsy=$("#bSync");if(bsy)bsy.onclick=()=>{sync();payRefresh(true)};const bdb=$("#bDebts");if(bdb)bdb.onclick=renderDebts;const bsx=$("#bStats");if(bsx)bsx.onclick=()=>renderUpsStats();payRefresh();
   document.querySelectorAll("[data-af]").forEach(b=>b.onclick=()=>{state.af=b.dataset.af==="1";renderHome()});
   document.querySelectorAll("[data-hf]").forEach(b=>b.onclick=()=>{state.hf=b.dataset.hf;renderHome()});const bd=$("#bDup");if(bd)bd.onclick=()=>{state.showDup=!state.showDup;renderHome()};
   const bs=$("#bSample");if(bs)bs.onclick=()=>{const r=sampleReport(state.settings);r.sample=true;openReport(r)};
@@ -1574,8 +1580,8 @@ const AFTER={
 };
 function apprBanner(all){const P=all.filter(needsAppr);if(state.me.role!=="admin"||(!P.length&&!state.af))return "";
   const S=P.filter(s=>s.sub).length;
-  return `<div class="card remind" role="status"><h3>${state.af?"Yalnız təsdiq gözləyən hesabatlar göstərilir":"Təsdiq gözləyən hesabatlar: "+P.length}</h3><p class="note" style="margin:0">${S?S+" hesabatı işçi “iş bitdi” kimi göndərib. ":""}Hesabatı açın → “Hesabat” bölməsi → yoxlayın, lazım olsa düzəldin və “Təsdiq et” basın. Təsdiqdən sonra iş Satış və Anbar proqramına gedir.</p>
-   <div class="actions"><button class="btn sm${state.af?"":" pri"}" data-af="${state.af?"0":"1"}">${state.af?"Hamısını göstər":"Təsdiq gözləyənləri göstər"}</button></div></div>`}
+  return `<details class="card remind" role="status"${state.af||localStorage.getItem("ups.abOpen")!=="0"?" open":""} ontoggle="try{localStorage.setItem('ups.abOpen',this.open?'1':'0')}catch(e){}"><summary style="cursor:pointer"><h3 style="display:inline">${state.af?"Yalnız təsdiq gözləyən hesabatlar göstərilir":"Təsdiq gözləyən hesabatlar: "+P.length}</h3>${S?` <span class="chip warn">${S} “iş bitdi”</span>`:""}</summary><p class="note" style="margin:8px 0 0">${S?S+" hesabatı işçi “iş bitdi” kimi göndərib. ":""}Hesabatı açın → “Hesabat” bölməsi → yoxlayın, lazım olsa düzəldin və “Təsdiq et” basın. Təsdiqdən sonra iş Satış və Anbar proqramına gedir.</p>
+   <div class="actions"><button class="btn sm${state.af?"":" pri"}" data-af="${state.af?"0":"1"}">${state.af?"Hamısını göstər":"Təsdiq gözləyənləri göstər"}</button></div></details>`}
 function apprParts(r){r=realOf(r);const L=[];(r.devices||[]).forEach(d=>(d.parts||[]).forEach(p=>{if(p&&String(p.name||p.code||"").trim())L.push(p)}));return L}
 function apprCard(){const r=realOf(state.rep);if(!r||r.sample)return "";const A=apprOf(r),adm=state.me.role==="admin",P=apprParts(r);
   const parts=P.length?`<div class="maptbl"><table class="ltbl"><tr><th style="text-align:left">Dəyişdirilən hissə</th><th style="text-align:left">Kod</th><th>Say</th></tr>${P.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.code||"")}</td><td class="c">${esc(p.qty||"1")}</td></tr>`).join("")}</table></div>`:'<p class="note" style="margin:0">Dəyişdirilən hissə yazılmayıb — Satışa yalnız xidmət haqqı gedəcək.</p>';
@@ -2470,8 +2476,8 @@ function renderLists(){state.view="lists";$("#tabs").hidden=true;$("#hBack").hid
       <label class="f"><span>Müştəri</span><select id="lfClient"><option value="">Bütün müştərilər</option>${clients.map(c=>`<option${c===F.client?" selected":""}>${esc(c)}</option>`).join("")}</select></label>
       <label class="f"><span>Siyahı</span><select id="lfKind"><option value="all"${F.kind==="all"?" selected":""}>Hamısı</option><option value="Yararsız"${F.kind==="Yararsız"?" selected":""}>Yararsız detallar</option><option value="Dəyişdirilib"${F.kind==="Dəyişdirilib"?" selected":""}>Dəyişdirilmiş detallar</option></select></label></div>
       <div class="actions"><button class="btn pri" id="lPdf">PDF</button><button class="btn" id="lXls">Excel</button>${listFolderBtn("lst")}<button class="btn" id="lRe">Yenilə</button></div>
-      ${cs.length?`<h3 style="margin-top:6px">${F.year==="all"?"Ümumi":F.year+"-ci il"} — müştərilər üzrə</h3><div class="maptbl"><table class="ltbl"><tr><th style="text-align:left">Müştəri</th><th>Servis sayı</th><th>Yararsız</th><th>Dəyişdirilmiş</th></tr>
-      ${cs.map(c=>`<tr><td><a href="#" data-lc="${esc(c)}">${esc(c)}</a></td><td class="c">${svc.filter(x=>(x.client||"Adsız müştəri")===c).length}</td><td class="c">${cnt(c,"Yararsız")||"—"}</td><td class="c">${cnt(c,"Dəyişdirilib")||"—"}</td></tr>`).join("")}</table></div>`:`<p class="note">Seçilən dövrdə məlumat yoxdur.</p>`}
+      ${cs.length?`<details class="card" id="lcBox" style="margin:6px 0 10px"${localStorage.getItem("ups.lcOpen")==="1"?" open":""} ontoggle="try{localStorage.setItem('ups.lcOpen',this.open?'1':'0')}catch(e){}"><summary style="cursor:pointer"><b>${F.year==="all"?"Ümumi":F.year+"-ci il"} — müştərilər üzrə</b> <span class="note">· ${cs.length} müştəri · ${svc.filter(x=>cs.includes(x.client||"Adsız müştəri")).length} servis · yararsız ${cs.reduce((a,c)=>a+cnt(c,"Yararsız"),0)} · dəyişdirilmiş ${cs.reduce((a,c)=>a+cnt(c,"Dəyişdirilib"),0)} — siyahını görmək üçün açın</span></summary><div class="maptbl" style="margin-top:8px"><table class="ltbl"><tr><th style="text-align:left">Müştəri</th><th>Servis sayı</th><th>Yararsız</th><th>Dəyişdirilmiş</th></tr>
+      ${cs.map(c=>`<tr><td><a href="#" data-lc="${esc(c)}">${esc(c)}</a></td><td class="c">${svc.filter(x=>(x.client||"Adsız müştəri")===c).length}</td><td class="c">${cnt(c,"Yararsız")||"—"}</td><td class="c">${cnt(c,"Dəyişdirilib")||"—"}</td></tr>`).join("")}</table></div></details>`:`<p class="note">Seçilən dövrdə məlumat yoxdur.</p>`}
       ${Object.keys(by).sort((a,b)=>a.localeCompare(b)).map(c=>`<h3 style="margin-top:12px">${esc(c)}</h3><div class="maptbl"><table class="ltbl"><tr><th>Tarix</th><th>Hesabat №</th><th style="text-align:left">Cihaz</th><th>Növ</th><th style="text-align:left">Detal</th><th>Kod</th><th>Say</th><th style="text-align:left">Qeyd</th></tr>
         ${by[c].map(x=>`<tr><td class="c">${esc(fmtDate(x.date))}</td><td class="c">${esc(x.repno||"—")}</td><td>${esc(x.dev)}${x.sn?`<br><span class="note">SN ${esc(x.sn)}</span>`:""}</td><td class="c"><span class="chip ${x.kind==="Yararsız"?"bad":"ok"}">${esc(x.kind)}</span></td><td>${esc(x.name)}</td><td class="c">${esc(x.code||"")}</td><td class="c">${esc(x.qty||"")}</td><td>${esc(x.note||"")}</td></tr>`).join("")}</table></div>`).join("")}`;
     $("#lfYear").onchange=e=>{F.year=e.target.value;draw()};$("#lfClient").onchange=e=>{F.client=e.target.value;draw()};$("#lfKind").onchange=e=>{F.kind=e.target.value;draw()};
@@ -2492,7 +2498,8 @@ async function exportList(kind){const root=await prepareFolder();const F=state.l
   const data=rows.map(x=>[x.client,x.obj||"",fmtDate(x.date),x.repno||"",x.dev,x.sn||"",x.kind,x.name,x.code||"",x.qty||"",x.note||""]);
   const base=safeName(what+"_"+(F.client||"hamisi")+"_"+(F.year==="all"?"butun":F.year)).replace(/\s+/g,"_");
   const by={};rows.forEach(x=>{(by[x.client]=by[x.client]||[]).push(x)});
-  const body=Object.keys(by).map(c=>`<div class="blk"><h4>${esc(c)}</h4><table><tr><th>Tarix</th><th>Hesabat №</th><th style="text-align:left">Cihaz</th><th>Növ</th><th style="text-align:left">Detal</th><th>Kod</th><th>Say</th><th style="text-align:left">Qeyd</th></tr>${by[c].map(x=>`<tr><td class="c">${esc(fmtDate(x.date))}</td><td class="c">${esc(x.repno||"—")}</td><td>${esc(x.dev)}${x.sn?" · SN "+esc(x.sn):""}</td><td class="c ${x.kind==="Yararsız"?"p-bad":"p-ok"}">${esc(x.kind)}</td><td>${esc(x.name)}</td><td class="c">${esc(x.code||"")}</td><td class="c">${esc(x.qty||"")}</td><td>${esc(x.note||"")}</td></tr>`).join("")}</table></div>`).join("");
+  const wrapNo=x=>esc(x).replace(/-/g,"-<wbr>");
+  const body=Object.keys(by).map(c=>`<div class="blk"><h4>${esc(c)}</h4><table style="table-layout:fixed;width:100%"><colgroup><col style="width:10%"><col style="width:13%"><col style="width:23%"><col style="width:10%"><col style="width:13%"><col style="width:9%"><col style="width:5%"><col style="width:17%"></colgroup><tr><th>Tarix</th><th>Hesabat №</th><th style="text-align:left">Cihaz</th><th>Növ</th><th style="text-align:left">Detal</th><th>Kod</th><th>Say</th><th style="text-align:left">Qeyd</th></tr>${by[c].map(x=>`<tr><td class="c">${esc(fmtDate(x.date))}</td><td class="c" style="white-space:normal;overflow-wrap:anywhere;font-size:.92em">${x.repno?wrapNo(x.repno):"—"}</td><td style="overflow-wrap:anywhere">${esc(x.dev)}${x.sn?" · SN "+esc(x.sn):""}</td><td class="c ${x.kind==="Yararsız"?"p-bad":"p-ok"}" style="white-space:normal">${esc(x.kind)}</td><td>${esc(x.name)}</td><td class="c">${esc(x.code||"")}</td><td class="c">${esc(x.qty||"")}</td><td>${esc(x.note||"")}</td></tr>`).join("")}</table></div>`).join("");
   await exportDoc(kind,{title:what.toUpperCase(),sub:per,body,head,data,base,client:F.client||undefined,root,tag:"lst",widths:[24,16,11,14,28,16,12,30,16,6,30]})}
 /* shared PDF / Excel export for lists and the schedule */
 async function exportDoc(kind,o){const btn=document.activeElement;const old=btn&&btn.textContent;if(btn)btn.disabled=true;
@@ -2560,11 +2567,11 @@ function logout(){clearTimeout(syncTimer);state.me={name:"",url:state.me.url||CF
   state.tasks=[];state.taskMe="";state.ratings=null;state.itemRows=null;["ups.tasks","ups.taskMe","ups.seenTasks","ups.taskSig"].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
   state.cur=null;state.rep=null;state.online=null;state.syncErr="";$("#hTitle").innerHTML='ZUVAND Servis<small>Servis hesabatları</small>';$("#hBack").hidden=true;toast("Hesabdan çıxdınız");renderWelcome()}
 /* modules of ZUVAND Servis (the manager ticks them per person) */
-const MODS=[["servis","Servis hesabatları"],["tesdiq","Təsdiq / tapşırıq"],["satis","Satış"],["anbar","Anbar"],["muhasibat","Mühasibat"],["xerc","Xərclər / maaş"]];
+const MODS=[["servis","Servis hesabatları"],["tesdiq","Təsdiq / tapşırıq"],["satis","Satış"],["anbar","Anbar"],["muhasibat","Mühasibat"],["xerc","Xərclər / maaş"],["sv_view","Hesabatlara baxış, PDF"],["sv_plan","Servis cədvəli"],["sv_parts","Dəyişdirilmiş detallar"],["sv_staff","İşçi paneli, mükafat"],["sv_cust","Müştərilər və cihazlar"],["sv_pay","Borclar"],["sv_stats","Statistika"]];
 const hasMod=m=>state.me.boss||!state.me.perms||state.me.perms.includes(m);
 const hasSales=()=>!!state.me.perms&&(state.me.boss||["satis","anbar","muhasibat","xerc"].some(m=>state.me.perms.includes(m)));
 /* someone without the service module (e.g. only warehouse or accounting) goes straight to the sales screen */
-function modGate(){if(state.me.perms&&!state.me.boss&&!state.me.perms.includes("servis")&&state.me.role!=="admin"&&hasSales())location.href="satis/index.html"}
+function modGate(){if(state.me.perms&&!state.me.boss&&!state.me.perms.includes("servis")&&!state.me.perms.some(m=>/^sv_/.test(m))&&state.me.role!=="admin"&&hasSales())location.href="satis/index.html"}
 function applyWho(o){if(!o)return;if(o.role)state.me.role=o.role;if(o.perms){state.me.perms=o.perms;state.me.boss=!!o.boss}state.me.personal=!!o.personal;if(o.personal&&o.name)state.me.name=o.name;LS.set("ups.me",state.me);modGate()}
 /* how complete the report is: per device measurements filled (40%), checklist answered (40%), works answered (20%) */
 function fillOf(r){r=realOf(r);const keep=CUR_TYPE;let sum=0,n=0;
@@ -2574,7 +2581,7 @@ function fillOf(r){r=realOf(r);const keep=CUR_TYPE;let sum=0,n=0;
     sum+=(mi.length?mf/mi.length:1)*40+(ci.length?cf/ci.length:1)*40+(d.works.length?wf/d.works.length:1)*20;n++})}catch(e){}
   useType(keep);return n?Math.round(sum/n):null}
 const whoOf=s=>String(s.creator||s.eng||s.by||"").trim()||"Naməlum";
-async function loadRatings(force){if(!hasServer()||state.me.role!=="admin")return {};if(state.ratings&&!force)return state.ratings;
+async function loadRatings(force){if(!hasServer()||!svCan("staff"))return {};if(state.ratings&&!force)return state.ratings;
   try{const res=await api("ratings");const M={};(res.rows||[]).forEach(x=>{M[String(x[0])]={score:+x[5]||0,note:x[6]||"",by:x[7]||""}});state.ratings=M}catch(e){state.ratings=state.ratings||{}}
   return state.ratings}
 async function saveRating(s,score,note){await api("rate",{id:s.id,repno:s.repno||"",date:s.date||"",client:s.client||"",person:whoOf(s),score:score||"",note:note||""});
@@ -2693,7 +2700,7 @@ function customerBook(){const C={};const tt=t=>t&&TYPES[t]?TYPES[t].title:"";
       if((it.date||"")&&(!o.first||(it.date<o.first)))o.first=it.date;o.tt=tt(o.type)})});
   return Object.values(C).map(c=>({...c,objs:[...c.objs],payers:[...c.payers],devs:Object.values(c.devs).sort((a,b)=>(a.tt||"").localeCompare(b.tt||"","az")||String(a.brand+a.model).localeCompare(b.brand+b.model,"az"))}))
     .sort((a,b)=>a.name.localeCompare(b.name,"az"))}
-function renderCustomers(){if(state.me.role!=="admin"){toast("Bu bölmə yalnız rəhbər üçündür");return}
+function renderCustomers(){if(!svCan("cust")){toast("Bu bölmə yalnız rəhbər üçündür");return}
   state.view="customers";$("#tabs").hidden=true;$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#hTitle").innerHTML='Müştərilər və cihazlar<small>Bütün hesabatlardan toplanır</small>';
   const book=customerBook(),q=cuKey(state.cuQ||""),sel=state.cuSel||"";
   /* intermediary companies (who pays) and the end customers served through them */
@@ -2757,7 +2764,7 @@ function bonusForm(B){const n=(k,l,step)=>`<label class="f"><span>${l}</span><in
    <h4 style="margin:6px 0 2px">Keyfiyyət əmsalının tərkibi, %</h4><div class="grid3">${n("wF","Doluluq")}${n("wT","Vaxtında")}${n("wS","Rəhbər balı")}</div>
    <div class="grid3">${n("kMin","K — ən az")}${n("kMax","K — ən çox")}<label style="display:flex;align-items:center;gap:8px;align-self:end;padding:10px 0;font-size:14px;cursor:pointer"><input type="checkbox" data-bk="appr" style="width:18px;height:18px;min-height:0;margin:0;flex:0 0 auto"${B.appr?" checked":""}> Yalnız təsdiqlənmiş hesabatlar</label></div>
    <div class="actions"><button class="btn sm" id="bnDef">Standart dəyərləri qaytar</button></div></details>`}
-async function renderStaff(){if(state.me.role!=="admin"){toast("İşçi paneli yalnız rəhbər üçündür");return}
+async function renderStaff(){if(!svCan("staff")){toast("İşçi paneli yalnız rəhbər üçündür");return}
   state.view="staff";$("#tabs").hidden=true;$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#hTitle").innerHTML='İşçi paneli<small>İşçilərin işi və qiymətləndirmə</small>';
   const P=state.stP=state.stP||"month";
   $("#main").innerHTML=`<h2 class="sec">İşçi paneli</h2><p class="hint">Göstəricilər hesabatlardan avtomatik hesablanır. Doluluq — ölçmələr, yoxlama və görülən işlərin nə qədər doldurulduğu. Vaxtında — planlı servis nəzərdə tutulan tarixdən ən çox 7 gün sonra edilib. Bal — rəhbərin 1–5 qiyməti (yalnız sizə görünür).</p>
@@ -2816,7 +2823,10 @@ const myOpenTasks=()=>(state.tasks||[]).filter(t=>t.status==="Açıq"&&(state.me
 function taskDays(t){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(t.date||"");if(!m)return null;const n=new Date();return Math.round((new Date(+m[1],+m[2]-1,+m[3])-new Date(n.getFullYear(),n.getMonth(),n.getDate()))/864e5)}
 const taskWhen=t=>{const d=taskDays(t);return d===null?"":d<0?`<b style="color:var(--bad)">${-d} gün gecikir</b>`:d===0?"<b>bu gün</b>":d===1?"<b>sabah</b>":fmtDate(t.date)};
 function tasksBanner(){const L=myOpenTasks().sort((a,b)=>(a.date||"9").localeCompare(b.date||"9")).slice(0,5);if(!L.length)return "";
-  return `<div class="card remind" role="status"><h3>${state.me.role==="admin"?"Açıq tapşırıqlar":"Sizin tapşırıqlarınız"} (${myOpenTasks().length})</h3>${L.map(t=>`<button class="rrow" data-topen="${esc(t.id)}"><span>${t.prio==="Təcili"?'<span class="chip bad">Təcili</span> ':""}<b>${esc(t.title)}</b><br><span class="note">${esc([t.client,t.obj].filter(Boolean).join(" · "))}${state.me.role==="admin"&&t.names?" — "+esc(t.names):""}</span></span><span style="text-align:right">${taskWhen(t)||"—"}</span></button>`).join("")}</div>`}
+  const rows=L.map(t=>`<button class="rrow" data-topen="${esc(t.id)}"><span>${t.prio==="Təcili"?'<span class="chip bad">Təcili</span> ':""}<b>${esc(t.title)}</b><br><span class="note">${esc([t.client,t.obj].filter(Boolean).join(" · "))}${state.me.role==="admin"&&t.names?" — "+esc(t.names):""}</span></span><span style="text-align:right">${taskWhen(t)||"—"}</span></button>`).join("");
+  if(state.me.role!=="admin")return `<div class="card remind" role="status"><h3>Sizin tapşırıqlarınız (${myOpenTasks().length})</h3>${rows}</div>`;
+  const late=myOpenTasks().filter(t=>{const d=taskDays(t);return d!==null&&d<=0}).length;
+  return `<details class="card remind" role="status"${localStorage.getItem("ups.tbOpen")==="0"?"":" open"} ontoggle="try{localStorage.setItem('ups.tbOpen',this.open?'1':'0')}catch(e){}"><summary style="cursor:pointer"><h3 style="display:inline">Açıq tapşırıqlar (${myOpenTasks().length})</h3>${late?` <span class="chip bad">${late} bu gün / gecikir</span>`:""}</summary><div style="display:grid;gap:8px;margin-top:8px">${rows}</div></details>`}
 function taskStat(name,P){const L=(state.tasks||[]).filter(t=>inPeriod(String(t.date||t.created).slice(0,10),P));
   return {given:L.filter(t=>String(t.names||"").split(", ").includes(name)).length,done:L.filter(t=>t.status==="Görülüb"&&t.doneBy===name).length}}
 /* phone notification for a new task + a reminder on the task's day */
@@ -3250,7 +3260,7 @@ window.ZSBK=(function(){
   function skel(){if(state.view!=="home"||state.zsSynced||!hasServer()||state.online===false)return;const e=document.querySelector("#main .empty");if(e&&!listItems().length)e.outerHTML=`<p class="note" style="margin:0 0 8px">Hesabatlar serverdən yüklənir…</p>`+ZSLOOK.skeleton(3)}
   const _sy=sync;sync=async function(){try{return await _sy.apply(this,arguments)}finally{if(!state.zsSynced){state.zsSynced=true;if(state.view==="home"&&!listItems().length)renderHome()}}};
   /* statistics */
-  window.renderStats=function(){state.view="stats";$("#tabs").hidden=true;$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#hTitle").innerHTML='Statistika<small>Servis işləri</small>';$("#hBack").onclick=renderHome;
+  window.renderUpsStats=function(){state.view="stats";$("#tabs").hidden=true;$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#hTitle").innerHTML='Statistika<small>Servis işləri</small>';$("#hBack").onclick=renderHome;
     const all=listItems().filter(s=>!(s.local&&state.reports[s.id]&&state.reports[s.id].sample)),now=new Date(),M=[];
     for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);M.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"))}
     const MN=["Yan","Fev","Mar","Apr","May","İyn","İyl","Avq","Sen","Okt","Noy","Dek"],plan=s=>/planl|profilakt/i.test(s.type||"");
@@ -3267,15 +3277,28 @@ window.ZSBK=(function(){
     $("#main").innerHTML=h;$("#stBack").onclick=renderHome;window.scrollTo(0,0)};
   /* bottom bar on phones */
   function nav(){const V=["home","tasks","plan","debts","customers","staff","lists","settings","stats"];if(!V.includes(state.view)||!state.me.name){ZSLOOK.nav(null);return}
-    const I=ZSLOOK.NI,it=[["home","Əsas",I.home,()=>renderHome()],["tasks","Tapşırıq",I.task,()=>renderTasks()],["plan","Cədvəl",I.cal,()=>renderPlan()]];
-    if(payOn())it.push(["debts","Borclar",I.wallet,()=>renderDebts()]);else if(adm())it.push(["stats","Statistika",I.chart,()=>renderStats()]);
-    it.push(["settings","Ayarlar",I.gear,()=>renderSettings()]);ZSLOOK.nav(it,state.view,state.view==="home"?["Yeni servis",()=>openNew()]:null)}
+    const I=ZSLOOK.NI,it=[["home","Əsas",I.home,()=>renderHome()],["tasks","Tapşırıq",I.task,()=>renderTasks()],["plan","Cədvəl",I.cal,()=>renderPlan()]].filter(x=>x[0]!=="plan"||typeof svCan!=="function"||svCan("plan"));
+    if(payOn())it.push(["debts","Borclar",I.wallet,()=>renderDebts()]);else if(adm()||(typeof svCan==="function"&&svCan("stats")))it.push(["stats","Statistika",I.chart,()=>renderUpsStats()]);
+    it.push(["settings","Ayarlar",I.gear,()=>renderSettings()]);ZSLOOK.nav(it,state.view,state.view==="home"&&(typeof svCan!=="function"||svCan("rep"))?["Yeni servis",()=>openNew()]:null)}
   ZSLOOK.init("ups",{isAdmin:()=>adm()||!hasServer(),who:()=>state.me.name||"",name:"UPS Servis",sub:"Servis Jurnalı",letter:"U",
     teamGet:async()=>{if(!hasServer())return undefined;const r=await api("look_get");return r&&r.look?r.look:null},
     teamSend:async T=>{await api("look_set",{look:T})},resetTheme:()=>{try{applyTheme(LS.get("ups_theme")||"auto")}catch(e){}},
     onApply:()=>{LOGO=ZSLOOK.pdfLogo()||LOGO0},onRender:()=>{kpi();skel();nav()},onResize:()=>nav()});
   const _t=toast;toast=function(m){const r=_t.apply(this,arguments);try{if(/saxlanıldı|təsdiqləndi|göndərildi|bərpa olundu/i.test(String(m)))ZSLOOK.okAnim()}catch(e){}return r};
 }catch(e){console.log("zs-ui",e)}})();
+</script>
+<script>/* UPS Servis: bölmələr işçinin icazələrinə görə (rəhbər işarələyir) */
+(function(){try{
+  function gate(){if(state.view!=="home")return;const m=document.getElementById("main");if(!m||m.dataset.zsGate===String(Date.now()).slice(0,9))return;const row=m.querySelector(".actions");if(!row)return;
+    const hide=(id,k)=>{const b=document.getElementById(id);if(b&&!svCan(k))b.remove()};
+    hide("bNew","rep");hide("bSample","rep");hide("bPlan","plan");hide("bLists","parts");hide("bStaff","staff");hide("bCust","cust");hide("bStats","stats");
+    const add=(id,txt,k,fn)=>{if(svCan(k)&&!document.getElementById(id)){row.insertAdjacentHTML("beforeend",`<button class="btn" id="${id}">${txt}</button>`);document.getElementById(id).onclick=fn}};
+    add("bStaff","İşçi paneli","staff",()=>renderStaff());add("bCust","Müştərilər və cihazlar","cust",()=>{state.cuSel="";renderCustomers()});add("bStats","Statistika","stats",()=>renderUpsStats());
+    if(!svCan("rep")){const f=document.getElementById("zsFab");if(f)f.remove()}}
+  const prev=ZSLOOK&&ZSLOOK.get?null:null;
+  const _rh=renderHome;renderHome=function(){const r=_rh.apply(this,arguments);try{gate()}catch(e){}return r};
+  const _ap=applyLock;applyLock=function(){const r=_ap.apply(this,arguments);try{if(!svCan("rep")){["fkNext","fkFull"].forEach(id=>{const b=document.getElementById(id);if(b)b.remove()})}}catch(e){}return r};
+}catch(e){console.log("perm",e)}})();
 </script>
 </body>
 </html>
