@@ -546,6 +546,16 @@ function saHandle(db,u,action,p){
     var row=(lc.plist||[])[Math.round(saNum(p.k))];if(!row)saErr("notfound");var fk=saFakeSn(lc.plist),sn0=String(row.sn||"").toLowerCase().replace(/\s+/g,""),nsn=saStr(p.sn,80).trim();
     if(nsn&&saRowCap(row)===1&&(!sn0||fk[sn0])){row.sn=nsn;lc.hist=(lc.hist||[]).slice(-49);lc.hist.push({at:now,by:u.name,what:"cihaz öyrənildi: "+row.name+" → SN "+nsn});lc.updatedAt=now;lc.by=u.name;ch.contracts.push(lc)}
     return {res:{contract:lc},ch:ch}}
+  case "mergeSvc":{need(SA_CAN.quote(role)||SA_CAN.contract(role));var ms=quoteById(p.id),mt=quoteById(p.target);
+    if(!ms||ms.del||!ms.src||ms.src.type!=="service"||!mt||mt.del||mt.id===ms.id)saErr("notfound");
+    if((ms.bill&&ms.bill.st)||ms.billedIn||mt.status==="rejected"||(mt.bill&&mt.bill.st==="paid")||mt.billedIn)saErr("locked");
+    var mrep=String(ms.src.repno||""),mtag="Servis hesabatı № "+(mrep||"—")+(ms.src.date?", "+String(ms.src.date).split("-").reverse().join("."):"")+(ms.src.stype?" ("+ms.src.stype+")":"");
+    var ml=(ms.lines||[]).map(function(l){var c=JSON.parse(JSON.stringify(l));c.id=saId("l");delete c.crow;if(!mrep||String(c.desc||"").indexOf(mrep)<0)c.desc=[c.desc,mtag].filter(function(x){return String(x||"").trim()}).join("\n");return c});
+    if(!ml.length)ml.push({id:saId("l"),itemId:"",svc:1,name:"Servis işi"+(ms.src.stype?" — "+ms.src.stype:""),desc:mtag,unit:"xidmət",qty:1,price:0,disc:0});
+    mt.lines=(mt.lines||[]).concat(ml);mt.svcRefs=(mt.svcRefs||[]).concat([{repno:mrep,reportId:ms.src.reportId||"",date:ms.src.date||"",from:ms.no||"",at:now,by:u.name}]);
+    mt.hist=(mt.hist||[]).slice(-39);mt.hist.push({at:now,by:u.name,st:"merged",what:"servis hesabatı birləşdirildi: "+(mrep||ms.no)});mt.updatedAt=now;mt.by=u.name;
+    ms.del=true;ms.delAt=now;ms.delBy=u.name;ms.mergedInto=mt.id;ms.updatedAt=now;ms.by=u.name;
+    ch.quotes.push(mt);ch.quotes.push(ms);return {res:{quote:mt,stock:saStock(db)},ch:ch}}
   case "applyContract":{need(SA_CAN.contract(role));var aq=quoteById(p.id);if(!aq||aq.del||!aq.src)saErr("notfound");if(aq.status!=="draft"&&aq.status!=="sent")saErr("locked");
     var acon=null;db.contracts.forEach(function(x){if(x.id===p.contractId&&!x.del)acon=x});if(!acon)acon=saContractFor(db,aq.cl.name,aq.src.date)||saContractFor(db,aq.src.site||aq.cl.name,aq.src.date);if(!acon)saErr("nocontract");
     var asite=aq.src.site||aq.cl.name,adevs=aq.src.devs&&aq.src.devs.length?aq.src.devs:[{type:"",info:{}}];
@@ -596,6 +606,7 @@ function saHandle(db,u,action,p){
       /* approved again: a sale removed because of the withdrawn approval comes back with the same number; a kept one loses its warning */
       if(cur&&cur.del&&cur.src&&cur.src.revDel&&apAt>saNum(cur.src.rev&&cur.src.rev.at)){cur.del=false;delete cur.delAt;delete cur.delBy;cur.hist=(cur.hist||[]).slice(-39);cur.hist.push({at:now,by:"Servis Jurnalı",st:"restored"})}
       if(cur&&!cur.del&&cur.src&&cur.src.rev){var rs2={};for(var k6 in cur.src)if(k6!=="rev"&&k6!=="revDel")rs2[k6]=cur.src[k6];cur.src=rs2;cur.updatedAt=now;ch.quotes.push(cur)}
+      if(cur&&cur.mergedInto){skipped++;done.push(r.id);return}
       if(cur){var s0=cur.src||{};
         /* already made: deleted → only a new approval brings it back; otherwise follow later edits until the warehouse issued something */
         if(cur.del?!(apAt>saNum(cur.updatedAt)):(cur.status==="done"||cur.status==="rejected"||(saNum(s0.repAt)>=repAt&&saNum(s0.apprAt)===apAt)||Object.keys(issued).some(function(k){return k.indexOf(cur.id+"|")===0}))){skipped++;done.push(r.id);return}}
