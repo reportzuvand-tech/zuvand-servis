@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110506;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110507;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -368,6 +368,24 @@ function disLim(B){const S=(typeof state!=="undefined"&&state.settings)||{},g=(a
 const SVR_TECH=["Tiristor","IGBT","Digər"];
 const PANEL_TYPES=["Əsas paylayıcı panel","Paylayıcı panel","ATS paneli","Kompensasiya paneli","Generator paneli","Digər"];
 const YEARS=(()=>{const y=new Date().getFullYear(),o=[];for(let k=y;k>=1990;k--)o.push(String(k));return o})();
+/* the manager corrects a customer's name everywhere (e.g. AZƏRİKART → "AZƏRİKARD" MMC) */
+function renCard(){const m=document.getElementById("main");if(!m||!((state.me.role==="admin"||state.me.boss)&&hasServer()))return;const old=document.getElementById("renCard");if(old)old.remove();
+  const N=[...new Set(listItems().flatMap(it=>[it.client,it.payer]).map(x=>String(x||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"az")),fmt=r=>{const S=r.sa&&r.sa.counts?r.sa.counts:null;return (r.reports||0)+" hesabat"+(r.customers?", "+r.customers+" müştəri kartı":"")+(S?" · Satış: "+S.quotes+" təklif, "+S.invoices+" qaimə, "+S.contracts+" müqavilə, "+S.moves+" hərəkət":"")},nmOf=r=>Object.assign({},r.names||{},(r.sa&&r.sa.names)||{});
+  m.insertAdjacentHTML("beforeend",`<div class="card" id="renCard" style="margin-top:12px"><h3>Müştəri adını hər yerdə dəyiş</h3><p class="note" style="margin:0 0 8px">${esc((typeof CFG!=="undefined"&&CFG.hub)?"Bütün servis hesabatlarında, müştəri bazasında və Satış və Anbar-da (təkliflər, qaimələr, müqavilələr, hərəkətlər) dəyişir.":"Bütün servis hesabatlarında dəyişir (hesabat və PDF faylları yeni ad qovluğuna köçür). Satış və Anbar-da da eyni ilə: Ayarlar → “Müştəri adını hər yerdə dəyiş”.")} “MMC”, dırnaq və böyük-kiçik hərf fərqi nəzərə alınmır: “AZƏRİKART” və “\"AZƏRİKART\" MMC” eyni ad sayılır.</p>
+   <datalist id="renList">${N.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+   <div class="grid2"><label class="f"><span>Köhnə (səhv) ad</span><input id="renFrom" list="renList" placeholder="məs. AZƏRİKART"></label><label class="f"><span>Yeni (düzgün) ad</span><input id="renTo" list="renList" placeholder="məs. &quot;AZƏRİKARD&quot; MMC"></label></div>
+   <div class="actions"><button class="btn" id="renDry">Yoxla</button><button class="btn pri" id="renGo" disabled>Hər yerdə dəyiş</button></div><p class="note" id="renMsg" style="margin:6px 0 0"></p></div>`);
+  const g=id=>document.getElementById(id),msg=t=>{g("renMsg").innerHTML=t};let ok=null;
+  const val=()=>[g("renFrom").value.trim(),g("renTo").value.trim()];
+  ["renFrom","renTo"].forEach(id=>g(id).oninput=()=>{ok=null;g("renGo").disabled=true;msg("")});
+  g("renDry").onclick=async()=>{const [f,t]=val();if(!f||!t){msg("Hər iki adı yazın");return}msg("Yoxlanılır…");
+    try{const r=await api("client_rename".replace("client_rename","client_rename"),{from:f,to:t,dry:true});const nm=nmOf(r),L=Object.keys(nm);
+      if(!L.length){msg("Bu adla heç nə tapılmadı.");return}ok=f+"\u0001"+t;g("renGo").disabled=false;
+      msg("Tapıldı: <b>"+esc(fmt(r))+"</b><br>Yazılışlar: "+L.map(k=>"“"+esc(k)+"” ("+nm[k]+")").join(", ")+"<br>“Hər yerdə dəyiş” basın — hamısı “"+esc(t)+"” olacaq.")}
+    catch(e){msg("Alınmadı: "+esc(e&&e.message||e))}};
+  g("renGo").onclick=async()=>{const [f,t]=val();if(ok!==f+"\u0001"+t)return;const b=g("renGo");if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Təsdiq: dəyiş";return}
+    b.disabled=true;msg("Dəyişdirilir…");try{const r=await api("client_rename",{from:f,to:t});msg("✓ Dəyişdirildi: <b>"+esc(fmt(r))+"</b>");toast("Müştəri adı dəyişdirildi: "+t);try{await sync({all:true})}catch(e){}}
+    catch(e){b.disabled=false;b.dataset.sure="";b.textContent="Hər yerdə dəyiş";msg("Alınmadı: "+esc(e&&e.message||e))}}}
 const CHK_OPTS=[["Yaxşı","s-ok"],["Qeyd var","s-warn"],["Nasaz","s-orange"],["Yararsız","s-bad"]];
 const chkLbl=o=>o==="Qeyd var"?"Qeyd":o==="Tətbiq olunmur"?"T/O":o==="Yoxlanılmadı"?"Yoxl.":o;
 const MAXB=480;
@@ -3332,7 +3350,7 @@ window.ZSBK=(function(){
       savePending();const T=B.tasks||[];for(let i=0;i<T.length;i++){prog(i+1,T.length,"Tapşırıqlar");try{await api("task_save",{task:T[i]});tk++}catch(e){}}
       try{await sync({all:true})}catch(e){}
       return ok+" hesabat"+(bad?" ("+bad+" alınmadı)":"")+", "+tk+" tapşırıq"+(ph?", "+ph+" şəkil":"")}});
-  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}return r};
+  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}return r};
   try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>!!state.me.boss||(!(typeof CFG!=="undefined"&&CFG.hub)&&state.me.role==="admin"),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}
   /* the "Ayarlar" button was bound to the old function at start-up */
   const hs=document.getElementById("hSettings");if(hs)hs.onclick=()=>renderSettings();

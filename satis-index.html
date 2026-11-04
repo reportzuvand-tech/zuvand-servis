@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110506;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110507;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -995,6 +995,19 @@ function saHandle(db,u,action,p){
     var row=(lc.plist||[])[Math.round(saNum(p.k))];if(!row)saErr("notfound");var fk=saFakeSn(lc.plist),sn0=String(row.sn||"").toLowerCase().replace(/\s+/g,""),nsn=saStr(p.sn,80).trim();
     if(nsn&&saRowCap(row)===1&&(!sn0||fk[sn0])){row.sn=nsn;lc.hist=(lc.hist||[]).slice(-49);lc.hist.push({at:now,by:u.name,what:"cihaz öyrənildi: "+row.name+" → SN "+nsn});lc.updatedAt=now;lc.by=u.name;ch.contracts.push(lc)}
     return {res:{contract:lc},ch:ch}}
+  /* the manager corrects a customer's name everywhere (sales, invoices, contracts, warehouse moves); the old spelling stays as an alias of the contract */
+  case "renameClient":{need(SA_CAN.admin(role));var rf=saStr(p.from,200).trim(),rt=saStr(p.to,200).trim(),rdry=!!p.dry;if(!rf||!rt)saErr("bad_name");
+    var core=function(x){return saNormName(x).replace(/\b(mmc|asc|qsc|ojsc|llc|ltd|mehdud mesuliyyetli cemiyyeti|aciq sehmdar cemiyyeti|qapali sehmdar cemiyyeti)\b/g," ").replace(/\s+/g," ").trim()},nf=core(rf);if(!nf)saErr("bad_name");
+    var hit=function(x){return !!String(x||"").trim()&&core(x)===nf&&String(x).trim()!==rt},cnt={quotes:0,invoices:0,contracts:0,moves:0},names={},seen=function(x){names[String(x).trim()]=(names[String(x).trim()]||0)+1};
+    db.quotes.forEach(function(q){var c=0;if(q.cl&&hit(q.cl.name)){c=1;seen(q.cl.name);if(!rdry)q.cl.name=rt}if(q.src&&hit(q.src.site)){c=1;if(!rdry)q.src.site=rt}
+      if(c){cnt.quotes++;if(!rdry){q.updatedAt=now;q.by=u.name;q.hist=(q.hist||[]).slice(-39);q.hist.push({at:now,by:u.name,st:"renamed",what:"müştəri adı: "+rt});ch.quotes.push(q)}}});
+    db.invoices.forEach(function(v){if(hit(v.supplier)){cnt.invoices++;seen(v.supplier);if(!rdry){v.supplier=rt;v.updatedAt=now;v.by=u.name;ch.invoices.push(v)}}});
+    db.contracts.forEach(function(c){var k=0;if(hit(c.client)){k=1;seen(c.client);if(!rdry){var al=String(c.aliases||"").split(/[,;\n]/).map(function(x){return x.trim()}).filter(Boolean);
+        if(!al.some(function(x){return x===c.client}))al.push(c.client);c.client=rt;c.aliases=al.join(", ")}}
+      var st=String(c.sites||"").split("\n");if(st.some(hit)){k=1;if(!rdry)c.sites=st.map(function(x){return hit(x)?rt:x}).join("\n")}
+      if(k){cnt.contracts++;if(!rdry){c.updatedAt=now;c.by=u.name;c.hist=(c.hist||[]).slice(-49);c.hist.push({at:now,by:u.name,what:"müştəri adı dəyişdirildi: "+rt});ch.contracts.push(c)}}});
+    db.moves.forEach(function(m){if(hit(m.party)){cnt.moves++;seen(m.party);if(!rdry){m.party=rt;ch.moves.push(m)}}});
+    return {res:{counts:cnt,names:names,dry:rdry},ch:ch}}
   case "mergeSvc":{need(SA_CAN.quote(role)||SA_CAN.contract(role));var ms=quoteById(p.id),mt=quoteById(p.target);
     if(!ms||ms.del||!ms.src||ms.src.type!=="service"||!mt||mt.del||mt.id===ms.id)saErr("notfound");
     if((ms.bill&&ms.bill.st)||ms.billedIn||mt.status==="rejected"||(mt.bill&&mt.bill.st==="paid")||mt.billedIn)saErr("locked");
@@ -2455,6 +2468,24 @@ async function pickQuote(id){MF.quoteId=id;const rem=state.remaining[id],q=state
   MF.lines=Object.keys(MF.rem).filter(k=>MF.rem[k].left>0).map(k=>({itemId:k,qty:qf(Math.min(MF.rem[k].left,Math.max(0,stk(k).q))),cost:""}))}
 
 /* ================= settings ================= */
+/* the manager corrects a customer's name everywhere (e.g. AZƏRİKART → "AZƏRİKARD" MMC) */
+function renCard(){const m=document.getElementById("main");if(!m||!(can("admin")))return;const old=document.getElementById("renCard");if(old)old.remove();
+  const N=[...new Set(listQuotes().map(q=>q.client).concat((state.contracts||[]).filter(c=>!c.del).map(c=>c.client)).map(x=>String(x||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"az")),fmt=r=>{const S=r.counts||{};return (S.quotes||0)+" təklif, "+(S.invoices||0)+" qaimə, "+(S.contracts||0)+" müqavilə, "+(S.moves||0)+" hərəkət"},nmOf=r=>r.names||{};
+  m.insertAdjacentHTML("beforeend",`<div class="card" id="renCard" style="margin-top:12px"><h3>Müştəri adını hər yerdə dəyiş</h3><p class="note" style="margin:0 0 8px">${esc(CFG.hub?"Satış və Anbar-da dəyişir (təkliflər, qaimələr, müqavilələr, anbar hərəkətləri). Servis hesabatları üçün: ZUVAND Servis → Ayarlar → eyni bölmə (orada hər iki proqramda birdən dəyişir).":"Təkliflər, qaimələr, müqavilələr və anbar hərəkətlərində dəyişir; köhnə ad müqavilədə “başqa cür yazılış” kimi saxlanılır ki, servis hesabatları yenə tapılsın. UPS Servis-də də eyni ilə: Ayarlar → “Müştəri adını hər yerdə dəyiş”.")} “MMC”, dırnaq və böyük-kiçik hərf fərqi nəzərə alınmır: “AZƏRİKART” və “\"AZƏRİKART\" MMC” eyni ad sayılır.</p>
+   <datalist id="renList">${N.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+   <div class="grid2"><label class="f"><span>Köhnə (səhv) ad</span><input id="renFrom" list="renList" placeholder="məs. AZƏRİKART"></label><label class="f"><span>Yeni (düzgün) ad</span><input id="renTo" list="renList" placeholder="məs. &quot;AZƏRİKARD&quot; MMC"></label></div>
+   <div class="actions"><button class="btn" id="renDry">Yoxla</button><button class="btn pri" id="renGo" disabled>Hər yerdə dəyiş</button></div><p class="note" id="renMsg" style="margin:6px 0 0"></p></div>`);
+  const g=id=>document.getElementById(id),msg=t=>{g("renMsg").innerHTML=t};let ok=null;
+  const val=()=>[g("renFrom").value.trim(),g("renTo").value.trim()];
+  ["renFrom","renTo"].forEach(id=>g(id).oninput=()=>{ok=null;g("renGo").disabled=true;msg("")});
+  g("renDry").onclick=async()=>{const [f,t]=val();if(!f||!t){msg("Hər iki adı yazın");return}msg("Yoxlanılır…");
+    try{const r=await api("client_rename".replace("client_rename","renameClient"),{from:f,to:t,dry:true});const nm=nmOf(r),L=Object.keys(nm);
+      if(!L.length){msg("Bu adla heç nə tapılmadı.");return}ok=f+"\u0001"+t;g("renGo").disabled=false;
+      msg("Tapıldı: <b>"+esc(fmt(r))+"</b><br>Yazılışlar: "+L.map(k=>"“"+esc(k)+"” ("+nm[k]+")").join(", ")+"<br>“Hər yerdə dəyiş” basın — hamısı “"+esc(t)+"” olacaq.")}
+    catch(e){msg("Alınmadı: "+esc(e&&e.message||e))}};
+  g("renGo").onclick=async()=>{const [f,t]=val();if(ok!==f+"\u0001"+t)return;const b=g("renGo");if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Təsdiq: dəyiş";return}
+    b.disabled=true;msg("Dəyişdirilir…");try{const r=await api("renameClient",{from:f,to:t});msg("✓ Dəyişdirildi: <b>"+esc(fmt(r))+"</b>");toast("Müştəri adı dəyişdirildi: "+t);try{await sync()}catch(e){}}
+    catch(e){b.disabled=false;b.dataset.sure="";b.textContent="Hər yerdə dəyiş";msg("Alınmadı: "+esc(e&&e.message||e))}}}
 async function svcSyncCard(){const m=document.getElementById("main");if(!m||!can("admin")||isDemo()||CFG.hub)return;
   const id="svcSyncCard";let box=document.getElementById(id);if(!box){m.insertAdjacentHTML("beforeend",`<div class="card" id="${id}" style="margin-top:12px"><h3>Servis hesabatlarının yoxlanması</h3><p class="note" style="margin:0">Yüklənir…</p></div>`);box=document.getElementById(id)}
   let g;try{g=await api("svcSync_get")}catch(e){box.innerHTML=`<h3>Servis hesabatlarının yoxlanması</h3><p class="note" style="margin:0">Server bu ayarı hələ tanımır — Google serverdə Code.gs-i yeniləyin (New version).</p>`;return}
@@ -3699,7 +3730,7 @@ window.ZSBK=(function(){
     restore:async(B,prog)=>{prog(1,1,"Göndərilir");const r=await api("restoreAll",{db:B.db});
       state.local={};state.pending.clear();try{saveLocal()}catch(e){}state.outbox=[];try{saveOutbox()}catch(e){}state.lastSync=0;try{saveCache()}catch(e){}
       try{await sync()}catch(e){}const n=r.restored||{};return `${n.items||0} mal, ${n.quotes||0} sənəd, ${n.invoices||0} qaimə, ${n.contracts||0} müqavilə, ${n.moves||0} hərəkət`}});
-  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{svcSyncCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}return r};
+  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{svcSyncCard()}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}return r};
   try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>can("admin"),hub:()=>!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}
 }catch(e){console.log("look/backup",e)}})();
 </script>
