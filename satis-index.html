@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110507;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110601;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -15,7 +15,7 @@ if(x&&x.v===v&&x.html&&x.html.indexOf("ZS_BUILD="+v+";")>0&&x.html.indexOf('ZS_A
    ZUVAND Servis kompüterində (hub) rəhbər hub-ı özü yeniləyir; Google və iPhone versiyaları həmişə son versiyadadır. */
 window.ZSUPD=(function(){
   const RAW="https://raw.githubusercontent.com/reportzuvand-tech/";
-  const SRC={ups:["ups-servis/main/www/","version.json"],sa:["satis-anbar/main/","version.json"],zs:["zuvand-servis/main/","version.json"],zssa:["zuvand-servis/main/","version.json"]};
+  const SRC={ups:["ups-servis/main/www/","version.json"],sa:["satis-anbar-web/main/app/","version.json"],zs:["zuvand-servis/main/","version.json"],zssa:["zuvand-servis/main/","version.json"]};
   let O=null,info=null,busy=false;
   const app=()=>window.ZS_APP||"",cur=()=>+window.ZS_BUILD||0,K=s=>"zsupd."+app()+"."+s;
   const LSg=k=>{try{return localStorage.getItem(k)}catch(e){return null}},LSs=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
@@ -72,6 +72,161 @@ window.ZSUPD=(function(){
   function init(o){O=o;const m=mode();if(m!=="app"&&m!=="hub")return;
     const last=+LSg(K("chk"))||0;if(Date.now()-last>6*3600e3)setTimeout(()=>{if(navigator.onLine===false)return;if(m==="hub"&&!O.isAdmin())return;LSs(K("chk"),String(Date.now()));check(true)},20000)}
   return {init,card,check,apply,revert,mode}})();
+</script>
+<script>/* ZUVAND — təhlükəsizlik: proqram kilidi (PIN), fəaliyyət jurnalı, zavod sıfırlaması (parol ilə).
+   Sıfırlamadan sonra bütün telefon və kompüterlər serverə qoşulanda öz yaddaşındakı köhnə məlumatı avtomatik silir. */
+window.ZSSEC=(function(){
+  let O=null,info=null,busy=false,lastAct=Date.now(),locked=false;
+  const LSg=k=>{try{return localStorage.getItem(k)}catch(e){return null}},LSs=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
+  const esc=x=>String(x==null?"":x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+  const toast=(t,ms)=>{try{O&&O.toast?O.toast(t,ms):0}catch(e){}};
+  const g=id=>document.getElementById(id);
+  const hub=()=>!!(O&&O.hub&&O.hub());
+  const fam=()=>hub()?"hub":(O&&O.app)||"x";
+  /* SHA-256 (crypto.subtle is missing on plain http in the office network) */
+  function sha256js(str){const K=[1116352408,1899447441,3049323471,3921009573,961987163,1508970993,2453635748,2870763221,3624381080,310598401,607225278,1426881987,1925078388,2162078206,2614888103,3248222580,3835390401,4022224774,264347078,604807628,770255983,1249150122,1555081692,1996064986,2554220882,2821834349,2952996808,3210313671,3336571891,3584528711,113926993,338241895,666307205,773529912,1294757372,1396182291,1695183700,1986661051,2177026350,2456956037,2730485921,2820302411,3259730800,3345764771,3516065817,3600352804,4094571909,275423344,430227734,506948616,659060556,883997877,958139571,1322822218,1537002063,1747873779,1955562222,2024104815,2227730452,2361852424,2428436474,2756734187,3204031479,3329325298];
+    const b=new TextEncoder().encode(str),l=b.length,n=((l+9+63)>>6)<<6,m=new Uint8Array(n);m.set(b);m[l]=128;const dv=new DataView(m.buffer);dv.setUint32(n-4,l*8>>>0);dv.setUint32(n-8,Math.floor(l/536870912));
+    let H=[1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225];const w=new Array(64),r=(x,k)=>(x>>>k)|(x<<(32-k));
+    for(let o=0;o<n;o+=64){for(let i=0;i<16;i++)w[i]=dv.getUint32(o+i*4);for(let i=16;i<64;i++){const s0=r(w[i-15],7)^r(w[i-15],18)^(w[i-15]>>>3),s1=r(w[i-2],17)^r(w[i-2],19)^(w[i-2]>>>10);w[i]=(w[i-16]+s0+w[i-7]+s1)|0}
+      let [a,bb,c,d,e,f,gg,h]=H;for(let i=0;i<64;i++){const S1=r(e,6)^r(e,11)^r(e,25),ch=(e&f)^(~e&gg),t1=(h+S1+ch+K[i]+w[i])|0,S0=r(a,2)^r(a,13)^r(a,22),mj=(a&bb)^(a&c)^(bb&c),t2=(S0+mj)|0;h=gg;gg=f;f=e;e=(d+t1)|0;d=c;c=bb;bb=a;a=(t1+t2)|0}
+      H=[H[0]+a|0,H[1]+bb|0,H[2]+c|0,H[3]+d|0,H[4]+e|0,H[5]+f|0,H[6]+gg|0,H[7]+h|0]}
+    return H.map(x=>(x>>>0).toString(16).padStart(8,"0")).join("")}
+  async function sha(t){t=String(t);try{if(window.crypto&&crypto.subtle){const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("")}}catch(e){}return sha256js(t)}
+  const ERR={badpw:"Parol səhvdir",nopw:"Əvvəlcə sıfırlama parolu təyin edin",locked:"Çox səhv cəhd — 30 dəqiqə gözləyin",forbidden:"Bu əməliyyat yalnız rəhbərə açıqdır",confirm:"Təsdiq sözü səhvdir",bad_pw:"Parol düzgün deyil",auth:"Açar qəbul edilmədi",offline:"İnternet / şəbəkə yoxdur"};
+  const em=e=>ERR[(e&&e.data&&e.data.error)||(e&&e.message)]||(e&&e.message)||String(e);
+
+  /* ---------- this device's data ---------- */
+  const PFX={ups:["ups."],sa:["sa."],hub:["ups.","sa."]};
+  const KEEP=["ups.me","ups.rootpath","ups.actdir","ups.actdirpos","ups.pdfdrive","sa.me","sa.srv2","sa.rootpath","sa.pdfDrive","sa.vdir"];
+  const IDBS={ups:["ups-data","ups-photos"],sa:["sa-pdf"],hub:["ups-data","ups-photos","sa-pdf"]};
+  function clearIdb(name){return new Promise(res=>{let done=false;const fin=()=>{if(!done){done=true;res()}};setTimeout(fin,4000);
+    try{const q=indexedDB.open(name);q.onupgradeneeded=()=>{try{q.transaction.abort()}catch(e){}};q.onerror=fin;
+      q.onsuccess=()=>{const db=q.result,S=[...db.objectStoreNames];if(!S.length){db.close();return fin()}try{const tx=db.transaction(S,"readwrite");S.forEach(s=>tx.objectStore(s).clear());tx.oncomplete=()=>{db.close();fin()};tx.onerror=()=>{db.close();fin()}}catch(e){db.close();fin()}}}catch(e){fin()}})}
+  async function wipe(full){const P=PFX[fam()]||[],keep=full?[]:KEEP;
+    const ks=[];try{for(let i=0;i<localStorage.length;i++)ks.push(localStorage.key(i))}catch(e){}
+    ks.forEach(k=>{if(k&&P.some(p=>k.indexOf(p)===0)&&keep.indexOf(k)<0)LSs(k,null)});
+    if(full)["zssec.pin","zssec.idle"].forEach(k=>LSs(k,null));
+    for(const n of IDBS[fam()]||[])await clearIdb(n)}
+
+  /* ---------- after a factory reset on the server every device clears its old copy ---------- */
+  const DATAK={ups:["ups.remote","ups.reports","ups.pending"],sa:["sa.cache","sa.quotes","sa.outbox"]};
+  const hasLocal=()=>(fam()==="hub"?DATAK.ups.concat(DATAK.sa):DATAK[fam()]||[]).some(k=>{const v=LSg(k);return v&&v.length>4});
+  let had0=null;
+  const EK=()=>"zssec.ep."+fam();
+  async function checkEpoch(){if(!O||busy||!O.logged||!O.logged())return;
+    try{info=await O.api("sec_info",{});const ep=+info.epoch||0,sv=LSg(EK()),st=+sv||0;
+      if(ep&&ep!==st&&(sv!=null||had0)){busy=true;await wipe(false);LSs(EK(),String(ep));try{sessionStorage.setItem("zssec.msg","1")}catch(e){}location.reload();return}
+      if(sv==null)LSs(EK(),String(ep));if(g("secCard"))card()}catch(e){}}
+
+  /* ---------- PIN lock (this device only) ---------- */
+  const idleMin=()=>{const v=LSg("zssec.idle");return v==null?5:+v};
+  function lockNow(){if(locked||!LSg("zssec.pin"))return;locked=true;let tries=+(LSg("zssec.tries")||0);
+    const ov=document.createElement("div");ov.id="secLock";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");
+    ov.innerHTML=`<div class="sl-in"><div class="sl-ic">🔒</div><b>Proqram kilidlənib</b><p>PIN kodu daxil edin</p>
+      <input id="slPin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" aria-label="PIN kodu"><p class="sl-err" id="slErr"></p>
+      <button class="btn pri" id="slGo">Aç</button><button class="sl-link" id="slForgot">PIN-i unutmusunuz?</button></div>`;
+    document.body.appendChild(ov);const inp=g("slPin");setTimeout(()=>inp.focus(),50);
+    const go=async()=>{const wait=+(LSg("zssec.wait")||0);if(wait>Date.now()){g("slErr").textContent="Gözləyin: "+Math.ceil((wait-Date.now())/1000)+" san.";return}
+      const h=await sha("zspin:"+inp.value);if(h===LSg("zssec.pin")){LSs("zssec.tries","0");locked=false;lastAct=Date.now();ov.remove();return}
+      tries++;LSs("zssec.tries",String(tries));inp.value="";const w=tries>=5?Math.min(300,(tries-4)*30):0;if(w)LSs("zssec.wait",String(Date.now()+w*1000));
+      g("slErr").textContent="PIN səhvdir"+(w?" — "+w+" san. gözləyin":"")};
+    g("slGo").onclick=go;inp.onkeydown=e=>{if(e.key==="Enter")go()};
+    g("slForgot").onclick=async()=>{if(!confirm("PIN-i unutmusunuzsa, bu cihazdakı bütün məlumat və giriş açarı silinəcək (serverdəki məlumat qalır). Sonra açarla yenidən daxil olmalısınız. Davam edilsin?"))return;
+      await wipe(true);location.reload()}}
+  function touch(){if(!locked)lastAct=Date.now()}
+  function idleCheck(){const m=idleMin();if(!LSg("zssec.pin")||locked||m<=0)return;if(Date.now()-lastAct>m*60000)lockNow()}
+
+  /* ---------- the "Təhlükəsizlik" card in Ayarlar ---------- */
+  function css(){if(g("secCss"))return;document.head.insertAdjacentHTML("beforeend",`<style id="secCss">
+    #secLock{position:fixed;inset:0;z-index:2147483000;background:var(--bg,#F4F7F6);display:flex;align-items:center;justify-content:center;padding:16px}
+    #secLock .sl-in{display:grid;gap:10px;justify-items:center;text-align:center;max-width:300px;width:100%}#secLock .sl-ic{font-size:44px}
+    #secLock input{font-size:24px;letter-spacing:8px;text-align:center;padding:10px;width:100%;border:1px solid var(--line,#C9D3D0);border-radius:10px}
+    #secLock .sl-err{color:#B42318;min-height:18px;margin:0}#secLock .sl-link{background:none;border:0;color:var(--muted,#5B6B67);text-decoration:underline;cursor:pointer}
+    .secov{position:fixed;inset:0;z-index:100000;background:rgba(10,20,18,.45);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto}
+    .secov .in{background:var(--card,#fff);color:inherit;border-radius:14px;max-width:820px;width:100%;padding:16px;display:grid;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+    .secov .hd{display:flex;justify-content:space-between;align-items:center;gap:8px}.secov table{width:100%;border-collapse:collapse;font-size:13px}
+    .secov td,.secov th{border-bottom:1px solid var(--line,#E2E8E6);padding:6px 4px;text-align:left;vertical-align:top}.secov th{position:sticky;top:0;background:var(--card,#fff)}
+    .secov .tw{max-height:65vh;overflow:auto}.secov label.ck{display:flex!important;gap:10px;align-items:center;text-align:left}.secov label.ck input{width:20px!important;height:20px!important;flex:none;margin:0}.secov input[type=text],.secov input[type=password]{width:100%;padding:9px;border:1px solid var(--line,#C9D3D0);border-radius:8px;font-size:15px}
+    #secCard .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}#secCard input,#secCard select{padding:8px;border:1px solid var(--line,#C9D3D0);border-radius:8px;font-size:15px;max-width:180px}
+    .sec-danger{border:1px solid #F3B4AE;background:#FFF5F4;border-radius:10px;padding:10px;margin-top:8px}.sec-danger .btn.red{background:#C0392B;color:#fff;border-color:#C0392B}
+    </style>`)}
+  function modal(html){const ov=document.createElement("div");ov.className="secov";ov.innerHTML=`<div class="in">${html}</div>`;document.body.appendChild(ov);
+    ov.addEventListener("click",e=>{if(e.target===ov||e.target.closest("[data-x]"))ov.remove()});return ov}
+  const IDLE_OPT=[[0,"Yalnız proqram açılanda"],[1,"1 dəq. hərəkətsizlikdən sonra"],[5,"5 dəq."],[15,"15 dəq."],[30,"30 dəq."],[60,"1 saat"]];
+  function card(){const main=g("main");if(!main||!O)return;css();const old=g("secCard"),pin=!!LSg("zssec.pin"),boss=!!(info&&info.boss);
+    const sel=`<select id="secIdle" aria-label="Kilid vaxtı">${IDLE_OPT.map(([v,t])=>`<option value="${v}"${idleMin()===v?" selected":""}>${t}</option>`).join("")}</select>`;
+    let h=`<div class="card" id="secCard" style="margin-top:12px"><h3>Təhlükəsizlik</h3>
+      <p class="note" style="margin:0"><b>Proqram kilidi (PIN)</b> — bu cihazda proqram açılanda və bir müddət istifadə olunmayanda PIN soruşulur. Telefon itəndə məlumatı qoruyur.</p>
+      ${pin?`<div class="row"><span>✓ Kilid qoşulub · kilidlənmə:</span>${sel}</div><div class="row"><button class="btn" id="secLockNow">İndi kilidlə</button><button class="btn" id="secPinChg">PIN-i dəyiş</button><button class="btn ghost" id="secPinOff">Kilidi söndür</button></div>`
+        :`<div class="row"><input id="secPin1" type="password" inputmode="numeric" maxlength="12" placeholder="PIN (4–12 rəqəm)" aria-label="Yeni PIN"><input id="secPin2" type="password" inputmode="numeric" maxlength="12" placeholder="PIN təkrar" aria-label="PIN təkrar">${sel}<button class="btn pri" id="secPinOn">Kilidi qoş</button></div>`}`;
+    if(boss){const gas=!hub(),sa=O.app==="sa"&&gas;
+      h+=`<p class="note" style="margin:12px 0 0"><b>Fəaliyyət jurnalı</b> — kim nəyi nə vaxt yaratdı, dəyişdi, təsdiqlədi, sildi; icazəsiz cəhdlər də yazılır.</p>
+        <div class="row"><button class="btn" id="secAct">Fəaliyyət jurnalını aç</button></div>
+        <div class="sec-danger"><b>Zavod sıfırlaması</b><p class="note" style="margin:4px 0 8px">${hub()?"Bu kompüterdəki (hub) bütün servis və satış məlumatı silinir: hesabatlar, şəkillər, PDF-lər, müştərilər, kataloq, satışlar, anbar, mühasibat, tapşırıqlar, jurnal.":O.app==="sa"?"Google-dakı bütün satış məlumatı silinir: kataloq, hərəkətlər, təkliflər, qaimələr, müqavilələr, xərclər, qalıq, jurnal. Drive-dakı “Qiymət təklifləri” və “Qaimələr” qovluqları zibil qutusuna atılır (30 gün ərzində Drive-dan bərpa etmək olar).":"Google-dakı bütün servis məlumatı silinir: hesabatlar, bloklar, detallar, tapşırıqlar, qiymətləndirmələr, ödəniş məlumatı, jurnal. Drive-dakı müştəri qovluqları zibil qutusuna atılır (30 gün ərzində Drive-dan bərpa etmək olar)."} Ayarlar, görünüş (loqo) və açarlar qalır. Bütün telefon və kompüterlər serverə qoşulanda köhnə məlumatı öz yaddaşından da silir.</p>
+        <p style="margin:0 0 6px">${sa?"Sıfırlama parolu = rəhbərin <b>silmə şifrəsi</b>. ":""}${info.hasPw?"✓ Sıfırlama parolu təyin edilib.":"⚠ Sıfırlama parolu hələ təyin edilməyib."}</p>
+        <div class="row">${info.hasPw?`<input id="secOld" type="password" placeholder="Köhnə parol" aria-label="Köhnə parol">`:""}<input id="secNew1" type="password" placeholder="Yeni parol (min. 6)" aria-label="Yeni parol"><input id="secNew2" type="password" placeholder="Təkrar" aria-label="Parol təkrar"><button class="btn" id="secPwSave">${info.hasPw?"Parolu dəyiş":"Parolu təyin et"}</button></div>
+        ${info.hasPw?`<div class="row"><button class="btn red" id="secReset">Bütün məlumatı sil…</button></div>`:""}</div>`}
+    h+=`</div>`;
+    if(old)old.outerHTML=h;else main.insertAdjacentHTML("beforeend",h);bind();
+    if(!info&&O.logged&&O.logged())O.api("sec_info",{}).then(x=>{info=x;if(x.boss)card()}).catch(()=>{})}
+  function bind(){const on=(id,f)=>{const e=g(id);if(e)e.onclick=f};
+    const si=g("secIdle");if(si)si.onchange=()=>{LSs("zssec.idle",si.value);toast("Saxlanıldı")};
+    on("secPinOn",async()=>{const a=g("secPin1").value.trim(),b=g("secPin2").value.trim();if(!/^\d{4,12}$/.test(a)){toast("PIN 4–12 rəqəm olsun");return}if(a!==b){toast("PIN-lər eyni deyil");return}
+      LSs("zssec.pin",await sha("zspin:"+a));LSs("zssec.idle",g("secIdle").value);LSs("zssec.tries","0");toast("Proqram kilidi qoşuldu");card()});
+    on("secLockNow",()=>lockNow());
+    const askPin=async(q)=>{const p=prompt(q);if(p==null)return false;if(await sha("zspin:"+p.trim())!==LSg("zssec.pin")){toast("PIN səhvdir");return false}return true};
+    on("secPinOff",async()=>{if(!await askPin("Kilidi söndürmək üçün hazırkı PIN:"))return;LSs("zssec.pin",null);toast("Kilid söndürüldü");card()});
+    on("secPinChg",async()=>{if(!await askPin("Hazırkı PIN:"))return;LSs("zssec.pin",null);card();toast("Yeni PIN yazın")});
+    on("secAct",()=>openActivity());
+    on("secPwSave",async()=>{const a=g("secNew1").value,b=g("secNew2").value,o=g("secOld")?g("secOld").value:"";if(a.length<6){toast("Parol ən azı 6 simvol olsun");return}if(a!==b){toast("Parollar eyni deyil");return}
+      try{const h=await sha(a);await O.api("reset_pw_set",{old:o?await sha(o):"",pwh:h});if(O.onPw)O.onPw(h);info.hasPw=true;toast("Sıfırlama parolu saxlanıldı");card()}catch(e){toast("Alınmadı: "+em(e))}});
+    on("secReset",()=>openReset())}
+  /* ---------- activity log ---------- */
+  const LBL={save:"Hesabat saxlandı",approve:"Təsdiq",delete:"Silindi",restore:"Versiya bərpa edildi",settings:"Ayarlar dəyişdi",task:"Tapşırıq",
+    "task-del":"Tapşırıq silindi",worker:"İşçi dəyişdi","worker-newkey":"Yeni açar","shared-off":"Ortaq açar",look:"Görünüş dəyişdi",pdf:"PDF",customer:"Müştəri saxlandı","customer-del":"Müştəri silindi",
+    "client-rename":"Müştəri adı dəyişdi",positions:"Vəzifələr dəyişdi",snapshot:"Ehtiyat nüsxə",backup:"Ehtiyat nüsxə",forbidden:"İcazəsiz cəhd","auth-lock":"Səhv açar — ünvan bloklandı",
+    "reset-pw":"Sıfırlama parolu dəyişdi","reset-badpw":"Sıfırlama — parol səhv","svc-sale":"Servisdən satış","svc-sale-revoke":"Servis satışı geri alındı","pay-cfg":"Ödəniş görünüşü",
+    saveQuote:"Təklif / satış saxlandı",setBill:"Hesab-faktura / ödəniş",delQuote:"Təklif silindi",svcBill:"Servis hesabı",restoreQuote:"Təklif bərpa edildi",setDelPw:"Silmə şifrəsi dəyişdi",
+    saveItem:"Mal saxlandı",delItems:"Mal silindi",setCat:"Kateqoriya",importItems:"Mal idxalı",addMoves:"Anbar hərəkəti",setCost:"Maya dəyəri",delMove:"Hərəkət silindi",
+    saveInvoice:"Qaimə saxlandı",postSaleInvoice:"Satış qaiməsi",shipInvoice:"Qaimə göndərildi",directSupply:"Birbaşa təchizat",approveInvoice:"Qaimə təsdiqləndi",returnInvoice:"Qaimə qaytarıldı",
+    receiveInvoice:"Qaimə anbara qəbul",reopenInvoice:"Qaimə yenidən açıldı",delInvoice:"Qaimə silindi",setInvoicePdf:"Qaimə PDF",saveContract:"Müqavilə saxlandı",conLearn:"Müqavilə",
+    renameClient:"Müştəri adı dəyişdi",mergeSvc:"Servis satışa birləşdirildi",applyContract:"Müqavilə tətbiqi",saveExpense:"Xərc saxlandı",delExpense:"Xərc silindi",delContract:"Müqavilə silindi",
+    serviceImport:"Servis hesabatlarından satış",svcSync:"Yoxlama intervalı",userSave:"İstifadəçi dəyişdi",positionsSave:"Vəzifələr dəyişdi"};
+  const lbl=a=>{a=String(a||"");if(a.indexOf("sa:")===0)a=a.slice(3);return LBL[a]||a};
+  const fmt=t=>{const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(t||""));if(!m)return esc(t);const d=new Date(t);if(/Z$/.test(t)&&!isNaN(d)){const p=n=>String(n).padStart(2,"0");return p(d.getDate())+"."+p(d.getMonth()+1)+"."+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes())}return m[3]+"."+m[2]+"."+m[1]+" "+m[4]+":"+m[5]};
+  function openActivity(){const ov=modal(`<div class="hd"><b>Fəaliyyət jurnalı</b><button class="btn sm ghost" data-x aria-label="Bağla">✕</button></div>
+      <div style="display:flex;gap:8px"><input type="text" id="secQ" placeholder="Axtar: ad, müştəri, hesabat №, əməliyyat…" aria-label="Axtar"><button class="btn" id="secQGo">Axtar</button></div>
+      <div class="tw" id="secTw"><p class="note">Yüklənir…</p></div>`);
+    const load=async()=>{const tw=ov.querySelector("#secTw");tw.innerHTML=`<p class="note">Yüklənir…</p>`;
+      try{const r=await O.api("activity",{q:ov.querySelector("#secQ").value.trim()}),R=r.rows||[];
+        tw.innerHTML=R.length?`<table><thead><tr><th>Vaxt</th><th>Kim</th><th>Əməliyyat</th><th>Ətraflı</th></tr></thead><tbody>${R.map(x=>{const bad=/İcazəsiz|forbidden|badpw|səhv|lock|SIFIRLAMA/i.test(x[2]);
+          return `<tr${bad?' style="color:#B42318"':""}><td style="white-space:nowrap">${fmt(x[0])}</td><td>${esc(x[1])}</td><td>${esc(lbl(x[2]))}</td><td>${esc(x[3])}</td></tr>`}).join("")}</tbody></table><p class="note">Son ${R.length} qeyd</p>`:`<p class="note">Qeyd tapılmadı</p>`}
+      catch(e){tw.innerHTML=`<p class="note">Alınmadı: ${esc(em(e))}</p>`}};
+    ov.querySelector("#secQGo").onclick=load;ov.querySelector("#secQ").onkeydown=e=>{if(e.key==="Enter")load()};load()}
+  /* ---------- factory reset ---------- */
+  function openReset(){const ov=modal(`<div class="hd"><b style="color:#B42318">Zavod sıfırlaması — bütün məlumat silinəcək</b><button class="btn sm ghost" data-x aria-label="Bağla">✕</button></div>
+      <p style="margin:0">Bu əməliyyat geri qaytarılmır${hub()?"":" (Drive faylları 30 gün zibil qutusunda qalır)"}. Davam etmədən əvvəl lazım olsa, Ayarlar → “Ehtiyat nüsxə” ilə nüsxə çıxarın.</p>
+      <label class="ck"><input type="checkbox" id="secStaff"> İşçiləri və onların açarlarını da sil (sizdən başqa)</label>
+      ${hub()?`<label class="ck"><input type="checkbox" id="secBk" checked> Bu kompüterdəki avtomatik ehtiyat nüsxələri də sil</label>`:""}
+      <label>Sıfırlama parolu<input type="password" id="secPw" autocomplete="off"></label>
+      <label>Təsdiq üçün böyük hərflərlə <b>SİL</b> yazın<input type="text" id="secCf" autocomplete="off"></label>
+      <p class="note" id="secMsg" style="margin:0"></p>
+      <div class="actions"><button class="btn ghost" data-x>Ləğv et</button><button class="btn red" id="secGo" style="background:#C0392B;color:#fff;border-color:#C0392B">Hamısını sil</button></div>`);
+    const msg=t=>ov.querySelector("#secMsg").textContent=t;
+    ov.querySelector("#secGo").onclick=async()=>{const pw=ov.querySelector("#secPw").value,cf=ov.querySelector("#secCf").value.trim();
+      if(cf!=="SİL"&&cf!=="SIL"){msg("Təsdiq üçün SİL yazın");return}if(!pw){msg("Parolu yazın");return}
+      const b=ov.querySelector("#secGo");b.disabled=true;msg("Silinir… bu bir neçə dəqiqə çəkə bilər, proqramı bağlamayın.");
+      try{const r=await O.api("factory_reset",{pwh:await sha(pw),confirm:"SİL",staff:ov.querySelector("#secStaff").checked,backups:!!(ov.querySelector("#secBk")&&ov.querySelector("#secBk").checked)});
+        busy=true;await wipe(false);LSs(EK(),String(r.epoch||""));try{sessionStorage.setItem("zssec.msg","2")}catch(e){}msg("Hazırdır — proqram yenidən açılır…");setTimeout(()=>location.reload(),800)}
+      catch(e){b.disabled=false;msg("Alınmadı: "+em(e))}}}
+  function init(o){O=o;css();if(had0==null)had0=hasLocal();
+    try{const m=sessionStorage.getItem("zssec.msg");if(m){sessionStorage.removeItem("zssec.msg");setTimeout(()=>toast(m==="2"?"Zavod sıfırlaması tamamlandı — bütün məlumat silindi":"Rəhbər bütün məlumatı sıfırladı — bu cihazdakı köhnə məlumat silindi",9000),1500)}}catch(e){}
+    ["pointerdown","keydown","touchstart"].forEach(ev=>document.addEventListener(ev,touch,{passive:true,capture:true}));
+    document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){idleCheck();checkEpoch()}else lastAct=Math.min(lastAct,Date.now())});
+    setInterval(idleCheck,20000);setTimeout(checkEpoch,6000);setInterval(checkEpoch,15*60000);
+    if(LSg("zssec.pin"))lockNow()}
+  try{O={app:window.ZS_APP==="ups"||window.ZS_APP==="zs"?"ups":"sa",hub:()=>window.ZS_APP==="zs"||window.ZS_APP==="zssa"};had0=hasLocal();O=null}catch(e){O=null}
+  return {init,card,lockNow,wipe,checkEpoch,sha}})();
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -3730,8 +3885,8 @@ window.ZSBK=(function(){
     restore:async(B,prog)=>{prog(1,1,"Göndərilir");const r=await api("restoreAll",{db:B.db});
       state.local={};state.pending.clear();try{saveLocal()}catch(e){}state.outbox=[];try{saveOutbox()}catch(e){}state.lastSync=0;try{saveCache()}catch(e){}
       try{await sync()}catch(e){}const n=r.restored||{};return `${n.items||0} mal, ${n.quotes||0} sənəd, ${n.invoices||0} qaimə, ${n.contracts||0} müqavilə, ${n.moves||0} hərəkət`}});
-  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{svcSyncCard()}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}return r};
-  try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>can("admin"),hub:()=>!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}
+  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{svcSyncCard()}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}try{ZSSEC.card()}catch(e){}return r};
+  try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>can("admin"),hub:()=>!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}try{ZSSEC.init({app:"sa",api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!isDemo()&&!!state.me.key,hub:()=>!!CFG.hub,onPw:h=>{if(!CFG.hub){state.delPw=h;state.hasDelPw=true;try{saveCache()}catch(e){}}}})}catch(e){}
 }catch(e){console.log("look/backup",e)}})();
 </script>
 <script>/* Satış və Anbar: göstəricilər, statistika, aşağı menyu, status rəngi, PDF loqo, rəhbərin görünüşü, animasiyalar */
