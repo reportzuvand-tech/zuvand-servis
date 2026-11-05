@@ -173,6 +173,42 @@ function updRestart() {
   try { server.close() } catch (e) { }
   setTimeout(() => process.exit(0), 300);
 }
+/* ---------- təhlükəsizlik: sıfırlama parolu (yalnız duzlu heş saxlanılır), fəaliyyət jurnalı, zavod sıfırlaması ---------- */
+const pwFail = { n: 0, until: 0 };
+const pwHash = pwh => { if (!meta.resetSalt) { meta.resetSalt = crypto.randomBytes(12).toString("hex"); saveMeta() } return crypto.createHash("sha256").update(meta.resetSalt + ":" + String(pwh || "")).digest("hex") };
+function pwTry(pwh) {
+  if (pwFail.until > now()) err("locked"); if (!meta.resetPw) err("nopw");
+  if (!/^[0-9a-f]{64}$/.test(String(pwh || "")) || pwHash(pwh) !== meta.resetPw) { if (++pwFail.n >= 5) { pwFail.n = 0; pwFail.until = now() + 1800000 } err("badpw") }
+  pwFail.n = 0;
+}
+const rmrf = d => { try { fs.rmSync(d, { recursive: true, force: true }) } catch (e) { } };
+const SEC = {
+  sec_info: (u) => ({ epoch: +meta.epoch || 0, hasPw: !!meta.resetPw, boss: !!u.boss }),
+  reset_pw_set: (u, b) => { needBoss(u); if (meta.resetPw) pwTry(b.old); if (!/^[0-9a-f]{64}$/.test(String(b.pwh || ""))) err("bad_pw"); meta.resetPw = pwHash(b.pwh); saveMeta(); log(u, "reset-pw", ""); return {} },
+  activity: (u, b) => {
+    needBoss(u); let txt = ""; try { const st = fs.statSync(P("log.txt")), fd = fs.openSync(P("log.txt"), "r"), len = Math.min(st.size, 1500000), buf = Buffer.alloc(len); fs.readSync(fd, buf, 0, len, st.size - len); fs.closeSync(fd); txt = buf.toString("utf8") } catch (e) { }
+    const q = String(b.q || "").toLowerCase().trim(), rows = [];
+    const L = txt.split("\n"); for (let i = L.length - 1; i >= 0 && rows.length < 1500; i--) { const c = L[i].split("\t"); if (c.length < 3 || !/^\d{4}-/.test(c[0])) continue; const r = [c[0], c[1], c[2], c.slice(3).join(" ")]; if (q && r.join(" ").toLowerCase().indexOf(q) < 0) continue; rows.push(r) }
+    return { rows };
+  },
+  factory_reset: (u, b) => {
+    needBoss(u); if (String(b.confirm || "") !== "SİL") err("confirm");
+    try { pwTry(b.pwh) } catch (e) { log(u, "reset-badpw", e.code || ""); throw e }
+    let files = 0; const cnt = d => { try { files += fs.readdirSync(d).length } catch (e) { } };
+    for (const d of ["reports", "versions", "pdf", "photos"]) { cnt(P(d)); rmrf(P(d)) }
+    fs.mkdirSync(P("reports"), { recursive: true });
+    writeJSON(P("tasks.json"), []); writeJSON(P("ratings.json"), {}); writeJSON(P("customers.json"), []); writeJSON(P("catalog.json"), []); writeJSON(P("deleted.json"), {});
+    const sa = P("sa"); try { for (const f of fs.readdirSync(sa)) if (f !== "settings.json") rmrf(path.join(sa, f)) } catch (e) { }
+    for (const k of ["items", "moves", "quotes", "invoices", "contracts", "expenses"]) writeJSON(path.join(sa, k + ".json"), []);
+    if (b.backups) { try { for (const f of fs.readdirSync(BACKUP)) rmrf(path.join(BACKUP, f)) } catch (e) { } }
+    if (b.staff) { users = users.filter(x => x.id === u.id); meta.sharedKey = newKey() }
+    meta.epoch = now(); saveMeta(); saveUsers();
+    try { fs.writeFileSync(P("log.txt"), "") } catch (e) { }
+    reports.clear(); load(); SAM.load(DATA, path.join(ROOT, "seed"), log);
+    log(u, "ZAVOD SIFIRLAMASI", (b.staff ? "işçilər də silindi" : "") + (b.backups ? " ehtiyat nüsxələr də silindi" : ""));
+    return { epoch: meta.epoch, files };
+  }
+};
 const ACTIONS = {
   ping: (u) => who(u),
   /* the manager corrects a customer's name everywhere: service reports, the customer base and Satış və Anbar (sales, invoices, contracts, moves) */
@@ -405,21 +441,30 @@ function saApi(body, req) {
   try {
     const u = auth(body.key);
     const res = SAM.api({ name: u.name || "İşçi", role: u.saRole, perms: u.perms }, body, { dataDir: DATA, host: req.headers.host || ("localhost:" + PORT), approvedReports, customers: () => customers });
-    if (body.action && !/^(ping|boot|getQuote|getQuotes|moves)$/.test(body.action)) log(u, "sa:" + body.action, "");
+    if (body.action && !/^(ping|boot|getQuote|getQuotes|moves|look_get|customers|custHist|svcSync_get|catalog)$/.test(body.action)) log(u, "sa:" + body.action, "");
     return Object.assign({ ok: true }, res);
   } catch (e) {
     if (e instanceof ApiErr || e.code) return Object.assign({ ok: false, error: e.code || "server" }, e.extra || {});
     log(null, "sa-error", (body && body.action) + ": " + (e && e.stack || e)); return { ok: false, error: "server" };
   }
 }
+const LOG_ACTS = { restore: "restore", settings: "settings", worker_newkey: "worker-newkey", shared_off: "shared-off", pay_cfg: "pay-cfg" };
+/* açar səhvi: eyni ünvandan 15 dəqiqədə 12 səhv cəhd → 15 dəqiqə blok */
+const authFails = new Map();
+const ipOf = req => String((req && req.socket && req.socket.remoteAddress) || "").replace(/^::ffff:/, "");
+function ipLocked(ip) { const x = authFails.get(ip); return !!(x && x.until > now()) }
+function ipFail(ip) { const t = now(); let x = authFails.get(ip); if (!x || t - x.first > 900000) x = { n: 0, first: t, until: 0 }; if (++x.n >= 12) { x.until = t + 900000; x.n = 0; x.first = t; log(null, "auth-lock", ip) } authFails.set(ip, x) }
 async function api(body, req) {
+  let u = null; const a = String(body.action || "");
   try {
-    const u = auth(body.key), fn = ACTIONS[String(body.action || "")];
+    u = auth(body.key); const fn = SEC[a] || ACTIONS[a];
     if (!fn) err("unknown_action");
     const res = await fn(u, body, req);
+    if (LOG_ACTS[a]) log(u, LOG_ACTS[a], String(body.id || (body.w && body.w.name) || "").slice(0, 80));
     return Object.assign({ ok: true }, res);
   } catch (e) {
     if (!(e instanceof ApiErr)) { log(null, "error", (body && body.action) + ": " + (e && e.stack || e)); return { ok: false, error: "server" } }
+    if (e.code === "forbidden" && u) log(u, "forbidden", a);
     return Object.assign({ ok: false, error: e.code }, e.extra || {});
   }
 }
@@ -446,7 +491,10 @@ const server = http.createServer((req, res) => {
     req.on("end", async () => {
       if (over) return;
       let body = {}; try { body = JSON.parse(Buffer.concat(chunks).toString("utf8")) } catch (e) { }
-      const out = url === "/api/sa" && body.action !== "translate" ? saApi(body, req) : await api(body, req), s = JSON.stringify(out);
+      const ip = ipOf(req);
+      if (ipLocked(ip)) { res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }); return res.end(JSON.stringify({ ok: false, error: "locked" })) }
+      const out = url === "/api/sa" && body.action !== "translate" && !SEC[body.action] ? saApi(body, req) : await api(body, req), s = JSON.stringify(out);
+      if (out && out.error === "auth") ipFail(ip);
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }); res.end(s);
     });
     return;
