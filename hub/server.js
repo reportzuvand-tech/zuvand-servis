@@ -191,6 +191,20 @@ const SEC = {
     const L = txt.split("\n"); for (let i = L.length - 1; i >= 0 && rows.length < 1500; i--) { const c = L[i].split("\t"); if (c.length < 3 || !/^\d{4}-/.test(c[0])) continue; const r = [c[0], c[1], c[2], c.slice(3).join(" ")]; if (q && r.join(" ").toLowerCase().indexOf(q) < 0) continue; rows.push(r) }
     return { rows };
   },
+  /* mühasib: təsdiqlənmiş servis hesabatlarının PDF-ləri */
+  svcPdfs: (u) => {
+    if (!u.boss && !u.perms.includes("muhasibat")) err("forbidden");
+    const list = []; for (const rec of reports.values()) { const r = rec.report; if (!r || !r.appr || !r.appr.at) continue; const s = summaryOf(rec);
+      const at = new Date(+r.appr.at || r.appr.at); list.push({ id: r.id, no: s.repno || "", date: s.date || "", client: s.client || "", obj: s.obj || "", type: s.type || "", eng: s.eng || "", payer: s.payer || "", appr: (isNaN(at) ? "" : at.toISOString().slice(0, 16).replace("T", " ")) + " · " + (r.appr.by || ""), pdf: !!rec.pdf }) }
+    list.sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0); return { list };
+  },
+  svcPdf: (u, b) => {
+    if (!u.boss && !u.perms.includes("muhasibat")) err("forbidden");
+    const rec = reports.get(String(b.id)); if (!rec || !rec.pdf) err("nopdf"); const i = rec.pdf.indexOf("/files/pdf/"); if (i < 0) err("nopdf");
+    let parts; try { parts = rec.pdf.slice(i + 11).split("/").map(decodeURIComponent) } catch (e) { err("nopdf") }
+    const f = P("pdf", ...parts); if (!inside(P("pdf"), f) || !fs.existsSync(f)) err("nopdf");
+    log(u, "svcPdf", rec.summary && rec.summary.repno || b.id); return { name: path.basename(f), data: fs.readFileSync(f).toString("base64") };
+  },
   factory_reset: (u, b) => {
     needBoss(u); if (String(b.confirm || "") !== "SİL") err("confirm");
     try { pwTry(b.pwh) } catch (e) { log(u, "reset-badpw", e.code || ""); throw e }
