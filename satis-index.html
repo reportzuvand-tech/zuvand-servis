@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110601;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110603;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -3933,6 +3933,40 @@ window.ZSBK=(function(){
     onApply:()=>{LOGO=ZSLOOK.pdfLogo()||LOGO0},onRender:()=>{kpi();skel();nav()},onResize:()=>nav()});
   const _t=toast;toast=function(m){const r=_t.apply(this,arguments);try{if(/saxlanıldı|təsdiqləndi|hazırlandı|qəbul edildi|bərpa olundu/i.test(String(m)))ZSLOOK.okAnim()}catch(e){}return r};
 }catch(e){console.log("zs-ui",e)}})();
+</script>
+<script>/* Satış və Anbar: mühasib üçün təsdiqlənmiş servis hesabatlarının PDF-ləri (Servis hesabları → Servis hesabatları (PDF)) */
+(function(){try{
+  const okRole=()=>!isDemo()&&(can("invoice")||can("admin"));
+  const IT=["svcpdf","Servis hesabatları (PDF)"];
+  const _g=grpSubs;grpSubs=function(){const G=_g.apply(this,arguments);if(!okRole())return G;const s=G.find(x=>x[0]==="svcb");if(s){if(!s[1].some(x=>x[0]==="svcpdf"))s[1].push(IT)}else G.push(["svcb",[IT]]);return G};
+  const _r=render;render=function(){if(state.view==="svcpdf"&&okRole()){header();return renderSvcPdf()}return _r.apply(this,arguments)};
+  document.head.insertAdjacentHTML("beforeend",`<style>.spl{display:grid;gap:8px}.spl .it{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;background:var(--card,#fff);border:1px solid var(--line,#E2E8E6);border-radius:12px;padding:10px 12px}
+    .spl .it b{font-size:15px}.spl .it .m{color:var(--muted,#5B6B67);font-size:13px}.spl .it .btn{white-space:nowrap}.spf{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}.spf input,.spf select{padding:8px;border:1px solid var(--line,#C9D3D0);border-radius:8px;font-size:15px}.spf input{flex:1;min-width:180px}</style>`);
+  let L=null,busy=false,Q="",M="";
+  const ERRS={svcsheet:"Ayarlarda UPS Servis Jurnalının cədvəli göstərilməyib",forbidden:"Bu bölmə yalnız mühasib və rəhbər üçündür",nopdf:"Bu hesabatın PDF-i serverdə yoxdur",notfound:"Hesabat tapılmadı"};
+  const em=e=>ERRS[(e&&e.data&&e.data.error)||(e&&e.message)]||(e&&e.message)||String(e);
+  async function load(){busy=true;try{const r=await api("svcPdfs",{});L=r.list||[]}catch(e){L=[];L.err=em(e)}busy=false;if(state.view==="svcpdf")renderSvcPdf()}
+  const d2=x=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(x||""));return m?m[3]+"."+m[2]+"."+m[1]:esc(x||"")};
+  const MON=["Yanvar","Fevral","Mart","Aprel","May","İyun","İyul","Avqust","Sentyabr","Oktyabr","Noyabr","Dekabr"];
+  function shown(){const q=norm(Q);return (L||[]).filter(x=>(!M||String(x.date).slice(0,7)===M)&&(!q||norm([x.no,x.client,x.obj,x.eng,x.payer,x.type].join(" ")).includes(q)))}
+  window.renderSvcPdf=function(){mainTabs("svcpdf");const m=$("#main");
+    if(!L){m.innerHTML=`<p class="note">Yüklənir…</p>`;if(!busy)load();return}
+    const months=[...new Set(L.map(x=>String(x.date).slice(0,7)).filter(x=>/^\d{4}-\d{2}$/.test(x)))].sort().reverse(),S=shown(),withPdf=S.filter(x=>x.pdf);
+    m.innerHTML=`<h2 class="sec">Təsdiqlənmiş servis hesabatları</h2><p class="hint">Rəhbərin təsdiqlədiyi servis hesabatlarının PDF-ləri. Təsdiqdən sonra PDF avtomatik serverə yüklənir.</p>
+      ${L.err?`<div class="banner">${esc(L.err)}</div>`:""}
+      <div class="spf"><input id="spQ" placeholder="Axtar: hesabat №, müştəri, obyekt, mühəndis…" value="${esc(Q)}" aria-label="Axtar"><select id="spM" aria-label="Ay"><option value="">Bütün aylar</option>${months.map(k=>`<option value="${k}"${k===M?" selected":""}>${MON[+k.slice(5)-1]} ${k.slice(0,4)}</option>`).join("")}</select>
+        <button class="btn" id="spR">Yenilə</button>${withPdf.length>1?`<button class="btn pri" id="spAll">Hamısını yüklə (${withPdf.length})</button>`:""}</div>
+      <div class="spl">${S.map(x=>`<div class="it"><div><b>${esc(x.no||"—")}</b> · ${d2(x.date)} · ${esc(x.client)}${x.obj?" — "+esc(x.obj):""}<div class="m">${esc([x.type,x.eng,x.payer?"vasitəçi: "+x.payer:""].filter(Boolean).join(" · "))}${x.appr?" · təsdiq: "+esc(x.appr):""}</div></div>
+        ${x.pdf?`<button class="btn" data-dl="${esc(x.id)}">⬇ PDF</button>`:`<span class="note">PDF yoxdur</span>`}</div>`).join("")||`<p class="note">Hesabat tapılmadı</p>`}</div>
+      <p class="note">Göstərilir: ${S.length} hesabat${S.length-withPdf.length?` · ${S.length-withPdf.length}-nin PDF-i yoxdur (rəhbər hesabatı açıb “PDF hazırla” bassa, burada görünəcək)`:""}</p>`;
+    const qi=$("#spQ");qi.oninput=()=>{Q=qi.value;clearTimeout(qi._t);qi._t=setTimeout(()=>{const p=qi.selectionStart;renderSvcPdf();const n=$("#spQ");n.focus();try{n.setSelectionRange(p,p)}catch(e){}},300)};
+    $("#spM").onchange=e=>{M=e.target.value;renderSvcPdf()};$("#spR").onclick=()=>{L=null;renderSvcPdf()};
+    m.querySelectorAll("[data-dl]").forEach(b=>b.onclick=async()=>{const x=L.find(y=>y.id===b.dataset.dl);b.disabled=true;b.textContent="Yüklənir…";await dl(x);b.disabled=false;b.textContent="⬇ PDF"});
+    const all=$("#spAll");if(all)all.onclick=async()=>{all.disabled=true;let i=0;for(const x of withPdf){all.textContent="Yüklənir "+(++i)+"/"+withPdf.length;if(!await dl(x))break}all.disabled=false;all.textContent="Hamısını yüklə ("+withPdf.length+")"}};
+  async function dl(x){try{const r=await api("svcPdf",{id:x.id});const bin=atob(r.data),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+      const nm=String(r.name||((x.no||"hesabat")+".pdf")).replace(/[\\/:*?"<>|]+/g," ");await saveFile(nm,new Blob([u],{type:"application/pdf"}),x.client);return true}
+    catch(e){toast("PDF alınmadı: "+em(e));return false}}
+}catch(e){console.log("svcpdf",e)}})();
 </script>
 </body>
 </html>

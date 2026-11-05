@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110601;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110603;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -227,6 +227,58 @@ window.ZSSEC=(function(){
     if(LSg("zssec.pin"))lockNow()}
   try{O={app:window.ZS_APP==="ups"||window.ZS_APP==="zs"?"ups":"sa",hub:()=>window.ZS_APP==="zs"||window.ZS_APP==="zssa"};had0=hasLocal();O=null}catch(e){O=null}
   return {init,card,lockNow,wipe,checkEpoch,sha}})();
+</script>
+<script>/* ZUVAND — QR kod yaradıcı (internetsiz işləyir): bayt rejimi, xəta düzəltmə M/Q/H, versiya 1–40 */
+window.ZSQR=(function(){
+  const ECC=[[-1,7,10,15,20,26,18,20,24,30,18,20,24,26,30,22,24,28,30,28,28,28,28,30,30,26,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30],
+    [-1,10,16,26,18,24,16,18,22,22,26,30,22,22,24,24,28,28,26,26,26,26,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28],
+    [-1,13,22,18,26,18,24,18,22,20,24,28,26,24,20,30,24,28,28,26,30,28,30,30,30,30,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30],
+    [-1,17,28,22,16,22,28,26,26,24,28,24,28,22,24,24,30,28,28,26,28,30,24,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30]];
+  const NB=[[-1,1,1,1,1,1,2,2,2,2,4,4,4,4,4,6,6,6,6,7,8,8,9,9,10,12,12,12,13,14,15,16,17,18,19,19,20,21,22,24,25],
+    [-1,1,1,1,2,2,4,4,4,5,5,5,8,9,9,10,10,11,13,14,16,17,17,18,20,21,23,25,26,28,29,31,33,35,37,38,40,43,45,47,49],
+    [-1,1,1,2,2,4,4,6,6,8,8,8,10,12,16,12,17,16,18,21,20,23,23,25,27,29,34,34,35,38,40,43,45,48,51,53,56,59,62,65,68],
+    [-1,1,1,2,4,4,4,5,6,8,8,11,11,16,16,18,16,19,21,25,25,25,34,30,32,35,37,40,42,45,48,51,54,57,60,63,66,70,74,77,81]];
+  const FB=[1,0,3,2];/* L M Q H */
+  const rawMods=v=>{let r=(16*v+128)*v+64;if(v>=2){const n=Math.floor(v/7)+2;r-=(25*n-10)*n-55;if(v>=7)r-=36}return r};
+  const dataCw=(v,e)=>Math.floor(rawMods(v)/8)-ECC[e][v]*NB[e][v];
+  const gmul=(x,y)=>{let z=0;for(let i=7;i>=0;i--){z=(z<<1)^((z>>>7)*0x11D);z^=((y>>>i)&1)*x}return z&255};
+  function rsDiv(d){const r=new Array(d).fill(0);r[d-1]=1;let root=1;for(let i=0;i<d;i++){for(let j=0;j<r.length;j++){r[j]=gmul(r[j],root);if(j+1<r.length)r[j]^=r[j+1]}root=gmul(root,2)}return r}
+  function rsRem(data,div){const r=div.map(()=>0);for(const b of data){const f=b^r.shift();r.push(0);div.forEach((c,i)=>r[i]^=gmul(c,f))}return r}
+  const alignPos=v=>{if(v===1)return [];const n=Math.floor(v/7)+2,step=v===32?26:Math.ceil((v*4+4)/(n*2-2))*2,res=[6];for(let p=v*4+10;res.length<n;p-=step)res.splice(1,0,p);return res};
+  function matrix(text,ecl){const e=({L:0,M:1,Q:2,H:3})[ecl||"M"];const bytes=[...new TextEncoder().encode(String(text))];
+    let v=1;for(;v<=40;v++){const cc=v<=9?8:16;if(4+cc+8*bytes.length<=dataCw(v,e)*8)break}if(v>40)throw new Error("qr_too_long");
+    const bits=[],put=(x,n)=>{for(let i=n-1;i>=0;i--)bits.push((x>>>i)&1)};put(4,4);put(bytes.length,v<=9?8:16);bytes.forEach(b=>put(b,8));
+    const cap=dataCw(v,e)*8;put(0,Math.min(4,cap-bits.length));put(0,(8-bits.length%8)%8);for(let p=0xEC;bits.length<cap;p^=0xEC^0x11)put(p,8);
+    const data=[];for(let i=0;i<bits.length;i+=8){let b=0;for(let j=0;j<8;j++)b=(b<<1)|bits[i+j];data.push(b)}
+    const nb=NB[e][v],el=ECC[e][v],raw=Math.floor(rawMods(v)/8),nShort=nb-raw%nb,sLen=Math.floor(raw/nb),div=rsDiv(el),blocks=[];
+    for(let i=0,k=0;i<nb;i++){const dat=data.slice(k,k+sLen-el+(i<nShort?0:1));k+=dat.length;const ec=rsRem(dat,div);if(i<nShort)dat.push(0);blocks.push(dat.concat(ec))}
+    const cw=[];for(let i=0;i<blocks[0].length;i++)blocks.forEach((b,j)=>{if(i!==sLen-el||j>=nShort)cw.push(b[i])});
+    const N=v*4+17,M=[...Array(N)].map(()=>new Array(N).fill(false)),F=[...Array(N)].map(()=>new Array(N).fill(false));
+    const set=(x,y,d)=>{M[y][x]=d;F[y][x]=true};
+    for(let i=0;i<N;i++){set(6,i,i%2===0);set(i,6,i%2===0)}
+    const finder=(cx,cy)=>{for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){const d=Math.max(Math.abs(dx),Math.abs(dy)),x=cx+dx,y=cy+dy;if(x>=0&&x<N&&y>=0&&y<N)set(x,y,d!==2&&d!==4)}};
+    finder(3,3);finder(N-4,3);finder(3,N-4);
+    const ap=alignPos(v);ap.forEach((a,i)=>ap.forEach((b,j)=>{if((i===0&&j===0)||(i===0&&j===ap.length-1)||(i===ap.length-1&&j===0))return;for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)set(a+dx,b+dy,Math.max(Math.abs(dx),Math.abs(dy))!==1)}));
+    const fmt=mask=>{const d=FB[e]<<3|mask;let r=d;for(let i=0;i<10;i++)r=(r<<1)^((r>>>9)*0x537);const b=(d<<10|r)^0x5412,g=i=>((b>>>i)&1)!==0;
+      for(let i=0;i<=5;i++)set(8,i,g(i));set(8,7,g(6));set(8,8,g(7));set(7,8,g(8));for(let i=9;i<15;i++)set(14-i,8,g(i));
+      for(let i=0;i<8;i++)set(N-1-i,8,g(i));for(let i=8;i<15;i++)set(8,N-15+i,g(i));set(8,N-8,true)};
+    fmt(0);
+    if(v>=7){let r=v;for(let i=0;i<12;i++)r=(r<<1)^((r>>>11)*0x1F25);const b=v<<12|r;for(let i=0;i<18;i++){const bt=((b>>>i)&1)!==0,a=N-11+i%3,c=Math.floor(i/3);set(a,c,bt);set(c,a,bt)}}
+    let i=0;for(let right=N-1;right>=1;right-=2){if(right===6)right=5;for(let vert=0;vert<N;vert++)for(let j=0;j<2;j++){const x=right-j,up=((right+1)&2)===0,y=up?N-1-vert:vert;
+      if(!F[y][x]&&i<cw.length*8){M[y][x]=((cw[i>>>3]>>>(7-(i&7)))&1)!==0;i++}}}
+    const MK=[(x,y)=>(x+y)%2===0,(x,y)=>y%2===0,(x,y)=>x%3===0,(x,y)=>(x+y)%3===0,(x,y)=>(Math.floor(x/3)+Math.floor(y/2))%2===0,(x,y)=>x*y%2+x*y%3===0,(x,y)=>(x*y%2+x*y%3)%2===0,(x,y)=>((x+y)%2+x*y%3)%2===0];
+    const apply=m=>{for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(!F[y][x]&&MK[m](x,y))M[y][x]=!M[y][x]};
+    const pen=()=>{let p=0,dark=0;for(let y=0;y<N;y++){let rc=1,cc=1;for(let x=0;x<N;x++){if(M[y][x])dark++;if(x>0){if(M[y][x]===M[y][x-1]){rc++;if(rc===5)p+=3;else if(rc>5)p++}else rc=1;if(M[x][y]===M[x-1][y]){cc++;if(cc===5)p+=3;else if(cc>5)p++}else cc=1}
+        if(x<N-1&&y<N-1){const c=M[y][x];if(c===M[y][x+1]&&c===M[y+1][x]&&c===M[y+1][x+1])p+=3}}}
+      return p+Math.floor(Math.abs(dark*20-N*N*10)/(N*N))*10};
+    let best=0,bp=1e9;for(let m=0;m<8;m++){apply(m);fmt(m);const p=pen();if(p<bp){bp=p;best=m}apply(m)}
+    apply(best);fmt(best);return {size:N,dark:(x,y)=>M[y][x],ver:v}}
+  /* PNG data URL (canvas); px = size of one module, margin = quiet zone in modules */
+  function png(text,px,ecl,margin){const q=matrix(text,ecl),m=margin==null?4:margin,s=(q.size+m*2)*(px||6),c=document.createElement("canvas");c.width=c.height=s;const g=c.getContext("2d");
+    g.fillStyle="#fff";g.fillRect(0,0,s,s);g.fillStyle="#000";const p=px||6;for(let y=0;y<q.size;y++)for(let x=0;x<q.size;x++)if(q.dark(x,y))g.fillRect((x+m)*p,(y+m)*p,p,p);return c.toDataURL("image/png")}
+  function svg(text,ecl,margin){const q=matrix(text,ecl),m=margin==null?4:margin,n=q.size+m*2;let d="";for(let y=0;y<q.size;y++)for(let x=0;x<q.size;x++)if(q.dark(x,y))d+=`M${x+m},${y+m}h1v1h-1z`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges"><rect width="${n}" height="${n}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`}
+  return {matrix,png,svg}})();
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -1756,7 +1808,7 @@ const SECTIONS={
   <div class="verdict ${A.cls}">${A.overall}<small>${multi?A.devs.length+" cihaz · ":""}${A.tested?`${A.tested} blok · ${A.rep} dəyişdirilməli · ${A.att} diqqət · `:(A.devs.some(x=>TYPES[x.d.type].hasBat)?"Akkumulyator ölçmələri yoxdur · ":"")}${outN} parametr norma xaricində · ${nasN} nasaz bənd</small></div>
   <div class="card" style="margin-top:12px"><h3>Avtomatik nəticə</h3>${A.devs.map(x=>x.a.C.length?`${multi?`<b>${x.i+1}. ${esc(TYPES[x.d.type].title)}${devName(x.d)?" — "+esc(devName(x.d)):""}</b>`:""}<ul class="concl">${x.a.C.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:"").join("")||'<p class="note" style="margin:0">Məlumat daxil edildikcə nəticələr burada yaranır.</p>'}</div>
   ${sigCard()}${qaCard()}
-  <div class="actions" style="margin:4px 0 12px"><button class="btn pri" id="bPdf">PDF hazırla</button>${folderBtn("rep")}<button class="btn" id="bPrint">Çap et</button><button class="btn" id="bXls">Excel (.xlsx)</button>${SVC_PROF(r)==="inst"?'<button class="btn pri" id="bAct">Təhvil-təslim aktı (PDF)</button><button class="btn" id="bActW">Akt (Word)</button>'+folderBtn("act"):""}
+  <div class="actions" style="margin:4px 0 12px"><button class="btn pri" id="bPdf">PDF hazırla</button>${folderBtn("rep")}<button class="btn" id="bPrint">Çap et</button><button class="btn" id="bQrLbl" title="Cihazlara yapışdırmaq üçün loqolu QR etiketlər">🏷 QR etiketlər</button><button class="btn" id="bXls">Excel (.xlsx)</button>${SVC_PROF(r)==="inst"?'<button class="btn pri" id="bAct">Təhvil-təslim aktı (PDF)</button><button class="btn" id="bActW">Akt (Word)</button>'+folderBtn("act"):""}
    <a class="btn" id="pdfLink" target="_blank" rel="noopener" href="${esc((state.remote[r.id]||{}).pdf||"")}" ${(state.remote[r.id]||{}).pdf?"":"hidden"} style="display:inline-flex;align-items:center;text-decoration:none">Serverdəki PDF</a>
    ${canDelete(r)?`<button class="btn danger" id="bDel">${state.remote[r.id]?"Hesabatı sil (rəhbər)":"Qaralamanı sil"}</button>`:""}
    ${state.me.role==="admin"&&state.remote[r.id]?'<button class="btn" id="bHist">Versiyalar</button>':""}
@@ -1764,7 +1816,7 @@ const SECTIONS={
    <div class="seg langseg" role="group" aria-label="Hesabatın dili"><span class="note" style="align-self:center;margin-right:4px">Dil:</span>${LANGS.map(([k,l])=>`<button type="button" class="s-idle" data-lang="${k}" aria-pressed="${(state.plang||"az")===k}">${l}</button>`).join("")}</div></div>
   ${r.sample?'<div class="banner" style="margin:0 0 12px">Bu nümunədir: serverə göndərilmir.</div>':""}
   ${!canDelete(r)&&state.remote[r.id]?'<p class="note">Serverdəki hesabatı yalnız servis müdiri / rəhbər silə bilər. Dəyişikliklərin əvvəlki versiyaları serverdə saxlanılır.</p>':""}
-  ${apprCard()}
+  ${apprCard()}${sigDiffCard()}
   ${state.me.role==="admin"&&!realOf(state.rep).sample?'<div class="card" id="rateBox"></div>':""}
   <div id="delConfirm" hidden class="card"><b>Bu hesabat ${state.remote[r.id]?"mərkəzi bazadan ":""}silinsin?</b>${state.remote[r.id]?'<p class="note" style="margin:0">Son versiya “_Versiyalar” qovluğunda qalır, lazım olsa bərpa etmək olar.</p>':""}<div class="actions"><button class="btn danger" id="bDelYes">Bəli, sil</button><button class="btn" id="bDelNo">Ləğv et</button></div></div>
   <div id="histBox"></div>
@@ -1862,7 +1914,18 @@ async function setAppr(kind,on){await flush();const r=realOf(state.rep);
   else{if(on)r.sub={by:state.me.name||"",at:Date.now()};else delete r.sub}
   try{await persist(r)}catch(e){toast("Cihaza yazmaq alınmadı");return}
   state.dirty=false;toast(kind==="appr"?(on?"Təsdiqləndi — Satış və Anbara göndərilir":"Təsdiq geri alındı — Satış və Anbarda satış da geri alınır (hesab yazılıbsa orada xəbərdarlıq çıxır)"):(on?"Rəhbərə göndərildi":"Geri götürüldü"));
-  sync({all:true});const y=window.scrollY;renderEditor();window.scrollTo(0,y)}
+  sync({all:true});const y=window.scrollY;renderEditor();window.scrollTo(0,y);
+  if(kind==="appr"&&on&&hasServer()&&!r.sample)setTimeout(()=>apprPdf(r.id),600)}
+/* after approval the report's PDF goes to the server, so the accountant can take it in Satış və Anbar */
+async function apprPdf(id){try{toast("PDF mühasib üçün serverə hazırlanır…",5000);
+    for(let i=0;i<40&&state.pending.has(id);i++)await new Promise(res=>setTimeout(res,1500));
+    if(state.pending.has(id))throw new Error("pending");
+    if(!state.rep||realOf(state.rep).id!==id||!$("#paper"))throw new Error("view");
+    const r=state.cur,pdf=await makePdf(r,"az",()=>{}),blob=pdf.output("blob"),name=fname(r,"pdf");
+    const res=await api("pdf",{id,client:realOf(r).cl.name,name,data:await blobToB64(blob)});
+    if(state.remote[id])state.remote[id].pdf=res.url;const l=$("#pdfLink");if(l){l.href=res.url;l.hidden=false}
+    toast("PDF serverə yükləndi — mühasib Satış və Anbarda görür")}
+  catch(e){toast("Təsdiqlənmiş hesabatın PDF-i serverə yüklənmədi — “PDF hazırla” düyməsini basın",8000)}}
 function bindAppr(){const two=(id,fn,txt)=>{const b=$("#"+id);if(b)b.onclick=()=>{if(b.dataset.confirm!=="1"){b.dataset.confirm="1";b.textContent=txt;return}b.disabled=true;fn()}};
   two("apprGo",()=>setAppr("appr",true),"Təsdiq edilsin? Yenidən basın");
   two("apprUndo",()=>setAppr("appr",false),"Geri alınsın? Yenidən basın");
@@ -2063,9 +2126,9 @@ function paperHTML(R,_a,lang){PL=lang||state.plang||"az";const r=realOf(R),keep=
     PF==="call"?[[["Çağırış vaxtı",dash(r.svc.tCall)],["Gəliş vaxtı",dash(r.svc.tArr)]]]:[]).concat(parSummary()))}`)}`;
   let n=2,appx="";const Cs=[];
   A.devs.forEach(({d,i,V,a})=>{useType(d.type);const u=V.ups;let k=0;
-    const head=title=>multi?`<h5>${n}.${++k}. ${t(title)}</h5>`:`<h4>${n++}. ${t(title)}</h4>`;
+    const head=title=>{if(multi)return `<h5>${n}.${++k}. ${t(title)}</h5>`;const q=typeof qh1==="string"?qh1:"";if(q){qh1="";return `<h4 style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${n++}. ${t(title)}</span>${q}</h4>`}return `<h4>${n++}. ${t(title)}</h4>`};
     const norm=j=>{const m=V.meas[j],mn=m.min,mx=m.max;return !mn&&!mx?"—":!mn?"≤ "+esc(mx):!mx?"≥ "+esc(mn):esc(mn)+" – "+esc(mx)};
-    let band="";if(multi){h+=i>0?'<div class="pb"></div>':"";band=`<h4 class="devh"><span>${n}. ${t("Cihaz")} ${i+1}: ${t(TYPES[d.type].title)}${devName(d)?" — "+esc(devName(d)):""}${d.loc?" · "+esc(d.loc):""}</span><b class="${ovc(a.cls)}">${t(a.overall)}</b></h4>`}
+    let band="";const QRI=typeof qrPaperImg==="function"?qrPaperImg(r):"";if(multi){h+=i>0?'<div class="pb"></div>':"";band=`<h4 class="devh"><span>${n}. ${t("Cihaz")} ${i+1}: ${t(TYPES[d.type].title)}${devName(d)?" — "+esc(devName(d)):""}${d.loc?" · "+esc(d.loc):""}</span><b class="${ovc(a.cls)}">${t(a.overall)}</b>${QRI?`<img class="dqr" src="${QRI}" alt="QR">`:""}</h4>`}let qh1=QRI&&!multi?`<img class="dqr" src="${QRI}" alt="QR">`:"";
     /* device data */
     if(d.type==="ups")h+=W(band+head(multi?"Cihaz məlumatları":"UPS cihazı")+kv(locRow(d).concat([[["Marka",dash(u.brand)],["Model",dash(u.model)]],[["Seriya №",dash(u.sn)],["Firmware",dash(u.fw)]],[["Güc",(u.kva?esc(u.kva)+" kVA":"")+(u.kw?" / "+esc(u.kw)+" kW":"")||"—"],["Faza (giriş/çıxış)",dash(u.phase)]],[["Topologiya",tv(u.topo)]].concat(u.inst?[["Quraşdırma tarixi",esc(fmtDate(u.inst))]]:[])].concat(u.year?[[["İstehsal ili",esc(u.year)]]]:[])).concat(parRow(d))));
     else{const F=TYPES[d.type].info.filter(([key])=>!((key==="inst"||key==="year")&&!String(u[key]||"").trim())).map(([key,lab,o])=>[lab,o&&o.date?dash(fmtDate(u[key])):o&&o.sel?tv(u[key]):dash(u[key])]);const rows=[];for(let x=0;x<F.length;x+=2)rows.push(F.slice(x,x+2));
@@ -2566,7 +2629,7 @@ async function exportPdf(){const root=await prepareFolder();await flush();const 
     btn.textContent="Saxlanılır…";const blob=pdf.output("blob");
     const name=fname(r,"pdf").replace(/\.pdf$/,(L!=="az"?"_"+L.toUpperCase():"")+".pdf");
     await saveFile(name,blob,cfolder(r),root,SUB_REP,{id:realOf(r).id,k:"rep"});
-    if(LS.get("ups.pdfdrive")&&hasServer()&&!r.sample){btn.textContent="Drive-a yüklənir…";
+    if((LS.get("ups.pdfdrive")||(realOf(r).appr&&realOf(r).appr.at))&&hasServer()&&!r.sample){btn.textContent="Serverə yüklənir…";
       try{await sync();if(state.pending.has(r.id))throw new Error("pending");
         const res=await api("pdf",{id:r.id,client:r.cl.name,name,data:await blobToB64(blob)});
         if(state.remote[r.id])state.remote[r.id].pdf=res.url;const l=$("#pdfLink");if(l){l.href=res.url;l.hidden=false}
@@ -3169,11 +3232,22 @@ async function taskForm(t,back){state.view="tasks";let W=[];try{W=((await api("w
 
 /* ================= elektron imza: müştəri və servis mühəndisi ekranda imzalayır ================= */
 const fmtDT=iso=>{const d=new Date(iso||"");if(isNaN(d))return "";const p=x=>String(x).padStart(2,"0");return p(d.getDate())+"."+p(d.getMonth()+1)+"."+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes())};
+/* the customer's signature: what the report looked like at signing is kept; later changes (e.g. finished in the office) are listed for the manager only, never in the PDF */
+const SNAP_SKIP={sig:1,sigSnap:1,photos:1,updatedAt:1,by:1,appr:1,sub:1,hist:1,createdAt:1,taskId:1,log:1,logs:1,tr:1,_tr:1};
+function flatRep(o,pre,out){out=out||{};if(Object.keys(out).length>6000||o==null)return out;
+  if(typeof o!=="object"){const v=String(o);if(v!==""&&v!=="false")out[pre]=v.length>300?v.slice(0,300)+"…":v;return out}
+  if(Array.isArray(o))o.forEach((x,i)=>flatRep(x,pre+"."+(i+1),out));else for(const k in o){if(SNAP_SKIP[k]||/^data:/.test(String(o[k])))continue;flatRep(o[k],pre?pre+"."+k:k,out)}return out}
+const SNAP_L={svc:"Servis",cl:"Müştəri",devices:"Cihaz",info:"pasport",meas:"ölçmə",chk:"yoxlama",works:"görülən işlər",wExtra:"əlavə işlər",bat:"akkumulyator",dis:"boşalma testi",notes:"Qeydlər",recs:"Tövsiyələr",parts:"detallar",name:"ad",obj:"obyekt",addr:"ünvan",date:"tarix",type:"növ",person:"əlaqədar şəxs",tel:"telefon",eng:"mühəndis",repno:"hesabat №",extra:"əlavə imzalayan",team:"iştirakçılar",loc:"yeri",sn:"seriya №",model:"model",brand:"marka",kva:"güc",blocks:"bloklar",v:"gərginlik",r:"müqavimət",st:"status",note:"qeyd",qty:"say",next:"növbəti servis"};
+const snapLbl=k=>k.split(".").map(x=>/^\d+$/.test(x)?x:(SNAP_L[x]||x)).join(" › ");
+function sigDiffCard(){const r=realOf(state.rep),S=r.sigSnap;if(!S||!S.flat||state.me.role!=="admin")return "";const now=flatRep(r),D=[];
+  new Set([...Object.keys(S.flat),...Object.keys(now)]).forEach(k=>{const a=S.flat[k],b=now[k];if(a!==b)D.push([k,a,b])});
+  return `<div class="card"><h3>Müştəri imzasından sonrakı dəyişikliklər</h3><p class="note" style="margin:0 0 6px">Müştəri (${esc(S.name||"")}) ${esc(fmtDT(S.at))} tarixində imzalayıb. İmzadan sonra hesabatda edilən dəyişikliklər aşağıdadır — bunu yalnız rəhbər görür, PDF-ə düşmür.</p>
+   ${D.length?`<details><summary><b>${D.length} dəyişiklik</b> — baxmaq üçün basın</summary><div style="max-height:360px;overflow:auto"><table class="tbl" style="width:100%;font-size:13px;border-collapse:collapse"><thead><tr><th style="text-align:left">Sahə</th><th style="text-align:left">İmza anında</th><th style="text-align:left">İndi</th></tr></thead><tbody>${D.slice(0,400).map(([k,a,b])=>`<tr style="border-top:1px solid var(--line)"><td>${esc(snapLbl(k))}</td><td style="color:#8A6D00">${a===undefined?"<i>boş</i>":esc(a)}</td><td style="color:#0B6B3A">${b===undefined?"<i>silinib</i>":esc(b)}</td></tr>`).join("")}</tbody></table></div></details>`:`<p style="margin:0">✓ İmzadan sonra heç nə dəyişməyib.</p>`}</div>`}
 function sigCard(){const r=realOf(state.rep),S=r.sig||{};
   const box=(k,label,name)=>{const x=S[k];return `<div class="sigslot"><b>${label}</b>${x&&x.img?`<img src="${x.img}" alt="İmza"><span class="note">${esc(x.name||name||"")} · ${esc(fmtDT(x.at))}</span>
     <div class="actions"><button class="btn sm" data-sign="${k}">Yenidən imzala</button><button class="btn sm ghost" data-signdel="${k}">Sil</button></div>`
     :`<div class="sigempty">İmzalanmayıb</div><button class="btn pri" data-sign="${k}">✍ İmzala</button>`}</div>`};
-  return `<div class="card"><h3>İmzalar</h3><p class="note" style="margin:0">“İmzala” basın — ekranda açılan sahədə barmaqla və ya qələmlə imza atın. İmza hesabata (PDF, Excel, çap) avtomatik düşür.</p>
+  return `<div class="card"><h3>İmzalar</h3><p class="note" style="margin:0">“İmzala” basın — ekranda açılan sahədə barmaqla və ya qələmlə imza atın. İmza hesabata (PDF, Excel, çap) avtomatik düşür və hesabatın qalanı sonra ofisdə tamamlansa da silinmir.</p>
    <div class="grid2">${box("eng","Servis mühəndisi",r.svc.eng)}${clSigners(r).map((c,i)=>box(c.k,(c.co||c.pos?esc([c.co,c.pos].filter(Boolean).join(" ")):"Müştəri nümayəndəsi"+(i?" "+(i+1):"")),c.name)).join("")}</div></div>`}
 function openSignPad(kind){const r=realOf(state.rep);const isCl=String(kind).indexOf("cl")===0,C=isCl?(clSigners(r).find(c=>c.k===kind)||clSigners(r)[0]):null;
   const ov=document.createElement("div");ov.className="sigpad";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");
@@ -3198,7 +3272,7 @@ function openSignPad(kind){const r=realOf(state.rep);const isCl=String(kind).ind
     let x0=Math.min(...P.map(p=>p.x)),y0=Math.min(...P.map(p=>p.y)),x1=Math.max(...P.map(p=>p.x)),y1=Math.max(...P.map(p=>p.y));const pad=6;x0-=pad;y0-=pad;x1+=pad;y1+=pad;
     const H=140,k=Math.min(H/(y1-y0),520/(x1-x0),2),out=document.createElement("canvas");out.width=Math.max(20,Math.round((x1-x0)*k));out.height=Math.max(20,Math.round((y1-y0)*k));
     const o=out.getContext("2d");o.drawImage(cv,x0*dpr,y0*dpr,(x1-x0)*dpr,(y1-y0)*dpr,0,0,out.width,out.height);
-    r.sig=r.sig||{};const name=ov.querySelector("#spName").value.trim();const pos=isCl?ov.querySelector("#spPos").value.trim():"";r.sig[kind]={img:out.toDataURL("image/png"),name,at:new Date().toISOString()};if(pos)r.sig[kind].pos=pos;
+    r.sig=r.sig||{};const name=ov.querySelector("#spName").value.trim();const pos=isCl?ov.querySelector("#spPos").value.trim():"";r.sig[kind]={img:out.toDataURL("image/png"),name,at:new Date().toISOString()};if(pos)r.sig[kind].pos=pos;if(isCl){try{r.sigSnap={at:Date.now(),kind,name,flat:flatRep(r)}}catch(e){}}
     const sco=isCl?ov.querySelector("#spCo").value.trim():"";
     if(kind==="cl"){if(name&&!r.cl.sign)r.cl.sign=name;if(pos)r.cl.pos=pos;r.cl.sco=sco}else if(isCl&&C.x){if(name&&!C.x.name)C.x.name=name;if(pos)C.x.pos=pos;C.x.co=sco}if(!isCl&&name&&!r.svc.eng)r.svc.eng=name;
     markDirty();close();toast(isCl?"Müştərinin imzası əlavə olundu":"Mühəndisin imzası əlavə olundu");const y=window.scrollY;renderEditor();window.scrollTo(0,y)};
@@ -3570,6 +3644,65 @@ window.ZSBK=(function(){
   const _rh=renderHome;renderHome=function(){const r=_rh.apply(this,arguments);try{gate()}catch(e){}return r};
   const _ap=applyLock;applyLock=function(){const r=_ap.apply(this,arguments);try{if(!svCan("rep")){["fkNext","fkFull"].forEach(id=>{const b=document.getElementById(id);if(b)b.remove()})}}catch(e){}return r};
 }catch(e){console.log("perm",e)}})();
+</script>
+<script>/* UPS Servis: cihaz pasportu + QR — hesabatın PDF-ində hər cihazın başlığında QR (həmin hesabatın PDF-i),
+   cihazlara yapışdırmaq üçün loqolu QR etiketləri (müştəri skan edəndə cihazın servis tarixçəsi açılır) */
+(function(){try{
+  try{Object.assign(DICT.en,{"Hesabatın PDF-i":"Report PDF"});Object.assign(DICT.ru,{"Hesabatın PDF-i":"PDF отчёта"})}catch(e){}
+  document.head.insertAdjacentHTML("beforeend",`<style>.paper h4 img.dqr{width:56px;height:56px;padding:0;background:#fff;flex:none;margin-left:6px;image-rendering:pixelated}
+   .paper .dqr1{float:right;width:64px;text-align:center;font-size:7.5px;line-height:1.2;color:#5B6B67;margin:0 0 4px 8px}.paper .dqr1 img{width:64px;height:64px;display:block;image-rendering:pixelated}
+   .qlov{position:fixed;inset:0;z-index:100000;background:rgba(10,20,18,.45);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto}
+   .qlov .in{background:var(--card,#fff);border-radius:14px;max-width:560px;width:100%;padding:16px;display:grid;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+   .qlov label.ck{display:flex!important;gap:10px;align-items:flex-start;text-align:left;font-size:14px}.qlov label.ck input{width:20px!important;height:20px!important;flex:none;margin:2px 0 0}
+   .qlov select,.qlov input[type=number]{padding:8px;border:1px solid var(--line,#C9D3D0);border-radius:8px;font-size:15px}</style>`);
+  const QC={};
+  window.qrPaperImg=function(r){r=realOf(r);if(!r||!r.qr||!r.qr.base||!r.qr.r)return "";const u=r.qr.base+"?r="+r.qr.r;if(!QC[u])try{QC[u]=ZSQR.png(u,4,"M",2)}catch(e){return ""}return QC[u]};
+  window.ensureQr=async function(r){r=realOf(r);if(!r||r.sample||!hasServer())return false;const sns=r.devices.filter(d=>d.type!=="pq").map(d=>String(d.info&&d.info.sn||"").trim()).filter(Boolean);
+    if(r.qr&&r.qr.base&&r.qr.r&&sns.every(s=>r.qr.d&&r.qr.d[s]))return false;
+    try{const mu0=String(state.me.url||"").split("?")[0];const q=await api("qr_tokens",{rid:r.id,sns,base:mu0});const mu=String(state.me.url||"").split("?")[0],base=/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(mu)?mu:q.base;if(!base||!q.r)return false;r.qr={base,r:q.r,d:q.d||{}};return true}catch(e){return false}};
+  const _mk=makePdf;makePdf=async function(r,L){try{if(await ensureQr(r)){const ps=$("#ps");if(ps){ps.innerHTML=paperHTML(r,null,L);fitPaper()}}}catch(e){}return _mk.apply(this,arguments)};
+  /* ---------- labels ---------- */
+  const SIZES=[["a4s","A4 vərəq — 24 etiket (70×37 mm)",70,37,3,8],["a4l","A4 vərəq — 10 etiket (105×57 mm)",105,57,2,5],["p5030","Etiket printeri — 50×30 mm",50,30],["p6040","Etiket printeri — 60×40 mm",60,40],["p7050","Etiket printeri — 70×50 mm",70,50]];
+  function fit(g,txt,maxW,px,weight){let s=px;do{g.font=`${weight||400} ${s}px Arial, sans-serif`;if(g.measureText(txt).width<=maxW)break;s-=1}while(s>6);return s}
+  function drawLabel(L,wm,hm,logo,sheet){const k=12,W=Math.round(wm*k),H=Math.round(hm*k),c=document.createElement("canvas");c.width=W;c.height=H;const g=c.getContext("2d");
+    g.fillStyle="#fff";g.fillRect(0,0,W,H);if(sheet){g.strokeStyle="rgba(0,0,0,.18)";g.lineWidth=2;g.strokeRect(1,1,W-2,H-2)}
+    const pad=2.2*k,q=ZSQR.matrix(L.url,"M"),qs=Math.min(H-2*pad,W*0.48),mod=qs/(q.size+2),qx=pad,qy=(H-qs)/2;g.fillStyle="#000";
+    for(let y=0;y<q.size;y++)for(let x=0;x<q.size;x++)if(q.dark(x,y))g.fillRect(Math.floor(qx+(x+1)*mod),Math.floor(qy+(y+1)*mod),Math.ceil(mod),Math.ceil(mod));
+    const x0=qx+qs+1.6*k,rw=W-x0-pad;let y=pad;
+    if(logo){const lh=H*0.26,sc=Math.min(rw/logo.width,lh/logo.height);g.drawImage(logo,x0,y,logo.width*sc,logo.height*sc);y+=logo.height*sc+H*0.05}
+    else{g.fillStyle="#16362E";const s=fit(g,L.co,rw,Math.round(H*0.11),700);g.fillText(L.co,x0,y+s);y+=s*1.4}
+    const line=(t,rel,wt,col)=>{if(!t)return;g.fillStyle=col||"#15211E";const s=fit(g,t,rw,Math.round(H*rel),wt);y+=s;g.fillText(t,x0,y);y+=s*0.35};
+    line("Servis tarixçəsi",0.1,700,"#16362E");line("Telefonla skan edin",0.07,400,"#5B6B67");y+=H*0.03;
+    line(L.model,0.08,600);line(L.sn?"S/N: "+L.sn:"",0.08,700);if(L.tel&&y<H-pad-H*0.06)line(L.tel,0.065,400,"#5B6B67");
+    return c.toDataURL("image/png")}
+  async function blankPdf(fmt,o){const tiny=document.createElement("div");tiny.style.cssText="position:absolute;left:-9999px;width:4px;height:4px";document.body.appendChild(tiny);
+    try{const pdf=await html2pdf().set({margin:0,jsPDF:{unit:"mm",format:fmt,orientation:o,compress:true}}).from(tiny).toPdf().get("pdf");for(let j=pdf.internal.getNumberOfPages();j>=1;j--)pdf.deletePage(j);return pdf}finally{tiny.remove()}}
+  async function buildLabels(list,sz){const logo=await logoImg().catch(()=>null),[,,wm,hm,cols,rows]=sz,sheet=!!cols;
+    if(sheet){const pdf=await blankPdf("a4","portrait"),per=cols*rows,mx=(210-cols*wm)/2,my=(297-rows*hm)/2;
+      list.forEach((L,i)=>{if(i%per===0)pdf.addPage("a4","portrait");const j=i%per,cx=j%cols,cy=Math.floor(j/cols);pdf.addImage(drawLabel(L,wm,hm,logo,true),"PNG",mx+cx*wm,my+cy*hm,wm,hm)});return pdf}
+    const o=wm>hm?"landscape":"portrait",pdf=await blankPdf([wm,hm],o);list.forEach(L=>{pdf.addPage([wm,hm],o);pdf.addImage(drawLabel(L,wm,hm,logo,false),"PNG",0,0,wm,hm)});return pdf}
+  window.openQrLabels=async function(){await flush();const r=realOf(state.rep);if(!r)return;
+    const devs=r.devices.map((d,i)=>({d,i})).filter(x=>x.d.type!=="pq"&&String(x.d.info&&x.d.info.sn||"").trim());
+    if(!devs.length){toast("QR etiket üçün cihazın seriya nömrəsini (S/N) yazın",6000);return}
+    if(typeof CFG!=="undefined"&&CFG.hub){toast("QR etiketləri Google (internet) versiyası ilə işləyir — müştəri skan edəndə səhifə internetdə açılmalıdır",8000);return}
+    toast("QR linkləri hazırlanır…",3000);await ensureQr(r);if(!r.qr||!r.qr.base){toast("QR üçün serverə qoşulmaq lazımdır (internet?)",6000);return}
+    const ov=document.createElement("div");ov.className="qlov";const last=LS.get("ups.qrsz")||"a4s";
+    ov.innerHTML=`<div class="in"><div style="display:flex;justify-content:space-between;align-items:center"><b>🏷 QR etiketlər</b><button class="btn sm ghost" data-x aria-label="Bağla">✕</button></div>
+      <p class="note" style="margin:0">Etiketi cihaza yapışdırın. Müştəri QR-ı telefonla oxuyanda cihazın pasportu, servis tarixçəsi, dəyişdirilmiş və nasaz detallar açılır (yalnız təsdiqlənmiş hesabatlar).</p>
+      ${devs.map(x=>`<label class="ck"><input type="checkbox" data-qd="${x.i}" checked><span><b>${esc(TYPES[x.d.type].title)}</b> — ${esc(devName(x.d)||"")} · S/N ${esc(x.d.info.sn)}${x.d.loc?" · "+esc(x.d.loc):""}</span></label>`).join("")}
+      <label class="f"><span>Ölçü</span><select id="qlSz">${SIZES.map(s=>`<option value="${s[0]}"${s[0]===last?" selected":""}>${s[1]}</option>`).join("")}</select></label>
+      <label class="f"><span>Hər cihaz üçün neçə etiket</span><input type="number" id="qlN" min="1" max="20" value="1"></label>
+      <div class="actions"><button class="btn ghost" data-x>Ləğv et</button><button class="btn pri" id="qlGo">Etiketləri hazırla (PDF)</button></div></div>`;
+    document.body.appendChild(ov);ov.addEventListener("click",e=>{if(e.target===ov||e.target.closest("[data-x]"))ov.remove()});
+    ov.querySelector("#qlGo").onclick=async()=>{const b=ov.querySelector("#qlGo");const sel=[...ov.querySelectorAll("[data-qd]")].filter(x=>x.checked).map(x=>r.devices[+x.dataset.qd]);if(!sel.length){toast("Cihaz seçin");return}
+      const sz=SIZES.find(s=>s[0]===ov.querySelector("#qlSz").value)||SIZES[0],n=Math.max(1,Math.min(20,+ov.querySelector("#qlN").value||1));LS.set("ups.qrsz",sz[0]);
+      const S=state.settings||{},list=[];sel.forEach(d=>{const sn=String(d.info.sn).trim(),tk=r.qr.d[sn];if(!tk)return;for(let i=0;i<n;i++)list.push({url:r.qr.base+"?d="+tk,sn,model:[TYPES[d.type].short||"",devName(d)].filter(Boolean).join(" · "),co:S.co||"ZUVAND",tel:S.cotel||""})});
+      if(!list.length){toast("QR linki alınmadı — yenidən cəhd edin");return}
+      b.disabled=true;b.textContent="Hazırlanır…";
+      try{const pdf=await buildLabels(list,sz),blob=pdf.output("blob");await saveFile("QR-etiketler_"+String(r.svc.repno||r.cl.name||"cihaz").replace(/[\\/:*?"<>|]+/g," ")+".pdf",blob,cfolder(r));ov.remove()}
+      catch(e){toast("Etiket PDF-i alınmadı: "+(e&&e.message||e));b.disabled=false;b.textContent="Etiketləri hazırla (PDF)"}}};
+  document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest("#bQrLbl"))openQrLabels()});
+}catch(e){console.log("qrlbl",e)}})();
 </script>
 </body>
 </html>
