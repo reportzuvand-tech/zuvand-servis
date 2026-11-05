@@ -338,6 +338,8 @@ const ACTIONS = {
   /* a copy of all data before a backup is restored (kept beside the daily backups) */
   /* the look the manager sends to everybody (one file for the service journal and Satış və Anbar) */
   look_get: () => ({ look: readJSON(P("look.json"), null) }),
+  tpl_get: () => ({ tpl: readJSON(P("templates.json"), null) }),
+  tpl_set: (u, b) => { needAdmin(u); if (!b.tpl || typeof b.tpl !== "object") err("bad_tpl"); if (JSON.stringify(b.tpl).length > 900000) err("too_big"); writeJSON(P("templates.json"), b.tpl); log(u, "templates", ""); return {} },
   look_set: (u, b) => { needAdmin(u); writeJSON(P("look.json"), b.look === undefined ? null : b.look); log(u, "look", b.look ? "set" : "off"); return { ok: true } },
   bk_snapshot: (u) => {
     needAdmin(u); const d = new Date(), p2 = n => String(n).padStart(2, "0");
