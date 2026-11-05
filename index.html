@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110603;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110604;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -185,7 +185,7 @@ window.ZSSEC=(function(){
   const LBL={save:"Hesabat saxlandı",approve:"Təsdiq",delete:"Silindi",restore:"Versiya bərpa edildi",settings:"Ayarlar dəyişdi",task:"Tapşırıq",
     "task-del":"Tapşırıq silindi",worker:"İşçi dəyişdi","worker-newkey":"Yeni açar","shared-off":"Ortaq açar",look:"Görünüş dəyişdi",pdf:"PDF",customer:"Müştəri saxlandı","customer-del":"Müştəri silindi",
     "client-rename":"Müştəri adı dəyişdi",positions:"Vəzifələr dəyişdi",snapshot:"Ehtiyat nüsxə",backup:"Ehtiyat nüsxə",forbidden:"İcazəsiz cəhd","auth-lock":"Səhv açar — ünvan bloklandı",
-    "reset-pw":"Sıfırlama parolu dəyişdi","reset-badpw":"Sıfırlama — parol səhv","svc-sale":"Servisdən satış","svc-sale-revoke":"Servis satışı geri alındı","pay-cfg":"Ödəniş görünüşü",
+    "reset-pw":"Sıfırlama parolu dəyişdi","reset-badpw":"Sıfırlama — parol səhv","svc-sale":"Servisdən satış","svc-sale-revoke":"Servis satışı geri alındı","pay-cfg":"Ödəniş görünüşü",templates:"Hesabat şablonları dəyişdi",svcPdf:"Servis PDF-i yükləndi",
     saveQuote:"Təklif / satış saxlandı",setBill:"Hesab-faktura / ödəniş",delQuote:"Təklif silindi",svcBill:"Servis hesabı",restoreQuote:"Təklif bərpa edildi",setDelPw:"Silmə şifrəsi dəyişdi",
     saveItem:"Mal saxlandı",delItems:"Mal silindi",setCat:"Kateqoriya",importItems:"Mal idxalı",addMoves:"Anbar hərəkəti",setCost:"Maya dəyəri",delMove:"Hərəkət silindi",
     saveInvoice:"Qaimə saxlandı",postSaleInvoice:"Satış qaiməsi",shipInvoice:"Qaimə göndərildi",directSupply:"Birbaşa təchizat",approveInvoice:"Qaimə təsdiqləndi",returnInvoice:"Qaimə qaytarıldı",
@@ -227,6 +227,124 @@ window.ZSSEC=(function(){
     if(LSg("zssec.pin"))lockNow()}
   try{O={app:window.ZS_APP==="ups"||window.ZS_APP==="zs"?"ups":"sa",hub:()=>window.ZS_APP==="zs"||window.ZS_APP==="zssa"};had0=hasLocal();O=null}catch(e){O=null}
   return {init,card,lockNow,wipe,checkEpoch,sha}})();
+</script>
+<script>/* ZUVAND — hesabat şablonları: ölçmələr, yoxlamalar, görülən işlər və yeni cihaz növləri Ayarlardan dəyişdirilir.
+   Rəhbər saxlayanda hamıya gedir. Hər cihaz yarananda öz siyahısının surətini saxlayır (d.lbl), ona görə köhnə hesabatlar dəyişmir. */
+window.ZSTPL=(function(){
+  let DEF=null,DEF_ORDER=null,TPL=null,O=null;
+  const cl=x=>JSON.parse(JSON.stringify(x)),same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  const LSg=k=>{try{return localStorage.getItem(k)}catch(e){return null}},LSs=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
+  const isCustom=k=>/^c_/.test(String(k||""));
+  const num=v=>v===""||v==null||isNaN(+String(v).replace(",","."))?null:+String(v).replace(",",".");
+  const cleanMeas=L=>(Array.isArray(L)?L:[]).filter(m=>Array.isArray(m)&&String(m[0]||"").trim()).map(m=>[String(m[0]).trim().slice(0,120),String(m[1]||"").slice(0,20),num(m[2]),num(m[3]),+m[4]===3?3:1]);
+  const cleanList=L=>(Array.isArray(L)?L:[]).map(x=>String(x||"").trim().slice(0,200)).filter(Boolean);
+  function snapshot(){if(DEF||typeof TYPES==="undefined")return;DEF={};for(const k in TYPES)DEF[k]={meas:cl(TYPES[k].meas),chk:TYPES[k].chk.slice(),works:TYPES[k].works.slice()};DEF_ORDER=TYPE_ORDER.slice()}
+  function reg(k,c){const info=(Array.isArray(c.info)&&c.info.length?c.info:[["brand","Marka"],["model","Model"],["sn","Seriya №"]]).map(x=>[String(x[0]),String(x[1]||x[0])]);
+    TYPES[k]={title:String(c.title||c.t||"Cihaz"),short:String(c.short||c.s||c.title||c.t||"Cihaz").slice(0,24),label:String(c.label||c.title||c.t||"Cihaz"),hasBat:!!(c.hasBat||c.b),custom:1,
+      info,meas:cleanMeas(c.meas||c.m),chk:cleanList(c.chk||c.c),works:cleanList(c.works||c.w)}}
+  /* apply the shared template to TYPES (called right after TYPES is defined, and again after every change) */
+  function apply(){if(typeof TYPES==="undefined")return;snapshot();try{TPL=JSON.parse(LSg("ups.tpl")||"null")}catch(e){TPL=null}
+    for(const k in DEF)Object.assign(TYPES[k],{meas:cl(DEF[k].meas),chk:DEF[k].chk.slice(),works:DEF[k].works.slice()});
+    TYPE_ORDER.splice(0,TYPE_ORDER.length,...DEF_ORDER);
+    const T=TPL&&TPL.types||{};for(const k in T){if(!DEF[k])continue;const o=T[k];if(o.meas)TYPES[k].meas=cleanMeas(o.meas);if(o.chk)TYPES[k].chk=cleanList(o.chk);if(o.works)TYPES[k].works=cleanList(o.works)}
+    (TPL&&Array.isArray(TPL.custom)?TPL.custom:[]).forEach(c=>{if(!isCustom(c.key))return;reg(c.key,c);if(!c.hidden)TYPE_ORDER.splice(Math.max(0,TYPE_ORDER.indexOf("pq")),0,c.key)})}
+  /* the lists a device works with: its own copy, or (older reports) the built-in lists */
+  function lists(tp,d){if(d&&d.lbl&&Array.isArray(d.lbl.m))return {meas:d.lbl.m,chk:d.lbl.c||[],works:d.lbl.w||[]};
+    if(d&&DEF&&DEF[tp])return DEF[tp];const T=TYPES[tp]||TYPES.ups;return {meas:T.meas,chk:T.chk,works:T.works}}
+  function stamp(o){const T=TYPES[o.type];if(!T)return o;o.lbl={m:cl(T.meas),c:T.chk.slice(),w:T.works.slice()};if(T.custom)Object.assign(o.lbl,{t:T.title,s:T.short,b:T.hasBat?1:0,i:cl(T.info)});return o}
+  /* ---------- server ---------- */
+  async function fetchTpl(){if(!O||!O.logged())return;try{const r=await O.api("tpl_get",{});const js=JSON.stringify(r.tpl||null);if(js!==(LSg("ups.tpl")||"null")){LSs("ups.tpl",js);apply();if(document.getElementById("tplCard"))card()}}catch(e){}}
+  async function save(t){t.v=Date.now();t.by=O&&O.me?O.me():"";if(O&&O.logged()){await O.api("tpl_set",{tpl:t})}LSs("ups.tpl",JSON.stringify(t));apply()}
+  /* ---------- Ayarlar card + editor ---------- */
+  const esc=x=>String(x==null?"":x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+  const g=id=>document.getElementById(id);
+  function card(){const main=g("main");if(!main||!O)return;const old=g("tplCard"),adm=O.isAdmin();
+    const custom=(TPL&&TPL.custom||[]).filter(c=>!c.hidden),changed=Object.keys(TPL&&TPL.types||{}).filter(k=>DEF&&DEF[k]&&TYPES[k]);
+    const h=`<div class="card" id="tplCard" style="margin-top:12px"><h3>Hesabat şablonları — ölçmələr, yoxlamalar, işlər, cihaz növləri</h3>
+      <p class="note" style="margin:0 0 8px">Hər cihaz növü üçün “Ölçmə”, “Yoxlama” və “İşlər” bölmələrindəki bəndləri dəyişmək, əlavə etmək, silmək, sırasını dəyişmək və yeni cihaz növü yaratmaq olar. Dəyişiklik bütün işçilərə gedir və <b>yeni</b> hesabatlara (yeni əlavə olunan cihazlara) tətbiq olunur; köhnə hesabatlar öz siyahısı ilə qalır.</p>
+      <p style="margin:0 0 8px">${changed.length?"Dəyişdirilmiş növlər: <b>"+changed.map(k=>esc(TYPES[k].title)).join(", ")+"</b>":"Hələ standart siyahılar istifadə olunur."}${custom.length?"<br>Əlavə cihaz növləri: <b>"+custom.map(c=>esc(c.title)).join(", ")+"</b>":""}${TPL&&TPL.v?`<br><span class="note">Son dəyişiklik: ${new Date(TPL.v).toLocaleString()}${TPL.by?" · "+esc(TPL.by):""}</span>`:""}</p>
+      ${adm?`<div class="actions"><button class="btn pri" id="tplEdit">Şablonları redaktə et</button><button class="btn" id="tplNewT">+ Yeni cihaz növü</button></div>`:`<p class="note" style="margin:0">Şablonları rəhbər və servis müdiri dəyişir.</p>`}</div>`;
+    if(old)old.outerHTML=h;else main.insertAdjacentHTML("beforeend",h);
+    if(g("tplEdit"))g("tplEdit").onclick=()=>editor(TYPE_ORDER.filter(k=>k!=="pq")[0]);
+    if(g("tplNewT"))g("tplNewT").onclick=()=>editor("__new")}
+  function css(){if(g("tplCss"))return;document.head.insertAdjacentHTML("beforeend",`<style id="tplCss">
+    .tplov{position:fixed;inset:0;z-index:100000;background:rgba(10,20,18,.45);display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow:auto}
+    .tplov .in{background:var(--card,#fff);border-radius:14px;max-width:900px;width:100%;padding:14px;display:grid;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+    .tplov .hd{display:flex;justify-content:space-between;align-items:center;gap:8px}.tplov .hd select{flex:1;width:auto!important;max-width:460px}.tplov select,.tplov input[type=text],.tplov input:not([type]){padding:7px 8px;border:1px solid var(--line,#C9D3D0);border-radius:8px;font-size:14px;min-width:0;background:var(--field,#fff);color:inherit}
+    .tplov .tabs2{display:flex;gap:6px;flex-wrap:wrap}.tplov .tabs2 button[aria-pressed=true]{background:var(--acc,#16362E);color:#fff;border-color:transparent}
+    .tplov .rows{display:grid;gap:6px;max-height:55vh;overflow:auto;padding:2px}.tplov .row{display:grid;gap:6px;align-items:center;grid-template-columns:1fr auto}
+    .tplov .row.m{grid-template-columns:minmax(140px,1fr) 70px 64px 64px 86px auto}.tplov .row .bt{display:flex;gap:4px}.tplov .row .bt button{min-width:34px;padding:4px 8px}
+    .tplov .hdrow{font-size:12px;color:var(--muted,#5B6B67)}
+    @media(max-width:620px){.tplov .row.m{grid-template-columns:1fr 1fr 1fr}.tplov .row.m input:first-child{grid-column:1/-1}.tplov .row.m .bt{grid-column:1/-1;justify-content:flex-end}}
+    </style>`)}
+  function editor(start){css();const T0=cl(TPL||{types:{},custom:[]});T0.types=T0.types||{};T0.custom=T0.custom||[];
+    let tp=start,tab="meas";const ov=document.createElement("div");ov.className="tplov";document.body.appendChild(ov);
+    if(tp==="__new"){const key="c_"+Date.now().toString(36);T0.custom.push({key,title:"Yeni cihaz",short:"Cihaz",hasBat:false,info:[["brand","Marka"],["model","Model"],["sn","Seriya №"]],meas:[],chk:["Ümumi vizual vəziyyət"],works:["Təmizlik"]});tp=key;tab="type"}
+    const cur=()=>{if(isCustom(tp))return T0.custom.find(c=>c.key===tp);if(!T0.types[tp])T0.types[tp]={};const o=T0.types[tp],T=TYPES[tp];return {meas:o.meas||cl(T.meas),chk:o.chk||T.chk.slice(),works:o.works||T.works.slice(),_b:o}};
+    let W=cur();
+    const commit=()=>{if(!isCustom(tp)){const o=T0.types[tp];o.meas=W.meas;o.chk=W.chk;o.works=W.works;["meas","chk","works"].forEach(k=>{if(DEF[tp]&&same(o[k],DEF[tp][k]))delete o[k]});if(!Object.keys(o).length)delete T0.types[tp]}};
+    const types=()=>[...DEF_ORDER.filter(k=>k!=="pq"),...T0.custom.filter(c=>!c.hidden).map(c=>c.key)];
+    const title=k=>isCustom(k)?(T0.custom.find(c=>c.key===k)||{}).title:TYPES[k].title;
+    function draw(){const cu=isCustom(tp),list=tab==="meas"?W.meas:tab==="chk"?W.chk:tab==="works"?W.works:tab==="info"?W.info:null;
+      const rowsHtml=tab==="meas"?`<div class="row m hdrow"><span>Parametr</span><span>Vahid</span><span>Min</span><span>Maks</span><span>Faza</span><span></span></div>`+W.meas.map((m,i)=>`<div class="row m"><input data-f="0" data-i="${i}" value="${esc(m[0])}" aria-label="Parametr"><input data-f="1" data-i="${i}" value="${esc(m[1])}" aria-label="Vahid"><input data-f="2" data-i="${i}" value="${m[2]==null?"":esc(m[2])}" inputmode="decimal" aria-label="Minimum"><input data-f="3" data-i="${i}" value="${m[3]==null?"":esc(m[3])}" inputmode="decimal" aria-label="Maksimum"><select data-f="4" data-i="${i}" aria-label="Faza"><option value="1"${m[4]!==3?" selected":""}>1 faza</option><option value="3"${m[4]===3?" selected":""}>3 faza</option></select>${btns(i)}</div>`).join("")
+        :tab==="info"?W.info.map((x,i)=>`<div class="row"><input data-f="1" data-i="${i}" value="${esc(x[1])}"${["brand","model","sn"].includes(x[0])?" readonly title='Əsas sahə'":""} aria-label="Sahə adı">${["brand","model","sn"].includes(x[0])?"<span></span>":btns(i)}</div>`).join("")
+        :tab==="type"?`<label class="f"><span>Cihaz növünün adı (hesabatda başlıq)</span><input id="tyTitle" value="${esc(W.title)}"></label><label class="f"><span>Qısa ad (bölmə düyməsində)</span><input id="tyShort" value="${esc(W.short)}" maxlength="24"></label><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="tyBat" style="width:20px;height:20px"${W.hasBat?" checked":""}> Akkumulyator testi var (akkumulyator və bloklar bölmələri)</label><div class="actions"><button class="btn danger" id="tyDel">Bu cihaz növünü siyahıdan çıxar</button></div><p class="note" style="margin:0">Çıxarılan növ yeni hesabatlarda görünmür; köhnə hesabatlar dəyişmir.</p>`
+        :list.map((x,i)=>`<div class="row"><input data-i="${i}" value="${esc(x)}" aria-label="Bənd">${btns(i)}</div>`).join("");
+      ov.innerHTML=`<div class="in"><div class="hd"><b>Cihaz növü:</b><select id="tySel" aria-label="Cihaz növü">${types().map(k=>`<option value="${k}"${k===tp?" selected":""}>${esc(title(k))}</option>`).join("")}</select><button class="btn sm ghost" data-x aria-label="Bağla">✕</button></div>
+        <div class="tabs2">${(cu?[["type","Növ"],["info","Pasport sahələri"]]:[]).concat([["meas","Ölçmələr ("+W.meas.length+")"],["chk","Yoxlamalar ("+W.chk.length+")"],["works","İşlər ("+W.works.length+")"]]).map(([k,l])=>`<button class="btn sm" data-tab="${k}" aria-pressed="${k===tab}">${l}</button>`).join("")}</div>
+        <div class="rows">${rowsHtml||`<p class="note">Bənd yoxdur</p>`}</div>
+        ${tab!=="type"?`<div class="actions"><button class="btn" id="tyAdd">+ ${tab==="meas"?"Ölçmə":tab==="chk"?"Yoxlama bəndi":tab==="works"?"İş":"Sahə"} əlavə et</button>${!cu&&DEF[tp]&&!same([W.meas,W.chk,W.works],[DEF[tp].meas,DEF[tp].chk,DEF[tp].works])?`<button class="btn ghost" id="tyDef">Standart siyahıya qaytar</button>`:""}</div>`:""}
+        <p class="note" style="margin:0">Dəyişiklik yeni hesabatlara tətbiq olunur. Köhnə hesabatlar öz siyahısı ilə qalır.</p>
+        <p class="note" id="tyMsg" style="margin:0"></p>
+        <div class="actions"><button class="btn ghost" data-x>Ləğv et</button><button class="btn pri" id="tySave">Saxla və hamıya göndər</button></div></div>`;
+      bind()}
+    const btns=i=>`<span class="bt"><button class="btn sm" data-up="${i}" aria-label="Yuxarı">↑</button><button class="btn sm" data-dn="${i}" aria-label="Aşağı">↓</button><button class="btn sm danger" data-rm="${i}" aria-label="Sil">✕</button></span>`;
+    const arr=()=>tab==="meas"?W.meas:tab==="chk"?W.chk:tab==="works"?W.works:W.info;
+    function bind(){const q=s=>ov.querySelectorAll(s);
+      q("[data-x]").forEach(b=>b.onclick=()=>{if(confirm("Saxlanılmamış dəyişikliklər itəcək. Bağlansın?"))ov.remove()});
+      ov.querySelector("#tySel").onchange=e=>{commit();tp=e.target.value;W=cur();tab=isCustom(tp)?"type":"meas";draw()};
+      q("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;draw()});
+      q(".rows input,.rows select").forEach(el=>el.oninput=el.onchange=()=>{const i=+el.dataset.i,A=arr();if(el.id)return;
+        if(tab==="meas"){const f=+el.dataset.f;A[i][f]=f===4?+el.value:f>=2?num(el.value):el.value}else if(tab==="info")A[i][1]=el.value;else A[i]=el.value});
+      q("[data-up]").forEach(b=>b.onclick=()=>{const i=+b.dataset.up,A=arr();if(i>0&&!(tab==="info"&&i<=3)){[A[i-1],A[i]]=[A[i],A[i-1]];draw()}});
+      q("[data-dn]").forEach(b=>b.onclick=()=>{const i=+b.dataset.dn,A=arr();if(i<A.length-1){[A[i+1],A[i]]=[A[i],A[i+1]];draw()}});
+      q("[data-rm]").forEach(b=>b.onclick=()=>{const i=+b.dataset.rm,A=arr();A.splice(i,1);draw()});
+      const add=ov.querySelector("#tyAdd");if(add)add.onclick=()=>{const A=arr();if(tab==="meas")A.push(["","",null,null,1]);else if(tab==="info")A.push(["f"+Date.now().toString(36),""]);else A.push("");draw();const ins=ov.querySelectorAll(".rows input");const last=tab==="meas"?ins[ins.length-4]:ins[ins.length-1];if(last)last.focus()};
+      const df=ov.querySelector("#tyDef");if(df)df.onclick=()=>{if(!confirm("Bu cihaz növü üçün standart siyahılar qaytarılsın?"))return;W={meas:cl(DEF[tp].meas),chk:DEF[tp].chk.slice(),works:DEF[tp].works.slice()};draw()};
+      const tt=ov.querySelector("#tyTitle");if(tt){tt.oninput=()=>W.title=tt.value;ov.querySelector("#tyShort").oninput=e=>W.short=e.target.value;ov.querySelector("#tyBat").onchange=e=>W.hasBat=e.target.checked;
+        ov.querySelector("#tyDel").onclick=()=>{if(!confirm("“"+W.title+"” yeni hesabatlar üçün siyahıdan çıxarılsın?"))return;W.hidden=true;tp=types()[0];W=cur();tab="meas";draw()}};
+      ov.querySelector("#tySave").onclick=async()=>{commit();const msg=t=>ov.querySelector("#tyMsg").textContent=t;
+        for(const c of T0.custom){c.title=String(c.title||"").trim();if(!c.title){msg("Cihaz növünün adını yazın");return}c.short=String(c.short||c.title).trim();c.info=c.info.filter(x=>String(x[1]||"").trim())}
+        const clean=o=>{if(o.meas)o.meas=cleanMeas(o.meas);if(o.chk)o.chk=cleanList(o.chk);if(o.works)o.works=cleanList(o.works)};Object.values(T0.types).forEach(clean);T0.custom.forEach(clean);
+        const b=ov.querySelector("#tySave");b.disabled=true;msg("Saxlanılır…");
+        try{await save(T0);ov.remove();if(O.toast)O.toast("Şablonlar saxlanıldı — yeni hesabatlara tətbiq olunur");card()}catch(e){b.disabled=false;msg("Alınmadı: "+(e&&e.message==="forbidden"?"yalnız rəhbər / servis müdiri":(e&&e.message)||e))}}}
+    draw()}
+  function init(o){O=o;setTimeout(fetchTpl,4000);setInterval(fetchTpl,10*60000);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")fetchTpl()})}
+  return {apply,lists,stamp,reg,isCustom,init,card,fetchTpl,_def:()=>DEF}})();
+</script>
+<script>/* ZUVAND — Ayarlar: hər bölmənin başlığına toxunanda açılır / bağlanır (vəziyyət cihazda yadda qalır) */
+(function(){try{
+  const K="zs.cardOpen",get=()=>{try{return JSON.parse(localStorage.getItem(K)||"[]")}catch(e){return []}},put=L=>{try{localStorage.setItem(K,JSON.stringify(L.slice(-80)))}catch(e){}};
+  document.head.insertAdjacentHTML("beforeend",`<style>#main.zs-set .card>h3.clh{cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px;margin-bottom:0}
+    #main.zs-set .card>h3.clh::before{content:"▸";display:inline-block;transition:transform .15s;font-size:.9em;opacity:.75}
+    #main.zs-set .card.clo>h3.clh::before{transform:rotate(90deg)}#main.zs-set .card.clo>h3.clh{margin-bottom:10px}
+    #main.zs-set .card.clc>:not(h3.clh){display:none!important}#main.zs-set .card.clc{padding-top:12px;padding-bottom:12px}
+    #main.zs-set .zs-colall{display:flex;gap:8px;justify-content:flex-end;margin:0 0 8px}</style>`);
+  const key=h=>String(h.textContent||"").replace(/[\d·()]+/g," ").replace(/\s+/g," ").trim().slice(0,60);
+  function setOpen(c,h,on){c.classList.toggle("clo",on);c.classList.toggle("clc",!on);h.setAttribute("aria-expanded",on?"true":"false")}
+  function apply(){const m=document.getElementById("main");if(!m||!m.classList.contains("zs-set"))return;if(!m.querySelector("#zsSetMark")){m.classList.remove("zs-set");mo.disconnect();return}const open=get();
+    m.querySelectorAll(":scope .card").forEach(c=>{if(c.dataset.cl)return;const h=c.querySelector(":scope>h3");if(!h||c.closest(".secov,.qlov,.tplov"))return;
+      c.dataset.cl="1";h.classList.add("clh");h.setAttribute("role","button");h.tabIndex=0;setOpen(c,h,open.includes(key(h)));
+      const tog=()=>{const on=!c.classList.contains("clo");setOpen(c,h,on);const L=get().filter(x=>x!==key(h));if(on)L.push(key(h));put(L)};
+      h.addEventListener("click",e=>{if(e.target.closest("button,a,input,select,label"))return;tog()});h.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();tog()}})});
+    if(!m.querySelector(".zs-colall")){const sec=m.querySelector("h2.sec");const bar=document.createElement("div");bar.className="zs-colall";
+      bar.innerHTML=`<button class="btn sm ghost" data-ca="1">Hamısını aç</button><button class="btn sm ghost" data-ca="0">Hamısını bağla</button>`;
+      if(sec)sec.after(bar);else m.prepend(bar);
+      bar.onclick=e=>{const b=e.target.closest("[data-ca]");if(!b)return;const on=b.dataset.ca==="1",L=[];m.querySelectorAll(".card[data-cl]").forEach(c=>{const h=c.querySelector(":scope>h3");setOpen(c,h,on);if(on)L.push(key(h))});put(on?L:[])}}}
+  let t=0;const mo=new MutationObserver(()=>{clearTimeout(t);t=setTimeout(apply,30)});
+  window.ZSCOL={on(){const m=document.getElementById("main");if(!m)return;if(!m.querySelector("#zsSetMark"))m.insertAdjacentHTML("beforeend",'<i id="zsSetMark" hidden></i>');m.classList.add("zs-set");apply();mo.disconnect();mo.observe(m,{childList:true,subtree:true})},
+    off(){const m=document.getElementById("main");if(m)m.classList.remove("zs-set");mo.disconnect()}};
+}catch(e){console.log("zscol",e)}})();
 </script>
 <script>/* ZUVAND — QR kod yaradıcı (internetsiz işləyir): bayt rejimi, xəta düzəltmə M/Q/H, versiya 1–40 */
 window.ZSQR=(function(){
@@ -673,9 +791,14 @@ const TYPES={
 /* UPS measurements before the 2026-10 change (frequencies removed, DC bus split into + and −): saved reports are mapped by name */
 const UPS_MEAS_V1=["Giriş gərginliyi (F–N)","Giriş gərginliyi (F–F)","Giriş cərəyanı","Giriş tezliyi","Bypass gərginliyi (F–N)","Çıxış gərginliyi (F–N)","Çıxış cərəyanı","Çıxış tezliyi","Yük səviyyəsi","Çıxış aktiv gücü","DC şin gərginliyi","Akkumulyator ümumi gərginliyi","Akkumulyator şarj cərəyanı","Neytral–Yer gərginliyi (N–PE)","Otaq temperaturu","UPS daxili temperatur"];
 const TYPE_ORDER=["ups","avr","svr","gen","panel","rect","bms","pfc","pq"];
-let MEAS=TYPES.ups.meas,CHK=TYPES.ups.chk,WORKS=TYPES.ups.works,IDX_LOAD=8,IDX_ROOM=14,CUR_TYPE="ups";
-function useType(tp){const T=TYPES[tp]||TYPES.ups;CUR_TYPE=TYPES[tp]?tp:"ups";MEAS=T.meas;CHK=T.chk;WORKS=T.works;
+let MEAS=TYPES.ups.meas,CHK=TYPES.ups.chk,WORKS=TYPES.ups.works,IDX_LOAD=8,IDX_ROOM=14,CUR_TYPE="ups",CUR_DEV=null;
+try{ZSTPL.apply()}catch(e){console.log("tpl",e)}
+function useType(tp,d){if(d&&d.type&&!TYPES[d.type]&&d.lbl&&d.lbl.t)ZSTPL.reg(d.type,d.lbl);const T=TYPES[tp]||TYPES.ups;CUR_TYPE=TYPES[tp]?tp:"ups";CUR_DEV=d||null;const LL=ZSTPL.lists(CUR_TYPE,d);MEAS=LL.meas;CHK=LL.chk;WORKS=LL.works;
   IDX_LOAD=MEAS.findIndex(m=>m[0]==="Yük səviyyəsi");IDX_ROOM=MEAS.findIndex(m=>m[0]==="Otaq temperaturu")}
+/* hesabat şablonları: yeni cihaz cari şablonun surətini saxlayır; köhnə cihaz öz siyahısı (və ya standart siyahı) ilə açılır */
+{const _bd=blankDevice;blankDevice=function(S,tp){return ZSTPL.stamp(_bd(S,tp))};
+ const _nd=normDevice;normDevice=function(d){if(d&&d.type&&!TYPES[d.type]&&d.lbl&&d.lbl.t)ZSTPL.reg(d.type,d.lbl);const tp=TYPES[d&&d.type]?d.type:"ups",T=TYPES[tp],L=ZSTPL.lists(tp,d||{}),sv=[T.meas,T.chk,T.works];
+  T.meas=L.meas;T.chk=L.chk;T.works=L.works;try{const o=_nd(d);if(d&&d.lbl)o.lbl=d.lbl;return o}finally{T.meas=sv[0];T.chk=sv[1];T.works=sv[2]}}}
 /* a device "view": the report with the device's own sections mapped in, so per-device code reads r.meas, r.bat … unchanged */
 /* phases actually present on a device: input / output side from its "phase" or "conn" field */
 function devPhases(V){const u=(V&&V.ups)||{};let pin=3,pout=3;const ph=String(u.phase||""),cn=String(u.conn||"");
@@ -801,9 +924,9 @@ function sampleReport(S){
   r.recs="UPS otağında kondisionerin texniki baxışı tövsiyə olunur.";
   return r0}
 /* analyse every device of a report; overall = worst device */
-function analyzeReport(r){r=realOf(r);const keep=CUR_TYPE,rank={ok:0,warn:1,bad:2};let cls="ok",overall="QƏNAƏTBƏXŞ";
-  const devs=r.devices.map((d,i)=>{useType(d.type);const V=devProxy(r,i),a=analyze(V);if(rank[a.cls]>rank[cls]){cls=a.cls;overall=a.overall}return {d,i,V,a}});
-  useType(keep);const tested=devs.reduce((x,y)=>x+y.a.tested.length,0),rep=devs.reduce((x,y)=>x+y.a.rep.length,0),att=devs.reduce((x,y)=>x+y.a.att.length,0);
+function analyzeReport(r){r=realOf(r);const keep=CUR_TYPE,keepD=CUR_DEV,rank={ok:0,warn:1,bad:2};let cls="ok",overall="QƏNAƏTBƏXŞ";
+  const devs=r.devices.map((d,i)=>{useType(d.type,d);const V=devProxy(r,i),a=analyze(V);if(rank[a.cls]>rank[cls]){cls=a.cls;overall=a.overall}return {d,i,V,a}});
+  useType(keep,keepD);const tested=devs.reduce((x,y)=>x+y.a.tested.length,0),rep=devs.reduce((x,y)=>x+y.a.rep.length,0),att=devs.reduce((x,y)=>x+y.a.att.length,0);
   return {devs,cls,overall,next:devs.length?devs[0].a.next:"",tested,rep,att}}
 
 /* ---------------- report languages (AZ / EN / RU) ---------------- */
@@ -1091,10 +1214,10 @@ function knownWorkers(){const m={};const add=n=>{n=String(n||"").trim();if(n&&n!
 function summaryOf(r){r=realOf(r);const A=analyzeReport(r),d0=r.devices[0]||{info:{}},i0=d0.info||{},n=r.devices.length;
   return {id:r.id,repno:r.svc.repno,date:r.svc.date,client:r.cl.name,obj:r.cl.obj,brand:i0.brand||"",model:(i0.model||"")+(n>1?" (+"+(n-1)+" cihaz)":""),sn:i0.sn||"",kva:i0.kva||"",
   types:r.devices.map(d=>d.type).join(","),type:r.svc.type||"",devn:n,fill:fillOf(r),photos:r.devices.reduce((x,d)=>x+((d.photos||[]).length),0),creator:r.creator||"",sns:snsOf(r),team:teamStr(r),payer:String(r.cl.payer||"").trim(),eng:r.svc.eng,overall:A.overall,cls:A.cls,tested:A.tested,rep:A.rep,att:A.att,next:A.next,updatedAt:r.updatedAt,by:r.by||"",appr:r.appr&&r.appr.at?(r.appr.by||"✓"):"",sub:r.sub&&r.sub.at?(r.sub.by||"✓"):""}}
-function blocksOf(r){r=realOf(r);const keep=CUR_TYPE,out=[],ups=r.devices.map((d,i)=>i).filter(i=>TYPES[r.devices[i].type].hasBat);
-  ups.forEach(i=>{useType(r.devices[i].type);const V=devProxy(r,i),a=analyze(V),p=Math.floor(num(V.bat.per))||1,pre=ups.length>1?"C"+(i+1)+"-":"";
+function blocksOf(r){r=realOf(r);const keep=CUR_TYPE,keepD=CUR_DEV,out=[],ups=r.devices.map((d,i)=>i).filter(i=>TYPES[r.devices[i].type].hasBat);
+  ups.forEach(i=>{useType(r.devices[i].type,r.devices[i]);const V=devProxy(r,i),a=analyze(V),p=Math.floor(num(V.bat.per))||1,pre=ups.length>1?"C"+(i+1)+"-":"";
     a.blocks.filter(b=>b.st).forEach(b=>out.push([pre+b.lab,b.s,b.i%p+1,b.v,b.r,b.t,b.st]))});
-  useType(keep);return out}
+  useType(keep,keepD);return out}
 const clsOfOverall=o=>/TƏCİLİ/.test(o||"")?"bad":/DİQQƏT/.test(o||"")?"warn":o?"ok":"";
 
 let syncTimer=null;
@@ -1502,7 +1625,7 @@ function typePicker(title,hint,onPick,onBack){
   <button class="btn ghost" id="tpBack" style="margin-top:12px">← Geri</button>`;
   document.querySelectorAll("[data-tp]").forEach(b=>b.onclick=()=>onPick(b.dataset.tp));$("#tpBack").onclick=onBack;window.scrollTo(0,0)}
 function startReport(r){applyRepNo(r,true);if(!r.svc.eng)r.svc.eng=state.me.name;if(!r.creator)r.creator=state.me.name;state.reports[r.id]=r;openReport(r);markDirty()}
-function setActive(i){const r=state.rep;state.di=Math.max(0,Math.min(i,r.devices.length-1));useType(r.devices[state.di].type);state.cur=devProxy(r,state.di);state.bi=0}
+function setActive(i){const r=state.rep;state.di=Math.max(0,Math.min(i,r.devices.length-1));useType(r.devices[state.di].type,r.devices[state.di]);state.cur=devProxy(r,state.di);state.bi=0}
 function openReport(r){r=realOf(r);
   /* an approved report opens for a worker as a view-only copy: nothing done on screen can reach the stored report */
   if(lockedRep(r))r=normalize(clone(r));state.rep=r;setActive(0);state.view="edit";state.tab="svc";renderEditor()}
@@ -2102,7 +2225,7 @@ function xConcl(V,PF){const X=V.x||{},C=[];
   if(PF==="diag"&&X.diag&&X.diag.found)C.push("Aşkar edilən nasazlıq: "+X.diag.found.split("\n")[0]);
   if(PF==="rep"&&X.rep&&X.rep.done)C.push("Təmir işləri görülüb"+(num(X.rep.warr)?"; zəmanət "+X.rep.warr+" ay":"")+".");
   return C}
-function paperHTML(R,_a,lang){PL=lang||state.plang||"az";const r=realOf(R),keep=CUR_TYPE,S=state.settings,dash=v=>v?esc(v):"—",T=CT[PL]||CT.az;
+function paperHTML(R,_a,lang){PL=lang||state.plang||"az";const r=realOf(R),keep=CUR_TYPE,keepD=CUR_DEV,S=state.settings,dash=v=>v?esc(v):"—",T=CT[PL]||CT.az;
   const pc=s=>s==="Normal"||s==="Yaxşı"?"p-ok":s==="Diqqət"||s==="Qeyd var"?"p-warn":s==="Dəyişdirilməli"||s==="Nasaz"||s==="Yararsız"||s==="Norma xaricində"?"p-bad":"";
   const parRow=d=>isPar(d)?[[["Paralel iş",esc(t(d.par.mode))+(parText(d)?" — "+esc(parText(d)):"")]]]:[];
   const anyDD=r.devices.some(d=>String(d.ddate||"").trim());
@@ -2125,7 +2248,7 @@ function paperHTML(R,_a,lang){PL=lang||state.plang||"az";const r=realOf(R),keep=
     PF==="inst"?[[["Müqavilə",r.svc.conNo?esc(r.svc.conNo)+(r.svc.conDate?" · "+fmtDate(r.svc.conDate):""):"—"],["Zəmanət",num(r.svc.warr)?esc(r.svc.warr)+" "+t("ay")+" ("+fmtDate(r.svc.date)+" — "+fmtDate(addMonths(r.svc.date,num(r.svc.warr)))+")":"—"]]].concat(r.svc.train?[[["Təlimat keçilən şəxs",esc(r.svc.train)]]]:[]):
     PF==="call"?[[["Çağırış vaxtı",dash(r.svc.tCall)],["Gəliş vaxtı",dash(r.svc.tArr)]]]:[]).concat(parSummary()))}`)}`;
   let n=2,appx="";const Cs=[];
-  A.devs.forEach(({d,i,V,a})=>{useType(d.type);const u=V.ups;let k=0;
+  A.devs.forEach(({d,i,V,a})=>{useType(d.type,d);const u=V.ups;let k=0;
     const head=title=>{if(multi)return `<h5>${n}.${++k}. ${t(title)}</h5>`;const q=typeof qh1==="string"?qh1:"";if(q){qh1="";return `<h4 style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${n++}. ${t(title)}</span>${q}</h4>`}return `<h4>${n++}. ${t(title)}</h4>`};
     const norm=j=>{const m=V.meas[j],mn=m.min,mx=m.max;return !mn&&!mx?"—":!mn?"≤ "+esc(mx):!mx?"≥ "+esc(mn):esc(mn)+" – "+esc(mx)};
     let band="";const QRI=typeof qrPaperImg==="function"?qrPaperImg(r):"";if(multi){h+=i>0?'<div class="pb"></div>':"";band=`<h4 class="devh"><span>${n}. ${t("Cihaz")} ${i+1}: ${t(TYPES[d.type].title)}${devName(d)?" — "+esc(devName(d)):""}${d.loc?" · "+esc(d.loc):""}</span><b class="${ovc(a.cls)}">${t(a.overall)}</b>${QRI?`<img class="dqr" src="${QRI}" alt="QR">`:""}</h4>`}let qh1=QRI&&!multi?`<img class="dqr" src="${QRI}" alt="QR">`:"";
@@ -2168,7 +2291,7 @@ function paperHTML(R,_a,lang){PL=lang||state.plang||"az";const r=realOf(R),keep=
       h+=rowsP.map((rw,q)=>W((q===0?head("Şəkillər"):"")+rw)).join("")}
     Cs.push({i,d,C:xConcl(V,PF).concat(concl(V,a,PL)).concat(logConcl(d))});
     if(multi)n++});
-  useType(keep);
+  useType(keep,keepD);
   h+=`
   ${(()=>{const hd=`<h4>${n++}. ${t("Nəticə və tövsiyələr")}</h4>`;return multi?Cs.map((x,ix)=>W((ix===0?hd:"")+`<p style="margin:8px 0 0"><b>${t("Cihaz")} ${x.i+1}: ${t(TYPES[x.d.type].title)}${devName(x.d)?" — "+esc(devName(x.d)):""}</b></p><ul>${x.C.map(c=>`<li>${esc(c)}</li>`).join("")||"<li>—</li>"}</ul>`)).join(""):W(hd+`<ul>${(Cs[0]?Cs[0].C:[]).map(c=>`<li>${esc(c)}</li>`).join("")||"<li>—</li>"}</ul>`)})()}
   ${r.notes?`<p><b>${t("Texniki qeydlər:")}</b> ${esc(ft(r.notes))}</p>`:""}`;
@@ -2521,8 +2644,8 @@ async function exportActWord(){const root=await prepareFolder();await flush();co
 /* ================= QÜSUR AKTI (the company's form): letterhead, approval of both heads, the text, signatures; battery table as an attachment =================
    The defects are collected from the report: "Nasaz" checks, failed installation tests, out-of-norm measurements,
    blocks to replace, diagnostics / repair / call-out findings and the "Yararsız detallar" list. */
-function qaDefects(R){const r=realOf(R),keep=CUR_TYPE,out=[];
-  r.devices.forEach((d,i)=>{useType(d.type);const V=devProxy(r,i),a=analyze(V),X=d.x||{},u=d.info||{},dn=([u.brand,u.model].filter(Boolean).join(" ")+(u.kva?" "+u.kva+" kVA":"")+" "+t(TYPES[d.type].short||TYPES[d.type].title)).trim();
+function qaDefects(R){const r=realOf(R),keep=CUR_TYPE,keepD=CUR_DEV,out=[];
+  r.devices.forEach((d,i)=>{useType(d.type,d);const V=devProxy(r,i),a=analyze(V),X=d.x||{},u=d.info||{},dn=([u.brand,u.model].filter(Boolean).join(" ")+(u.kva?" "+u.kva+" kVA":"")+" "+t(TYPES[d.type].short||TYPES[d.type].title)).trim();
     const add=(what,act)=>{if(String(what||"").trim())out.push({di:i,dev:dn,what:String(what).trim(),act:act||""})};
     CHK.forEach((c,j)=>{const o=V.chk[j]||{};if(o.s==="Nasaz")add(c+(o.n?" — "+o.n:""),"təmir və ya dəyişdirilməsi tələb olunur");else if(o.s==="Yararsız")add(c+(o.n?" — "+o.n:""),"dəyişdirilməsi tələb olunur")});
     const I=X.inst||{};(I.chk||[]).forEach((o,j)=>{if(o&&o.s==="Nasaz")add((INST_CHK[j]||"")+(o.n?" — "+o.n:""),"aradan qaldırılmalıdır")});(I.test||[]).forEach((o,j)=>{if(o&&o.s==="Uğursuz")add((INST_TEST[j]||"")+" uğursuz"+(o.n?" — "+o.n:""),"aradan qaldırılmalıdır")});
@@ -2533,7 +2656,7 @@ function qaDefects(R){const r=realOf(R),keep=CUR_TYPE,out=[];
     [[X.diag&&X.diag.found,X.diag&&X.diag.rec],[X.rep&&X.rep.fault,""],[X.call&&X.call.found,X.call&&X.call.next]].forEach(([f,rc])=>{if(f)add(f,rc||"")});
     (d.bad||[]).filter(b=>b&&b.name).forEach(b=>add(b.name+(b.code?" ("+b.code+")":"")+(b.qty?" — "+b.qty+" ədəd":"")+(b.note?", "+b.note:""),"dəyişdirilməsi vacibdir"));
     const LZ=d.log&&d.log.snaps&&d.log.snaps.az;if(LZ&&!LZ.empty)LZ.faults.filter(f=>f.sev==="crit").forEach(f=>add(f.title+" (hadisə jurnalına görə: "+f.why.replace(/\.$/,"")+")","yoxlanılmalı və aradan qaldırılmalıdır"))});
-  useType(keep);return out}
+  useType(keep,keepD);return out}
 const lc1=s=>{s=String(s||"").trim();if(!s||/^\p{Lu}{2}/u.test(s))return s;return s.charAt(0).toLocaleLowerCase("az")+s.slice(1)};
 /* same model several times: each one is told apart by its parallel system and number (UPS-1 · № 2/2), else serial №, else location;
    identical defects of such devices are written once for all of them */
@@ -2576,8 +2699,8 @@ function qaIntro(Q){const r=Q.r,sd=r.svc.date,y=(sd||"").slice(0,4);
   const sf=(Q.cl.length?Q.cl:[{co:"",pos:"nümayəndəsi",name:""}]).map(c=>[c.co||"“"+Q.client+"”",lc1(c.pos),c.name].filter(Boolean).join(" ")).join(", ");
   return `Biz aşağıda imza edənlər, “İcraçı” ${ic} və “Sifarişçi” ${sf}. Bu aktı tərtib etdik ondan ötrü ki, ${sd?fmtDate(sd)+"-"+azYearSuf(y)+" il tarixində":""}${Q.place?", "+Q.place+" ərazisində":""} istismar olunan avadanlığa (${Q.devSum}) texniki xidmət göstərilmişdir.`}
 /* battery attachment rows: per device, blocks with V / mΩ / status */
-function qaBatTables(R){const r=realOf(R),keep=CUR_TYPE,out=[];r.devices.forEach((d,i)=>{if(!TYPES[d.type].hasBat)return;useType(d.type);const V=devProxy(r,i),a=analyze(V),bs=a.blocks.filter(b=>b.v!==null||b.r!==null);
-  if(bs.length)out.push({title:(i+1)+". "+t(TYPES[d.type].title)+(devName(d)?" — "+devName(d):"")+(batBrandText(V.bat)?" · "+t("Akkumulyator")+": "+batBrandText(V.bat):""),bs,a})});useType(keep);return out}
+function qaBatTables(R){const r=realOf(R),keep=CUR_TYPE,keepD=CUR_DEV,out=[];r.devices.forEach((d,i)=>{if(!TYPES[d.type].hasBat)return;useType(d.type,d);const V=devProxy(r,i),a=analyze(V),bs=a.blocks.filter(b=>b.v!==null||b.r!==null);
+  if(bs.length)out.push({title:(i+1)+". "+t(TYPES[d.type].title)+(devName(d)?" — "+devName(d):"")+(batBrandText(V.bat)?" · "+t("Akkumulyator")+": "+batBrandText(V.bat):""),bs,a})});useType(keep,keepD);return out}
 function qaHTML(R){const Q=qaData(R),r=Q.r,S=Q.S,e=x=>esc(x||""),sg=r.sig||{};
   const head=(org,pos,name)=>`<td><div style="min-height:40px">${e(org)}<br>${e(pos)}:</div><div style="margin-top:14px">___________________&nbsp; ${e(name)}</div><div>M.Y</div></td>`;
   const sgn=(k,org,pos,name)=>{const x=sg[k];return `<div style="margin-top:10px">${org?e(org)+"<br>":""}${e(pos)}${pos?":":""}<br><span style="display:inline-block;min-width:110px">${e((x&&x.name)||name)}</span> ${x&&x.img?`<img src="${x.img}" alt="" style="height:34px;vertical-align:middle">`:"____________"}</div>`};
@@ -2756,10 +2879,10 @@ async function exportXlsx(){const root=await prepareFolder();await flush();const
   try{if(!await loadExcelJS()){toast("Excel üçün internet lazımdır (kitabxana yüklənmədi)");return}
     const r=realOf(state.cur);await ensurePhotos(r);$("#ps").innerHTML=paperHTML(r,null,L);fitPaper();
     const M=await paperToModel($("#paper"));await primeImgSizes(M);
-    const keep=CUR_TYPE,extra=[];
-    r.devices.forEach((d,i)=>{if(!TYPES[d.type].hasBat)return;useType(d.type);const V=devProxy(r,i),a=analyze(V);if(!a.blocks.length)return;
+    const keep=CUR_TYPE,keepD=CUR_DEV,extra=[];
+    r.devices.forEach((d,i)=>{if(!TYPES[d.type].hasBat)return;useType(d.type,d);const V=devProxy(r,i),a=analyze(V);if(!a.blocks.length)return;
       extra.push({name:(L==="ru"?"АКБ":L==="en"?"Batteries":"Akkumulyatorlar")+(r.devices.length>1?" "+(i+1):""),rows:[["Etiket","Qrup","Blok","V","mΩ","°C","Sapma","Status"],...a.blocks.map(b=>[b.lab,b.s,b.i%(Math.floor(num(V.bat.per))||1)+1,b.v,b.r,b.t,b.dev!==null?Math.round(b.dev*1000)/1000:null,tl(L,b.st)])]})});
-    useType(keep);
+    useType(keep,keepD);
     const wb=buildXlsx(window.ExcelJS,M,{sheet:L==="ru"?"Отчёт":L==="en"?"Report":"Hesabat",footer:tl(L,REPORT_TITLE),extra});
     const buf=await wb.xlsx.writeBuffer();
     await saveFile(fname(r,"xlsx").replace(/\.xlsx$/,(L!=="az"?"_"+L.toUpperCase():"")+".xlsx"),new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),cfolder(r),root,SUB_REP,{id:realOf(r).id,k:"rep"})}
@@ -2773,13 +2896,13 @@ Object.assign(DICT.ru,{"Diaqnostika":"Диагностика","Servis növü":"�
 function devLabel(d,i){return (i+1)+". "+TYPES[d.type].title+(devName(d)?" — "+devName(d):"")+(d.loc?" ("+d.loc+")":"")}
 /* one row per item: [cihaz, seriya №, növ, detal, kod, say, qeyd]; "Yararsız" = checklist "Nasaz", battery blocks to replace,
    defective parts typed in "İşlər"; "Dəyişdirilib" = replaced / installed parts */
-function itemsOf(r){r=realOf(r);const keep=CUR_TYPE,out=[];
-  r.devices.forEach((d,i)=>{useType(d.type);const V=devProxy(r,i),dl=devLabel(d,i),sn=(d.info&&d.info.sn)||"";
+function itemsOf(r){r=realOf(r);const keep=CUR_TYPE,keepD=CUR_DEV,out=[];
+  r.devices.forEach((d,i)=>{useType(d.type,d);const V=devProxy(r,i),dl=devLabel(d,i),sn=(d.info&&d.info.sn)||"";
     CHK.forEach((c,j)=>{const x=d.chk[j];if(x&&(x.s==="Nasaz"||x.s==="Yararsız"))out.push([dl,sn,"Yararsız",c,"","",x.n||""])});
     if(TYPES[d.type].hasBat){try{const a=analyze(V);if(a.rep.length)out.push([dl,sn,"Yararsız","Akkumulyator bloku"+(batBrandText(V.bat)?" ("+batBrandText(V.bat)+")":""),"",String(a.rep.length),a.rep.map(b=>b.lab).join(", ")])}catch(e){}}
     (d.bad||[]).filter(x=>x.name).forEach(x=>out.push([dl,sn,"Yararsız",x.name,x.code||"",x.qty||"",x.note||""]));
     (d.parts||[]).filter(x=>x.name).forEach(x=>out.push([dl,sn,"Dəyişdirilib",x.name,x.code||"",x.qty||"",x.note||""]))});
-  useType(keep);return out}
+  useType(keep,keepD);return out}
 /* all items: server sheet "Detallar" + this device's unsent reports; older reports are indexed once in the background */
 /* all items are computed from the reports kept on this device (works offline); reports not yet copied to the device come from the server sheet */
 async function loadItems(onProg){const rows=[],locIds=new Set();
@@ -2903,12 +3026,12 @@ const hasSales=()=>!!state.me.perms&&(state.me.boss||["satis","anbar","muhasibat
 function modGate(){if(state.me.perms&&!state.me.boss&&!state.me.perms.includes("servis")&&!state.me.perms.some(m=>/^sv_/.test(m))&&state.me.role!=="admin"&&hasSales())location.href="satis/index.html"}
 function applyWho(o){if(!o)return;if(o.role)state.me.role=o.role;if(o.perms){state.me.perms=o.perms;state.me.boss=!!o.boss}state.me.personal=!!o.personal;if(o.personal&&o.name)state.me.name=o.name;LS.set("ups.me",state.me);modGate()}
 /* how complete the report is: per device measurements filled (40%), checklist answered (40%), works answered (20%) */
-function fillOf(r){r=realOf(r);const keep=CUR_TYPE;let sum=0,n=0;
-  try{r.devices.forEach((d,i)=>{useType(d.type);const V=devProxy(r,i);
+function fillOf(r){r=realOf(r);const keep=CUR_TYPE,keepD=CUR_DEV;let sum=0,n=0;
+  try{r.devices.forEach((d,i)=>{useType(d.type,d);const V=devProxy(r,i);
     const mi=MEAS.map((m,j)=>j).filter(j=>mPh(V,j)>0),mf=mi.filter(j=>d.meas[j]&&d.meas[j].v.slice(0,mPh(V,j)).some(x=>String(x??"").trim()!=="")).length;
     const ci=CHK.map((c,j)=>j).filter(j=>!chkHidden(V,j)),cf=ci.filter(j=>d.chk[j]&&d.chk[j].s).length,wf=d.works.filter(Boolean).length;
     sum+=(mi.length?mf/mi.length:1)*40+(ci.length?cf/ci.length:1)*40+(d.works.length?wf/d.works.length:1)*20;n++})}catch(e){}
-  useType(keep);return n?Math.round(sum/n):null}
+  useType(keep,keepD);return n?Math.round(sum/n):null}
 const whoOf=s=>String(s.creator||s.eng||s.by||"").trim()||"Naməlum";
 async function loadRatings(force){if(!hasServer()||!svCan("staff"))return {};if(state.ratings&&!force)return state.ratings;
   try{const res=await api("ratings");const M={};(res.rows||[]).forEach(x=>{M[String(x[0])]={score:+x[5]||0,note:x[6]||"",by:x[7]||""}});state.ratings=M}catch(e){state.ratings=state.ratings||{}}
@@ -3002,7 +3125,7 @@ async function customersCard(){const box=$("#cuBox");if(!box)return;
     const del=$("#cuDel");if(del)del.onclick=async()=>{if(del.dataset.confirm!=="1"){del.dataset.confirm="1";del.textContent="Həqiqətən silinsin? Təsdiq";return}
       del.disabled=true;try{await save({id:c.id,name:c.name},true);toast(c.name+" silindi");CU.cur=null;drawList()}catch(e){toast(errMsg(e));del.disabled=false}}};
   box.innerHTML='<h3>Müştərilər</h3><p class="note" style="margin:0">Yüklənir…</p>';
-  try{const r=await api("customers");CU.list=r.customers||[];state.customers=CU.list;LS.set("ups.customers",CU.list);CU.cur?drawEdit():drawList()}catch(e){CU.list=state.customers||[];drawList()}}
+  try{const r=await api("customers");CU.list=r.customers||[];state.customers=CU.list;LS.set("ups.customers",CU.list);if(!box.isConnected)return;CU.cur?drawEdit():drawList()}catch(e){if(!box.isConnected)return;CU.list=state.customers||[];drawList()}}
 /* staff panel */
 const PERIODS=[["month","Bu ay"],["prev","Keçən ay"],["year","Bu il"],["pyear","Keçən il"],["all","Bütün dövr"]];
 function inPeriod(d,p){if(p==="all")return true;const t=new Date(),y=t.getFullYear(),m=t.getMonth()+1,pad=x=>String(x).padStart(2,"0");d=String(d||"");
@@ -3579,8 +3702,8 @@ window.ZSBK=(function(){
       savePending();const T=B.tasks||[];for(let i=0;i<T.length;i++){prog(i+1,T.length,"Tapşırıqlar");try{await api("task_save",{task:T[i]});tk++}catch(e){}}
       try{await sync({all:true})}catch(e){}
       return ok+" hesabat"+(bad?" ("+bad+" alınmadı)":"")+", "+tk+" tapşırıq"+(ph?", "+ph+" şəkil":"")}});
-  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}try{ZSSEC.card()}catch(e){}return r};
-  try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>!!state.me.boss||(!(typeof CFG!=="undefined"&&CFG.hub)&&state.me.role==="admin"),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}try{API_TIMEOUT.factory_reset=330000;API_TIMEOUT.activity=60000;API_TIMEOUT.sec_info=15000;ZSSEC.init({app:"ups",api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub})}catch(e){}
+  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}try{ZSSEC.card()}catch(e){}try{ZSTPL.card()}catch(e){}try{ZSCOL.on()}catch(e){}return r};
+  try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>!!state.me.boss||(!(typeof CFG!=="undefined"&&CFG.hub)&&state.me.role==="admin"),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}try{API_TIMEOUT.factory_reset=330000;API_TIMEOUT.activity=60000;API_TIMEOUT.sec_info=15000;ZSSEC.init({app:"ups",api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub})}catch(e){}try{ZSTPL.init({api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),isAdmin:()=>!hasServer()||state.me.role==="admin",me:()=>state.me.name||""})}catch(e){}
   /* the "Ayarlar" button was bound to the old function at start-up */
   const hs=document.getElementById("hSettings");if(hs)hs.onclick=()=>renderSettings();
 }catch(e){console.log("backup",e)}})();

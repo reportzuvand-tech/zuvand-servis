@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110603;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110604;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -185,7 +185,7 @@ window.ZSSEC=(function(){
   const LBL={save:"Hesabat saxlandı",approve:"Təsdiq",delete:"Silindi",restore:"Versiya bərpa edildi",settings:"Ayarlar dəyişdi",task:"Tapşırıq",
     "task-del":"Tapşırıq silindi",worker:"İşçi dəyişdi","worker-newkey":"Yeni açar","shared-off":"Ortaq açar",look:"Görünüş dəyişdi",pdf:"PDF",customer:"Müştəri saxlandı","customer-del":"Müştəri silindi",
     "client-rename":"Müştəri adı dəyişdi",positions:"Vəzifələr dəyişdi",snapshot:"Ehtiyat nüsxə",backup:"Ehtiyat nüsxə",forbidden:"İcazəsiz cəhd","auth-lock":"Səhv açar — ünvan bloklandı",
-    "reset-pw":"Sıfırlama parolu dəyişdi","reset-badpw":"Sıfırlama — parol səhv","svc-sale":"Servisdən satış","svc-sale-revoke":"Servis satışı geri alındı","pay-cfg":"Ödəniş görünüşü",
+    "reset-pw":"Sıfırlama parolu dəyişdi","reset-badpw":"Sıfırlama — parol səhv","svc-sale":"Servisdən satış","svc-sale-revoke":"Servis satışı geri alındı","pay-cfg":"Ödəniş görünüşü",templates:"Hesabat şablonları dəyişdi",svcPdf:"Servis PDF-i yükləndi",
     saveQuote:"Təklif / satış saxlandı",setBill:"Hesab-faktura / ödəniş",delQuote:"Təklif silindi",svcBill:"Servis hesabı",restoreQuote:"Təklif bərpa edildi",setDelPw:"Silmə şifrəsi dəyişdi",
     saveItem:"Mal saxlandı",delItems:"Mal silindi",setCat:"Kateqoriya",importItems:"Mal idxalı",addMoves:"Anbar hərəkəti",setCost:"Maya dəyəri",delMove:"Hərəkət silindi",
     saveInvoice:"Qaimə saxlandı",postSaleInvoice:"Satış qaiməsi",shipInvoice:"Qaimə göndərildi",directSupply:"Birbaşa təchizat",approveInvoice:"Qaimə təsdiqləndi",returnInvoice:"Qaimə qaytarıldı",
@@ -227,6 +227,30 @@ window.ZSSEC=(function(){
     if(LSg("zssec.pin"))lockNow()}
   try{O={app:window.ZS_APP==="ups"||window.ZS_APP==="zs"?"ups":"sa",hub:()=>window.ZS_APP==="zs"||window.ZS_APP==="zssa"};had0=hasLocal();O=null}catch(e){O=null}
   return {init,card,lockNow,wipe,checkEpoch,sha}})();
+</script>
+<script>/* ZUVAND — Ayarlar: hər bölmənin başlığına toxunanda açılır / bağlanır (vəziyyət cihazda yadda qalır) */
+(function(){try{
+  const K="zs.cardOpen",get=()=>{try{return JSON.parse(localStorage.getItem(K)||"[]")}catch(e){return []}},put=L=>{try{localStorage.setItem(K,JSON.stringify(L.slice(-80)))}catch(e){}};
+  document.head.insertAdjacentHTML("beforeend",`<style>#main.zs-set .card>h3.clh{cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px;margin-bottom:0}
+    #main.zs-set .card>h3.clh::before{content:"▸";display:inline-block;transition:transform .15s;font-size:.9em;opacity:.75}
+    #main.zs-set .card.clo>h3.clh::before{transform:rotate(90deg)}#main.zs-set .card.clo>h3.clh{margin-bottom:10px}
+    #main.zs-set .card.clc>:not(h3.clh){display:none!important}#main.zs-set .card.clc{padding-top:12px;padding-bottom:12px}
+    #main.zs-set .zs-colall{display:flex;gap:8px;justify-content:flex-end;margin:0 0 8px}</style>`);
+  const key=h=>String(h.textContent||"").replace(/[\d·()]+/g," ").replace(/\s+/g," ").trim().slice(0,60);
+  function setOpen(c,h,on){c.classList.toggle("clo",on);c.classList.toggle("clc",!on);h.setAttribute("aria-expanded",on?"true":"false")}
+  function apply(){const m=document.getElementById("main");if(!m||!m.classList.contains("zs-set"))return;if(!m.querySelector("#zsSetMark")){m.classList.remove("zs-set");mo.disconnect();return}const open=get();
+    m.querySelectorAll(":scope .card").forEach(c=>{if(c.dataset.cl)return;const h=c.querySelector(":scope>h3");if(!h||c.closest(".secov,.qlov,.tplov"))return;
+      c.dataset.cl="1";h.classList.add("clh");h.setAttribute("role","button");h.tabIndex=0;setOpen(c,h,open.includes(key(h)));
+      const tog=()=>{const on=!c.classList.contains("clo");setOpen(c,h,on);const L=get().filter(x=>x!==key(h));if(on)L.push(key(h));put(L)};
+      h.addEventListener("click",e=>{if(e.target.closest("button,a,input,select,label"))return;tog()});h.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();tog()}})});
+    if(!m.querySelector(".zs-colall")){const sec=m.querySelector("h2.sec");const bar=document.createElement("div");bar.className="zs-colall";
+      bar.innerHTML=`<button class="btn sm ghost" data-ca="1">Hamısını aç</button><button class="btn sm ghost" data-ca="0">Hamısını bağla</button>`;
+      if(sec)sec.after(bar);else m.prepend(bar);
+      bar.onclick=e=>{const b=e.target.closest("[data-ca]");if(!b)return;const on=b.dataset.ca==="1",L=[];m.querySelectorAll(".card[data-cl]").forEach(c=>{const h=c.querySelector(":scope>h3");setOpen(c,h,on);if(on)L.push(key(h))});put(on?L:[])}}}
+  let t=0;const mo=new MutationObserver(()=>{clearTimeout(t);t=setTimeout(apply,30)});
+  window.ZSCOL={on(){const m=document.getElementById("main");if(!m)return;if(!m.querySelector("#zsSetMark"))m.insertAdjacentHTML("beforeend",'<i id="zsSetMark" hidden></i>');m.classList.add("zs-set");apply();mo.disconnect();mo.observe(m,{childList:true,subtree:true})},
+    off(){const m=document.getElementById("main");if(m)m.classList.remove("zs-set");mo.disconnect()}};
+}catch(e){console.log("zscol",e)}})();
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -3885,7 +3909,7 @@ window.ZSBK=(function(){
     restore:async(B,prog)=>{prog(1,1,"Göndərilir");const r=await api("restoreAll",{db:B.db});
       state.local={};state.pending.clear();try{saveLocal()}catch(e){}state.outbox=[];try{saveOutbox()}catch(e){}state.lastSync=0;try{saveCache()}catch(e){}
       try{await sync()}catch(e){}const n=r.restored||{};return `${n.items||0} mal, ${n.quotes||0} sənəd, ${n.invoices||0} qaimə, ${n.contracts||0} müqavilə, ${n.moves||0} hərəkət`}});
-  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{svcSyncCard()}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}try{ZSSEC.card()}catch(e){}return r};
+  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{svcSyncCard()}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}try{ZSSEC.card()}catch(e){}try{ZSCOL.on()}catch(e){}return r};
   try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>can("admin"),hub:()=>!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}try{ZSSEC.init({app:"sa",api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!isDemo()&&!!state.me.key,hub:()=>!!CFG.hub,onPw:h=>{if(!CFG.hub){state.delPw=h;state.hasDelPw=true;try{saveCache()}catch(e){}}}})}catch(e){}
 }catch(e){console.log("look/backup",e)}})();
 </script>
