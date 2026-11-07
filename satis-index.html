@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110703;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110704;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -3682,7 +3682,9 @@ window.ZSLOOK=(function(){
     ["Okean",{acc:"blue",btn:"soft",fx:"gloss",card:"shadow",bg:"grad",hdr:"accent"}],["Günəş",{acc:"orange",btn:"round",fx:"raised",card:"edge",bg:"lines"}],["Korporativ",{acc:"gold",btn:"std",fx:"shadow",card:"edge",bg:"plain",hdr:"accent"}]];
   function accOf(L){if(L.acc==="custom")return L.accC||"";const a=ACC.find(x=>x[0]===L.acc);return a&&a[0]?a[2]:""}
   function css(L){const A=accOf(L),c=[];
-    if(A)c.push(`:root,:root[data-theme]{--accent:${A};--accent-soft:color-mix(in srgb,${A} 18%,var(--surface));--paper-head:color-mix(in srgb,${A} 70%,#000)}`);
+    /* PDF header colour as a plain hex: the PDF renderer (html2canvas) cannot read color-mix() → "unsupported color function" */
+    const dk=(h,k)=>{const m=/^#?([0-9a-f]{6})$/i.exec(String(h).trim());if(!m)return h;const n=parseInt(m[1],16);return "#"+[n>>16,(n>>8)&255,n&255].map(v=>Math.round(v*k).toString(16).padStart(2,"0")).join("")};
+    if(A)c.push(`:root,:root[data-theme]{--accent:${A};--accent-soft:color-mix(in srgb,${A} 18%,var(--surface));--paper-head:${dk(A,0.7)}}`);
     c.push({std:"",round:".btn,.seg button,.chip{border-radius:999px!important}",soft:".btn{border-radius:14px!important}",sharp:".btn,.card,.rcard,input,select,textarea{border-radius:3px!important}"}[L.btn]||"");
     c.push({flat:"",
       shadow:".btn{box-shadow:0 2px 6px rgba(0,0,0,.12)}.btn.pri{box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 45%,transparent)}",

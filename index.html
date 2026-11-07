@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110703;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110704;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -3468,7 +3468,9 @@ window.ZSLOOK=(function(){
     ["Okean",{acc:"blue",btn:"soft",fx:"gloss",card:"shadow",bg:"grad",hdr:"accent"}],["Günəş",{acc:"orange",btn:"round",fx:"raised",card:"edge",bg:"lines"}],["Korporativ",{acc:"gold",btn:"std",fx:"shadow",card:"edge",bg:"plain",hdr:"accent"}]];
   function accOf(L){if(L.acc==="custom")return L.accC||"";const a=ACC.find(x=>x[0]===L.acc);return a&&a[0]?a[2]:""}
   function css(L){const A=accOf(L),c=[];
-    if(A)c.push(`:root,:root[data-theme]{--accent:${A};--accent-soft:color-mix(in srgb,${A} 18%,var(--surface));--paper-head:color-mix(in srgb,${A} 70%,#000)}`);
+    /* PDF header colour as a plain hex: the PDF renderer (html2canvas) cannot read color-mix() → "unsupported color function" */
+    const dk=(h,k)=>{const m=/^#?([0-9a-f]{6})$/i.exec(String(h).trim());if(!m)return h;const n=parseInt(m[1],16);return "#"+[n>>16,(n>>8)&255,n&255].map(v=>Math.round(v*k).toString(16).padStart(2,"0")).join("")};
+    if(A)c.push(`:root,:root[data-theme]{--accent:${A};--accent-soft:color-mix(in srgb,${A} 18%,var(--surface));--paper-head:${dk(A,0.7)}}`);
     c.push({std:"",round:".btn,.seg button,.chip{border-radius:999px!important}",soft:".btn{border-radius:14px!important}",sharp:".btn,.card,.rcard,input,select,textarea{border-radius:3px!important}"}[L.btn]||"");
     c.push({flat:"",
       shadow:".btn{box-shadow:0 2px 6px rgba(0,0,0,.12)}.btn.pri{box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 45%,transparent)}",
@@ -3779,7 +3781,9 @@ window.ZSBK=(function(){
    .qlov label.ck{display:flex!important;gap:10px;align-items:flex-start;text-align:left;font-size:14px}.qlov label.ck input{width:20px!important;height:20px!important;flex:none;margin:2px 0 0}
    .qlov select,.qlov input[type=number]{padding:8px;border:1px solid var(--line,#C9D3D0);border-radius:8px;font-size:15px}</style>`);
   const QC={};
-  window.qrPaperImg=function(r){r=realOf(r);if(!r||!r.qr||!r.qr.base||!r.qr.r)return "";const u=r.qr.base+"?r="+r.qr.r;if(!QC[u])try{QC[u]=ZSQR.png(u,4,"M",2)}catch(e){return ""}return QC[u]};
+  /* QR links open a public page on GitHub Pages (works on every phone, no Google sign-in); it reads the data from the server */
+  const PUB="https://reportzuvand-tech.github.io/ups-servis-iphone/p.html";const qrUrl=(r,k,t)=>(/script\.google\.com\/macros\//.test(r.qr.base)?PUB:r.qr.base)+"?"+k+"="+t;
+  window.qrPaperImg=function(r){r=realOf(r);if(!r||!r.qr||!r.qr.base||!r.qr.r)return "";const u=qrUrl(r,"r",r.qr.r);if(!QC[u])try{QC[u]=ZSQR.png(u,4,"M",2)}catch(e){return ""}return QC[u]};
   window.ensureQr=async function(r){r=realOf(r);if(!r||r.sample||!hasServer())return false;const sns=r.devices.filter(d=>d.type!=="pq").map(d=>String(d.info&&d.info.sn||"").trim()).filter(Boolean);
     if(r.qr&&r.qr.base&&r.qr.r&&sns.every(s=>r.qr.d&&r.qr.d[s]))return false;
     try{const mu0=String(state.me.url||"").split("?")[0];if(navigator.onLine===false)return false;const q=await Promise.race([api("qr_tokens",{rid:r.id,sns,base:mu0}),new Promise((_,rj)=>setTimeout(()=>rj(new Error("qr_timeout")),7000))]);const mu=String(state.me.url||"").split("?")[0],base=/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(mu)?mu:q.base;if(!base||!q.r)return false;r.qr={base,r:q.r,d:q.d||{}};return true}catch(e){return false}};
@@ -3819,7 +3823,7 @@ window.ZSBK=(function(){
     document.body.appendChild(ov);ov.addEventListener("click",e=>{if(e.target===ov||e.target.closest("[data-x]"))ov.remove()});
     ov.querySelector("#qlGo").onclick=async()=>{const b=ov.querySelector("#qlGo");const sel=[...ov.querySelectorAll("[data-qd]")].filter(x=>x.checked).map(x=>r.devices[+x.dataset.qd]);if(!sel.length){toast("Cihaz seçin");return}
       const sz=SIZES.find(s=>s[0]===ov.querySelector("#qlSz").value)||SIZES[0],n=Math.max(1,Math.min(20,+ov.querySelector("#qlN").value||1));LS.set("ups.qrsz",sz[0]);
-      const S=state.settings||{},list=[];sel.forEach(d=>{const sn=String(d.info.sn).trim(),tk=r.qr.d[sn];if(!tk)return;for(let i=0;i<n;i++)list.push({url:r.qr.base+"?d="+tk,sn,model:[TYPES[d.type].short||"",devName(d)].filter(Boolean).join(" · "),co:S.co||"ZUVAND",tel:S.cotel||""})});
+      const S=state.settings||{},list=[];sel.forEach(d=>{const sn=String(d.info.sn).trim(),tk=r.qr.d[sn];if(!tk)return;for(let i=0;i<n;i++)list.push({url:qrUrl(r,"d",tk),sn,model:[TYPES[d.type].short||"",devName(d)].filter(Boolean).join(" · "),co:S.co||"ZUVAND",tel:S.cotel||""})});
       if(!list.length){toast("QR linki alınmadı — yenidən cəhd edin");return}
       b.disabled=true;b.textContent="Hazırlanır…";
       try{const pdf=await buildLabels(list,sz),blob=pdf.output("blob");await saveFile("QR-etiketler_"+String(r.svc.repno||r.cl.name||"cihaz").replace(/[\\/:*?"<>|]+/g," ")+".pdf",blob,cfolder(r));ov.remove()}
