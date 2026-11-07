@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110801;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110802;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -3977,7 +3977,7 @@ window.ZSBK=(function(){
     if(r.qr&&r.qr.base&&r.qr.r&&sns.every(s=>r.qr.d&&r.qr.d[s]))return false;
     try{const mu0=String(state.me.url||"").split("?")[0];if(navigator.onLine===false)return false;const q=await Promise.race([api("qr_tokens",{rid:r.id,sns,base:mu0}),new Promise((_,rj)=>setTimeout(()=>rj(new Error("qr_timeout")),7000))]);const mu=String(state.me.url||"").split("?")[0],base=/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(mu)?mu:q.base;if(!base||!q.r)return false;r.qr={base,r:q.r,d:q.d||{}};return true}catch(e){return false}};
   {const _mb=makePdf;makePdf=async function(r,L){try{if(await ZSBT.ensure(r)){const ps=$("#ps");if(ps){ps.innerHTML=paperHTML(r,null,L);fitPaper()}}}catch(e){}return _mb.apply(this,arguments)}}
-  {const _rb=renderEditor;renderEditor=function(){const o=_rb.apply(this,arguments);try{ZSBT.hook();const zc=()=>{try{ZSCOL.cards(document.getElementById("main"),/^(Avtomatik nəticə|Qüsur aktı)/)}catch(e){}};zc();setTimeout(zc,0);if(state.tab==="rep"&&state.rep){const rp=state.rep;ZSBT.ensure(rp).then(ch=>{if(ch&&state.tab==="rep"&&state.rep===rp&&state.view==="edit")renderEditor()})}}catch(e){}return o}}
+  {const _rb=renderEditor;renderEditor=function(){const o=_rb.apply(this,arguments);try{ZSBT.hook();const zc=()=>{try{ZSCOL.cards(document.getElementById("main"),/^(Avtomatik nəticə|Qüsur aktı)/)}catch(e){}};zc();setTimeout(zc,0);if(state.tab==="rep"&&state.rep){const rp=state.rep;ZSBT.ensure(rp).then(ch=>{if(ch&&state.tab==="rep"&&state.rep===rp&&state.view==="edit"&&!(window.zsPdfBusy&&zsPdfBusy()))renderEditor()})}}catch(e){}return o}}
   const _mk=makePdf;makePdf=async function(r,L){try{if(await ensureQr(r)){const ps=$("#ps");if(ps){ps.innerHTML=paperHTML(r,null,L);fitPaper()}}}catch(e){}return _mk.apply(this,arguments)};
   /* ---------- labels ---------- */
   const SIZES=[["a4s","A4 vərəq — 24 etiket (70×37 mm)",70,37,3,8],["a4l","A4 vərəq — 10 etiket (105×57 mm)",105,57,2,5],["p5030","Etiket printeri — 50×30 mm",50,30],["p6040","Etiket printeri — 60×40 mm",60,40],["p7050","Etiket printeri — 70×50 mm",70,50]];
@@ -4037,17 +4037,24 @@ window.ZSBK=(function(){
     api("client_error",{msg,stack:String((e&&e.stack)||"").slice(0,600),ua:navigator.userAgent.slice(0,160),build:window.ZS_BUILD||0}).catch(()=>{})}catch(x){}};
   window.addEventListener("error",ev=>zsReportErr("xəta",ev.error||ev.message));
   window.addEventListener("unhandledrejection",ev=>zsReportErr("xəta (async)",ev.reason));
+  /* a long report (60+ pages) may take minutes: it fails only when no page has been finished for a long time */
+  let lastTick=Date.now(),busyN=0;const tick=()=>{lastTick=Date.now()};window.zsPdfBusy=()=>busyN>0;
+  const idle=(ms,onIdle)=>{tick();const iv=setInterval(()=>{if(Date.now()-lastTick>ms){clearInterval(iv);onIdle()}},3000);return ()=>clearInterval(iv)};
   const guard=(name,label)=>{const f=window[name];if(typeof f!=="function")return;window[name]=async function(){let done=false;
     const t=setTimeout(()=>{if(done)return;restore();zsReportErr(label,new Error("120 saniyədə bitmədi"));toast(label+" alınmadı — telefonun yaddaşı çatmır və ya internet zəifdir. Proqramı bağlayıb yenidən açın, şəkillərin sayını azaldıb yenidən cəhd edin.",10000)},120000);
     try{return await f.apply(this,arguments)}catch(e){zsReportErr(label,e);toast(label+" alınmadı: "+((e&&e.message)||e));restore()}finally{done=true;clearTimeout(t);document.documentElement.style.overflow="";document.body.style.overflow=""}}};
-  exportPdf=(()=>{const f=exportPdf;return async function(){let done=false;const t=setTimeout(()=>{if(done)return;restore();zsReportErr("PDF",new Error("240 saniyədə bitmədi"));toast("PDF alınmadı — telefonun yaddaşı çatmır və ya internet zəifdir. Proqramı bağlayıb yenidən açın və yenidən cəhd edin.",10000)},240000);
-    try{return await f.apply(this,arguments)}catch(e){zsReportErr("PDF",e);toast("PDF alınmadı: "+((e&&e.message)||e));restore()}finally{done=true;clearTimeout(t);document.documentElement.style.overflow="";document.body.style.overflow=""}}})();
-  printReport=(()=>{const f=printReport;return async function(){try{return await f.apply(this,arguments)}catch(e){zsReportErr("Çap",e);restore()}finally{document.documentElement.style.overflow="";document.body.style.overflow=""}}})();
+  /* the progress (page i of n) is shown on the button that is on the screen now (the screen may have been redrawn meanwhile) */
+  let progSel="#bPdf",progTx="PDF hazırlanır… ",progOn=false;
+  const btnBack=()=>{[["#bPdf","PDF hazırla",/hazırlanır/i],["#bPrint","Çap et",/Hazırlanır/i]].forEach(([q,t,re])=>{const b=$(q);if(b&&re.test(b.textContent)){b.disabled=false;b.textContent=t}})};
+  exportPdf=(()=>{const f=exportPdf;return async function(){progSel="#bPdf";progTx="PDF hazırlanır… ";progOn=true;let done=false;const stop=idle(360000,()=>{if(done)return;restore();zsReportErr("PDF",new Error("6 dəqiqə ərzində irəliləyiş olmadı"));toast("PDF alınmadı — 6 dəqiqə ərzində irəliləyiş olmadı (yaddaş çatmır və ya internet zəifdir). Proqramı bağlayıb yenidən açın və yenidən cəhd edin.",10000)});
+    try{return await f.apply(this,arguments)}catch(e){zsReportErr("PDF",e);toast("PDF alınmadı: "+((e&&e.message)||e));restore()}finally{done=true;stop();progOn=false;btnBack();document.documentElement.style.overflow="";document.body.style.overflow=""}}})();
+  printReport=(()=>{const f=printReport;return async function(){progSel="#bPrint";progTx="Hazırlanır… ";progOn=true;try{return await f.apply(this,arguments)}catch(e){zsReportErr("Çap",e);restore()}finally{progOn=false;btnBack();document.documentElement.style.overflow="";document.body.style.overflow=""}}})();
   /* PDF inside makePdf: errors are reported before the app's own catch hides them */
   /* one PDF at a time: two PDFs built together (e.g. right after approval) need twice the memory and fail on phones */
   const _mk=makePdf;let pq=Promise.resolve(),pn=0;
   makePdf=function(){const a=arguments,self=this;if(++pn>1)toast("Əvvəlki PDF hazırlanır — bitən kimi bu da hazırlanacaq…",5000);
-    const run=pq.then(()=>Promise.race([_mk.apply(self,a),new Promise((_,rj)=>setTimeout(()=>rj(new Error("PDF 90 saniyədə hazır olmadı — telefonun yaddaşı çatmadı")),90000))]));pq=run.catch(()=>{}).then(()=>{pn--;if(!pn)clean()});
+    const op=a[2],A=[a[0],a[1],(i,n)=>{tick();try{if(op)op(i,n)}catch(e){}try{const b=$(progSel);if(b&&progOn){b.disabled=true;b.textContent=progTx+i+"/"+n}}catch(e){}}].concat([].slice.call(a,3));
+    const run=pq.then(()=>{busyN++;let stop;return Promise.race([_mk.apply(self,A),new Promise((_,rj)=>{stop=idle(150000,()=>rj(new Error("2,5 dəqiqə ərzində heç bir səhifə hazır olmadı — yaddaş çatmadı")))})]).finally(()=>{busyN--;if(stop)stop()})});pq=run.catch(()=>{}).then(()=>{pn--;if(!pn)clean()});
     return run.catch(e=>{zsReportErr("PDF (makePdf)",e);throw e})};
   /* after approval on a phone the PDF is not built in the background (memory); "PDF hazırla" puts it on the server for the accountant */
   if(typeof apprPdf==="function"){const _ap=apprPdf;apprPdf=async function(id){if(MOB){toast("Təsdiqləndi. Mühasib üçün PDF: “PDF hazırla” düyməsini basın — PDF serverə də yüklənəcək",9000);return}

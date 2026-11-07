@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110801;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110802;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -722,7 +722,7 @@ function saPubMove(m,role){var o={};for(var k in m)o[k]=m[k];if(!SA_CAN.seeCost(
 function saKindOf(q){return q.kind==="svc"||q.kind==="sale"?q.kind:(q.src&&q.src.type==="service"?"svc":"sale")}
 function saSummary(q){var t=saTotals(q);return {id:q.id,no:q.no||"",kind:saKindOf(q),inv:(q.bill&&q.bill.inv)||"",date:q.date||"",status:q.status||"draft",client:(q.cl&&q.cl.name)||"",cl:q.cl||{},subj:q.subj||"",per:q.per||"",conId:q.conId||"",
   net:t.net,total:t.total,n:(q.lines||[]).length,author:q.author||"",by:q.by||"",updatedAt:q.updatedAt||0,svc:q.src?(q.src.repno||"servis"):"",site:q.src&&q.src.site?q.src.site:"",contractId:q.src?q.src.contractId:"",zero:(q.lines||[]).some(function(l){return !saNum(l.price)}),
-  bill:(q.bill&&q.bill.st)||"",nocon:!!(q.src&&q.src.nocon&&!q.del),billDoc:(q.bill&&q.bill.doc)||"",due:!!((q.status==="accepted"||q.status==="done")&&!(q.bill&&q.bill.st==="paid")&&!(q.src&&q.src.nocon)&&!(q.src&&q.src.type==="service"&&q.src.contractId&&(q.billedIn||!(q.bill&&q.bill.st)))),
+  bill:(q.bill&&q.bill.st)||"",nocon:!!(q.src&&q.src.nocon&&!q.del),billDoc:(q.bill&&q.bill.doc)||"",due:!!((q.status==="accepted"||q.status==="done")&&!(q.bill&&q.bill.st==="paid")&&!(q.src&&q.src.nocon)&&!q.billedIn&&!(q.src&&q.src.type==="service"&&q.src.contractId&&(q.billedIn||!(q.bill&&q.bill.st)))),
   wk:q.src&&q.src.type==="service"&&q.src.contractId?1:0,bin:q.billedIn?(q.billedIn.no||"✓"):"",binId:q.billedIn?q.billedIn.id:"",skey:q.src?String(q.src.skey!==undefined&&q.src.skey!==""?q.src.skey:(q.src.site||"")):"",sdate:(q.src&&q.src.date)||"",bmon:q.src&&q.src.type==="bill"?(q.src.month||""):"",nrec:q.src&&q.src.type==="bill"?(q.src.recs||[]).length:0,delAt:q.del?saNum(q.delAt||q.updatedAt):0,delBy:q.del?(q.delBy||q.by||""):"",rev:q.src&&q.src.rev?1:0,dup:q.src&&q.src.dup?(q.src.dup.no||"?"):""}}
 /* purchase prices written on quote lines are seen only by accounting */
 function saPubQuote(q,role){if(!q||SA_CAN.seeCost(role))return q;var o={};for(var k in q)o[k]=q[k];o.lines=(q.lines||[]).map(function(l){var c={};for(var k in l)if(k!=="cost")c[k]=l[k];return c});return o}
@@ -902,11 +902,16 @@ function saHandle(db,u,action,p){
       var hd=(ob?"Obyekt: "+ob+" · ":"")+"hesabat № "+(s0.repno||"")+", "+String(x.date||"").split("-").reverse().join(".")+" · "+(x.no||"");
       (x.lines||[]).forEach(function(l,li){var L={};for(var k in l)if(k!=="id"&&k!=="crow")L[k]=l[k];L.id=saId("l");L.t="xid";
         if(li===0&&String(L.desc||"").indexOf(String(s0.repno||"#"))<0)L.desc=hd+(L.desc?"\n"+L.desc:"");bl.push(L)})});
+    if(p.one&&typeof p.one==="object"){var o1=p.one,pr1=Math.max(0,saR2(saNum(o1.price)));if(!pr1)saErr("price");var byO={},nO=[];
+      bR.forEach(function(x){var s0=x.src||{},ob=String(s0.site||s0.skey||"").trim()||String((x.cl&&x.cl.name)||"").trim()||"—";if(!byO[ob]){byO[ob]={n:0,r:[]};nO.push(ob)}
+        var L0=x.lines||[],sn0=L0.filter(function(l){return l.csn}).length;byO[ob].n+=sn0||L0.length||1;byO[ob].r.push((s0.repno||x.no||"")+(x.date?" ("+String(x.date).split("-").reverse().join(".")+")":""))});
+      var d1=nO.map(function(ob){return ob+" — "+byO[ob].n+" cihaz; hesabat № "+byO[ob].r.join(", ")}).join("\n");
+      bl=[{id:saId("l"),itemId:"",t:"xid",svc:1,name:saStr(o1.name,300).trim()||"Sair elektron qurğulara texniki xidmət",code:saStr(o1.code,60).trim(),unit:saStr(o1.unit||"xidmət",20),qty:Math.max(0,saNum(o1.qty))||1,price:pr1,disc:0,desc:d1.slice(0,1000)}]}
     var ym=mon.split("-"),mlab=SA_MONTHS[+ym[1]-1]+" "+ym[0],cl0=bR[0].cl||{};
     var cl1=bc?{name:bc.client,voen:bc.voen,person:bc.person,tel:bc.tel,addr:bc.addr}:{name:cl0.name,voen:cl0.voen,person:cl0.person,tel:cl0.tel,addr:cl0.addr};
     var ob=saHandle(db,u,"saveQuote",{quote:{date:p.date&&/^\d{4}-\d{2}-\d{2}$/.test(p.date)?p.date:new Date(now).toISOString().slice(0,10),valid:S.valid,status:"accepted",per:mlab,
       subj:"Servis xidməti — "+mlab+" — "+Math.max(1,Object.keys(objs).length)+" obyekt, "+bR.length+" servis"+(bc&&bc.no?" · müqavilə № "+bc.no:""),cl:cl1,vat:true,kind:"svc",
-      terms:{pay:"Xidməti müqaviləyə uyğun",delivery:"",warranty:"",note:""},lines:bl}});
+      terms:{pay:bc?"Xidməti müqaviləyə uyğun":"",delivery:"",warranty:"",note:p.one&&p.one.inv?"E-qaimə № "+saStr(p.one.inv,60):""},lines:bl}});
     var bq=ob.res.quote;bq.src={type:"bill",month:mon,recs:bR.map(function(x){return x.id}),contractId:bc?bc.id:""};bq.kind="svc";
     ob.ch.quotes.forEach(function(x){ch.quotes.push(x)});if(ob.ch.settings){ch.settings=ch.settings||{};for(var k7 in ob.ch.settings)ch.settings[k7]=ob.ch.settings[k7]}
     bR.forEach(function(x){x.billedIn={id:bq.id,no:bq.no};x.updatedAt=now;ch.quotes.push(x)});
@@ -1768,6 +1773,31 @@ const qKind=s=>s.kind||(s.svc?"svc":"sale");
 /* ===== Servis hesabları → Aylıq hesablar: per client / intermediary, the approved visits of the month, each object by its own period ===== */
 const objPerOf=(c,o)=>saObjPer(c,o);
 const lastOfBucket=(mon,per)=>{const mo=+mon.slice(5,7)-1;return per==="m"||(per==="q"&&mo%3===2)||(per==="h"&&mo%6===5)||(per==="y"&&mo===11)};
+/* one bill for several service documents: either every document's own lines (each device separately) or one line exactly as on the e-invoice (qaimə) */
+function svcBillDlg(list,mon,title){const S=state.settings||{},vr=saNum(S.vat)||18,sum=list.reduce((a,s)=>a+saNum(s.net!==undefined?s.net:s.total),0),nd=list.reduce((a,s)=>a+(saNum(s.n)||1),0);
+  const L1=LS.get("sa.oneLine")||{};const ov=document.createElement("div");ov.className="syncov";ov.setAttribute("role","dialog");
+  ov.innerHTML=`<div class="card"><h3>${esc(title)}</h3><p class="note" style="margin:0 0 8px">Seçilən: <b>${list.length}</b> servis sənədi · təxminən <b>${nd}</b> cihaz · sənədlərin cəmi ${AZN(sum)} (ƏDV-siz)</p>
+   <label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;cursor:pointer"><input type="radio" name="sbm" value="lines" style="width:18px;height:18px;min-height:0;margin:2px 0 0"><span><b>Hər cihaz ayrıca sətir</b><br><span class="note">Servis sənədlərindəki sətirlər və qiymətlər hesaba köçürülür.</span></span></label>
+   <label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;cursor:pointer"><input type="radio" name="sbm" value="one" checked style="width:18px;height:18px;min-height:0;margin:2px 0 0"><span><b>Qaimə üzrə bir sətir — bir məbləğ</b><br><span class="note">Bütün seçilən cihazlar bir xidmət sətrində birləşir (qaimədəki kimi); cihazların siyahısı və hesabat nömrələri sətrin izahına yazılır.</span></span></label>
+   <div id="sbOne" style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px">
+    <label class="f"><span>Malın (işin, xidmətin) adı</span><input id="o1n" value="${esc(L1.name||"Sair elektron qurğulara texniki xidmət")}"></label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><label class="f"><span>Kodu</span><input id="o1c" value="${esc(L1.code||"9933131900")}"></label><label class="f"><span>Ölçü vahidi</span><input id="o1u" value="${esc(L1.unit||"xidmət")}"></label></div>
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px"><label class="f"><span>Miqdarı</span><input id="o1q" inputmode="decimal" value="1"></label><label class="f"><span>Vahidin qiyməti, ƏDV-siz (manat)</span><input id="o1p" inputmode="decimal" value="${sum?saR2(sum):""}"></label></div>
+    <label class="f"><span>E-qaimə № (istəyə görə)</span><input id="o1i" placeholder="məs. MT2611…"></label>
+    <p class="note" id="o1t" style="margin:4px 0 0"></p></div>
+   <label class="f"><span>Hesabın tarixi</span><input type="date" id="o1d" value="${today()}"></label>
+   <div class="actions"><button class="btn pri" id="o1ok">Hesab hazırla</button><button class="btn" id="o1no">Ləğv et</button></div></div>`;
+  document.body.appendChild(ov);const g=id=>ov.querySelector("#"+id),mode=()=>ov.querySelector('input[name="sbm"]:checked').value;
+  const upd=()=>{g("sbOne").style.display=mode()==="one"?"":"none";const net=saR2(saNum(g("o1q").value)*saNum(g("o1p").value)),v=saR2(net*vr/100);
+    g("o1t").innerHTML=`Cəmi: <b>${AZN(net)}</b> + ƏDV ${vr}% ${AZN(v)} = <b>${AZN(saR2(net+v))}</b>`};
+  ov.querySelectorAll('input[name="sbm"]').forEach(x=>x.onchange=upd);["o1q","o1p"].forEach(id=>g(id).oninput=upd);upd();
+  return new Promise(res=>{g("o1no").onclick=()=>{ov.remove();res(null)};
+    g("o1ok").onclick=()=>{const o={recs:list.map(s=>s.id),month:mon,date:g("o1d").value};
+      if(mode()==="one"){const one={name:g("o1n").value.trim(),code:g("o1c").value.trim(),unit:g("o1u").value.trim()||"xidmət",qty:saNum(g("o1q").value)||1,price:saR2(saNum(g("o1p").value)),inv:g("o1i").value.trim()};
+        if(!one.name){toast("Xidmətin adını yazın");return}if(!(one.price>0)){toast("Qiyməti yazın");return}LS.set("sa.oneLine",{name:one.name,code:one.code,unit:one.unit});o.one=one}
+      ov.remove();res(o)}})}
+async function svcBillMake(btn,o){btn.disabled=true;btn.textContent="Hazırlanır…";try{await flush();const r=await api("svcBill",o);await sync();toast("Hesab hazırlandı: "+((r.quote&&r.quote.no)||""));state.sbSel={};state.sbOth={};if(r.quote)openQuote(r.quote.id);else renderSvcBill()}
+  catch(e){toast(errMsg(e));btn.disabled=false;renderSvcBill()}}
 function renderSvcBill(){mainTabs("svcbill");if(!state.sbMon)state.sbMon=today().slice(0,7);const mon=state.sbMon,mo=+mon.slice(5,7)-1,mlab=SA_MONTHS[mo]+" "+mon.slice(0,4);
   const all=listQuotes(),sel=(state.sbSel=state.sbSel||{}),ed=can("setPrice")||can("contract");
   const dOf=s=>String(s.sdate||s.date||"");
@@ -1795,8 +1825,10 @@ function renderSvcBill(){mainTabs("svcbill");if(!state.sbMon)state.sbMon=today()
       ${B.drafts.length?`<p class="note" style="margin:4px 0;color:var(--bad)">Yoxlanmalı (ikiqat ola bilər / qaralama): ${B.drafts.map(s=>`<a href="#" data-sbq="${s.id}">${esc(s.no)}</a>`).join(", ")}</p>`:""}
       ${B.bills.length?`<div style="margin:6px 0">${B.bills.map(s=>`<div class="rrow" style="cursor:default"><span><b>Hesab ${esc(s.no)}</b> · ${s.nrec} servis · ${AZN(s.total)} ${billChip(s)}</span><span><button class="btn sm" data-sbq="${s.id}">Aç</button></span></div>`).join("")}</div>`:""}
       ${B.open.length?`<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><b>Hesaba salınmamış servislər</b>${B.cur.map(recRow).join("")}${B.old.length?`<p class="note" style="margin:6px 0 2px">Əvvəlki aylardan qalan (artıq başqa yolla hesab yazılıbsa, seçməyin):</p>${B.old.map(recRow).join("")}`:""}
-        ${ed?`<div class="actions" style="margin-top:8px"><button class="btn pri" data-sbbill="${c.id}"${picked.length?"":" disabled"}>Hesab hazırla — ${picked.length} servis · ${AZN(sum)} + ƏDV</button></div>`:""}</div>`:(B.bills.length?"":'<p class="note" style="margin:4px 0 0">Bu ay hesaba salınacaq servis yoxdur.</p>')}</div>`}).join("")||'<div class="empty"><h3>Xidməti müqavilə yoxdur</h3><p>Müştərilər və müqavilələr → Müqavilələr bölməsində əlavə edin.</p></div>';
-  if(other.length)h+=`<div class="card"><h3>Müqaviləsiz və ayrıca işlər · ${other.length}</h3><p class="note" style="margin:0 0 6px">Təmir, diaqnostika, quraşdırma və müqaviləsiz servislər — hər biri ayrıca sənəddir, qiymətini yazıb hesab edin.</p>${other.map(s=>`<div class="rrow" style="cursor:default"><span><b>${esc(s.no)}</b> · ${fmtDate(s.date)} · ${esc(s.client)}${s.site?" · "+esc(s.site):""} · ${esc(s.subj||"")} ${stChip(s.status)} ${billChip(s)}</span><span><button class="btn sm" data-sbq="${s.id}">Aç</button></span></div>`).join("")}</div>`;
+        ${ed?`<div class="actions" style="margin-top:8px"><button class="btn pri" data-sbbill="${c.id}"${picked.length?"":" disabled"}>Hesab hazırla — ${picked.length} servis · ${AZN(sum)} + ƏDV…</button></div>`:""}</div>`:(B.bills.length?"":'<p class="note" style="margin:4px 0 0">Bu ay hesaba salınacaq servis yoxdur.</p>')}</div>`}).join("")||'<div class="empty"><h3>Xidməti müqavilə yoxdur</h3><p>Müştərilər və müqavilələr → Müqavilələr bölməsində əlavə edin.</p></div>';
+  const oth=(state.sbOth=state.sbOth||{}),canO=s=>ed&&s.svc&&!s.bin&&!s.bill&&s.status!=="rejected",oSel=other.filter(s=>oth[s.id]&&canO(s)),oCl=new Set(oSel.map(s=>saNormName(s.client)));
+  if(other.length)h+=`<div class="card"><h3>Müqaviləsiz və ayrıca işlər · ${other.length}</h3><p class="note" style="margin:0 0 6px">Təmir, diaqnostika, quraşdırma və müqaviləsiz servislər — hər biri ayrıca sənəddir, qiymətini yazıb hesab edin. Bir neçə servisə (və ya çox cihazlı bir servisə) bir qaimə yazılıbsa, onları seçib bir hesabda birləşdirin.</p>${other.map(s=>`<div class="rrow" style="cursor:default"><span>${canO(s)?`<input type="checkbox" data-sbo="${s.id}" style="width:16px;height:16px;min-height:0;margin:0 6px 0 0;vertical-align:middle"${oth[s.id]?" checked":""}>`:""}<b>${esc(s.no)}</b> · ${fmtDate(s.date)} · ${esc(s.client)}${s.site?" · "+esc(s.site):""} · ${esc(s.subj||"")} ${stChip(s.status)} ${s.bin?`<span class="chip ok">hesabda: ${esc(s.bin)}</span>`:billChip(s)}</span><span><button class="btn sm" data-sbq="${s.id}">Aç</button></span></div>`).join("")}
+    ${ed?`<div class="actions" style="margin-top:8px"><button class="btn pri" id="sbOthBill"${oSel.length&&oCl.size===1?"":" disabled"}>Seçilənləri bir hesabda birləşdir${oSel.length?" — "+oSel.length+" sənəd":""}</button>${oCl.size>1?'<span class="note" style="color:var(--bad)">Fərqli müştərilər seçilib</span>':""}</div>`:""}</div>`;
   $("#main").innerHTML=h;
   const setM=m=>{state.sbMon=m;state.sbSel={};renderSvcBill()},shift=n=>{const d=new Date(Date.UTC(+mon.slice(0,4),mo+n,1));setM(d.toISOString().slice(0,7))};
   $("#sbPrev").onclick=()=>shift(-1);$("#sbNext").onclick=()=>shift(1);$("#sbMon").onchange=e=>{if(/^\d{4}-\d{2}$/.test(e.target.value))setM(e.target.value)};
@@ -1805,8 +1837,10 @@ function renderSvcBill(){mainTabs("svcbill");if(!state.sbMon)state.sbMon=today()
   $$("[data-sbr]").forEach(x=>x.onchange=()=>{sel[x.dataset.sbr]=x.checked;const y=window.scrollY;renderSvcBill();window.scrollTo(0,y)});
   $$("[data-sbbill]").forEach(b=>b.onclick=async()=>{const B=blocks.find(x=>x.c.id===b.dataset.sbbill);const ids=B.open.filter(isOn).map(s=>s.id);if(!ids.length)return;
     if(B.open.filter(isOn).some(s=>s.zero)&&b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Qiyməti yazılmayan sətir var — yenə də hazırla?";return}
-    b.disabled=true;b.textContent="Hazırlanır…";try{await flush();const r=await api("svcBill",{recs:ids,month:mon});await sync();toast("Aylıq hesab hazırlandı: "+((r.quote&&r.quote.no)||""));state.sbSel={};if(r.quote)openQuote(r.quote.id);else renderSvcBill()}
-    catch(e){toast(errMsg(e));b.disabled=false;renderSvcBill()}})}
+    const o=await svcBillDlg(B.open.filter(isOn),mon,"Hesab — "+B.c.client);if(o)svcBillMake(b,o)});
+  $$("[data-sbo]").forEach(x=>x.onchange=()=>{oth[x.dataset.sbo]=x.checked;const y=window.scrollY;renderSvcBill();window.scrollTo(0,y)});
+  const ob=$("#sbOthBill");if(ob)ob.onclick=async()=>{const L=other.filter(s=>oth[s.id]&&!s.bin);if(!L.length)return;const cn=new Set(L.map(s=>saNormName(s.client)));if(cn.size>1){toast("Bir hesabda yalnız bir müştərinin sənədləri birləşdirilə bilər");return}
+    const o=await svcBillDlg(L,mon,"Hesab — "+L[0].client);if(o)svcBillMake(ob,o)}}
 function renderQuotes(){mainTabs("quotes");if(!state.qk)state.qk=LS.get("sa.qk")||"sale";const K=state.qk,every=listQuotes(),all=every.filter(s=>qKind(s)===K),Q=norm(state.q);if(state.qf==="inv"){state.qf="pay";state.qpay="inv"}const F=state.qf,PS=state.qpay||"all";
   const cnt=k=>all.filter(s=>s.status===k).length,due=all.filter(s=>s.due),dueN=due.filter(s=>s.bill!=="inv").length,dueI=due.filter(s=>s.bill==="inv").length,paid=all.filter(s=>s.bill==="paid");
   const trash=(state.deleted||[]).filter(s=>Date.now()-saNum(s.delAt)<30*864e5&&qKind(s)===K);
