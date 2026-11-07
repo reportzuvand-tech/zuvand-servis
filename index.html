@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110604;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110702;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -185,7 +185,7 @@ window.ZSSEC=(function(){
   const LBL={save:"Hesabat saxlandı",approve:"Təsdiq",delete:"Silindi",restore:"Versiya bərpa edildi",settings:"Ayarlar dəyişdi",task:"Tapşırıq",
     "task-del":"Tapşırıq silindi",worker:"İşçi dəyişdi","worker-newkey":"Yeni açar","shared-off":"Ortaq açar",look:"Görünüş dəyişdi",pdf:"PDF",customer:"Müştəri saxlandı","customer-del":"Müştəri silindi",
     "client-rename":"Müştəri adı dəyişdi",positions:"Vəzifələr dəyişdi",snapshot:"Ehtiyat nüsxə",backup:"Ehtiyat nüsxə",forbidden:"İcazəsiz cəhd","auth-lock":"Səhv açar — ünvan bloklandı",
-    "reset-pw":"Sıfırlama parolu dəyişdi","reset-badpw":"Sıfırlama — parol səhv","svc-sale":"Servisdən satış","svc-sale-revoke":"Servis satışı geri alındı","pay-cfg":"Ödəniş görünüşü",templates:"Hesabat şablonları dəyişdi",svcPdf:"Servis PDF-i yükləndi",
+    "reset-pw":"Sıfırlama parolu dəyişdi","reset-badpw":"Sıfırlama — parol səhv","svc-sale":"Servisdən satış","svc-sale-revoke":"Servis satışı geri alındı","pay-cfg":"Ödəniş görünüşü",templates:"Hesabat şablonları dəyişdi","client-error":"Proqram xətası",svcPdf:"Servis PDF-i yükləndi",
     saveQuote:"Təklif / satış saxlandı",setBill:"Hesab-faktura / ödəniş",delQuote:"Təklif silindi",svcBill:"Servis hesabı",restoreQuote:"Təklif bərpa edildi",setDelPw:"Silmə şifrəsi dəyişdi",
     saveItem:"Mal saxlandı",delItems:"Mal silindi",setCat:"Kateqoriya",importItems:"Mal idxalı",addMoves:"Anbar hərəkəti",setCost:"Maya dəyəri",delMove:"Hərəkət silindi",
     saveInvoice:"Qaimə saxlandı",postSaleInvoice:"Satış qaiməsi",shipInvoice:"Qaimə göndərildi",directSupply:"Birbaşa təchizat",approveInvoice:"Qaimə təsdiqləndi",returnInvoice:"Qaimə qaytarıldı",
@@ -2519,7 +2519,7 @@ async function saveFile(filename,blob,client,root,sub,tag){
 /* PDF pages are laid out here instead of by html2pdf: the report blocks are measured, packed into A4 pages
    (a new device starts a new page, a block is never cut), and every page is captured on its own,
    so no blank first page and no drift of the page breaks on long reports. */
-async function buildPdf(paper,onPage){const PW=733,PH=Math.floor(PW*261/194),FILL=PH-30,OPT={margin:[22,8,14,8],image:{type:"jpeg",quality:0.85},html2canvas:{scale:1.7,useCORS:true,backgroundColor:"#ffffff",scrollX:0,scrollY:0,logging:false},jsPDF:{unit:"mm",format:"a4",orientation:"portrait",compress:true}};
+async function buildPdf(paper,onPage){const PW=733,PH=Math.floor(PW*261/194),FILL=PH-30,OPT={margin:[22,8,14,8],image:{type:"jpeg",quality:0.85},html2canvas:{scale:window.zsPdfScale||1.7,useCORS:true,backgroundColor:"#ffffff",scrollX:0,scrollY:0,logging:false},jsPDF:{unit:"mm",format:"a4",orientation:"portrait",compress:true}};
   const host=document.createElement("div");host.style.cssText="position:absolute;left:-12000px;top:0;width:"+PW+"px";document.body.appendChild(host);
   try{const src=paper.cloneNode(true);src.removeAttribute("id");src.classList.add("pdfmode");src.style.transform="none";host.appendChild(src);
     const kids=[...src.children].filter(c=>!c.classList.contains("ph"));
@@ -3782,7 +3782,7 @@ window.ZSBK=(function(){
   window.qrPaperImg=function(r){r=realOf(r);if(!r||!r.qr||!r.qr.base||!r.qr.r)return "";const u=r.qr.base+"?r="+r.qr.r;if(!QC[u])try{QC[u]=ZSQR.png(u,4,"M",2)}catch(e){return ""}return QC[u]};
   window.ensureQr=async function(r){r=realOf(r);if(!r||r.sample||!hasServer())return false;const sns=r.devices.filter(d=>d.type!=="pq").map(d=>String(d.info&&d.info.sn||"").trim()).filter(Boolean);
     if(r.qr&&r.qr.base&&r.qr.r&&sns.every(s=>r.qr.d&&r.qr.d[s]))return false;
-    try{const mu0=String(state.me.url||"").split("?")[0];const q=await api("qr_tokens",{rid:r.id,sns,base:mu0});const mu=String(state.me.url||"").split("?")[0],base=/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(mu)?mu:q.base;if(!base||!q.r)return false;r.qr={base,r:q.r,d:q.d||{}};return true}catch(e){return false}};
+    try{const mu0=String(state.me.url||"").split("?")[0];if(navigator.onLine===false)return false;const q=await Promise.race([api("qr_tokens",{rid:r.id,sns,base:mu0}),new Promise((_,rj)=>setTimeout(()=>rj(new Error("qr_timeout")),7000))]);const mu=String(state.me.url||"").split("?")[0],base=/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(mu)?mu:q.base;if(!base||!q.r)return false;r.qr={base,r:q.r,d:q.d||{}};return true}catch(e){return false}};
   const _mk=makePdf;makePdf=async function(r,L){try{if(await ensureQr(r)){const ps=$("#ps");if(ps){ps.innerHTML=paperHTML(r,null,L);fitPaper()}}}catch(e){}return _mk.apply(this,arguments)};
   /* ---------- labels ---------- */
   const SIZES=[["a4s","A4 vərəq — 24 etiket (70×37 mm)",70,37,3,8],["a4l","A4 vərəq — 10 etiket (105×57 mm)",105,57,2,5],["p5030","Etiket printeri — 50×30 mm",50,30],["p6040","Etiket printeri — 60×40 mm",60,40],["p7050","Etiket printeri — 70×50 mm",70,50]];
@@ -3826,6 +3826,36 @@ window.ZSBK=(function(){
       catch(e){toast("Etiket PDF-i alınmadı: "+(e&&e.message||e));b.disabled=false;b.textContent="Etiketləri hazırla (PDF)"}}};
   document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest("#bQrLbl"))openQrLabels()});
 }catch(e){console.log("qrlbl",e)}})();
+</script>
+<script>/* UPS Servis: PDF hazırlananda proqram ilişib qalmasın — vaxt həddi, ekranın bərpası; proqram xətaları serverin jurnalına yazılır */
+(function(){try{
+  const MOB=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const restore=()=>{try{document.documentElement.style.overflow="";document.body.style.overflow="";
+    document.querySelectorAll('body>div[style*="-12000px"],body>div[style*="-9999px"]').forEach(x=>x.remove());
+    [["#bPdf","PDF hazırla"],["#bPrint","Çap et"]].forEach(([s,t])=>{const b=$(s);if(b){b.disabled=false;b.textContent=t}})}catch(e){}};
+  /* client errors → server log (at most 5 per session, no personal data) */
+  let sent=0;const seen={};
+  window.zsReportErr=function(where,e){try{const msg=String(where+": "+((e&&e.message)||e||"")).slice(0,300);if(seen[msg]||sent>=5||!state.me.key||!hasServer())return;seen[msg]=1;sent++;
+    api("client_error",{msg,stack:String((e&&e.stack)||"").slice(0,600),ua:navigator.userAgent.slice(0,160),build:window.ZS_BUILD||0}).catch(()=>{})}catch(x){}};
+  window.addEventListener("error",ev=>zsReportErr("xəta",ev.error||ev.message));
+  window.addEventListener("unhandledrejection",ev=>zsReportErr("xəta (async)",ev.reason));
+  const guard=(name,label)=>{const f=window[name];if(typeof f!=="function")return;window[name]=async function(){let done=false;
+    const t=setTimeout(()=>{if(done)return;restore();zsReportErr(label,new Error("120 saniyədə bitmədi"));toast(label+" alınmadı — telefonun yaddaşı çatmır və ya internet zəifdir. Proqramı bağlayıb yenidən açın, şəkillərin sayını azaldıb yenidən cəhd edin.",10000)},120000);
+    try{return await f.apply(this,arguments)}catch(e){zsReportErr(label,e);toast(label+" alınmadı: "+((e&&e.message)||e));restore()}finally{done=true;clearTimeout(t);document.documentElement.style.overflow="";document.body.style.overflow=""}}};
+  exportPdf=(()=>{const f=exportPdf;return async function(){let done=false;const t=setTimeout(()=>{if(done)return;restore();zsReportErr("PDF",new Error("240 saniyədə bitmədi"));toast("PDF alınmadı — telefonun yaddaşı çatmır və ya internet zəifdir. Proqramı bağlayıb yenidən açın və yenidən cəhd edin.",10000)},240000);
+    try{return await f.apply(this,arguments)}catch(e){zsReportErr("PDF",e);toast("PDF alınmadı: "+((e&&e.message)||e));restore()}finally{done=true;clearTimeout(t);document.documentElement.style.overflow="";document.body.style.overflow=""}}})();
+  printReport=(()=>{const f=printReport;return async function(){try{return await f.apply(this,arguments)}catch(e){zsReportErr("Çap",e);restore()}finally{document.documentElement.style.overflow="";document.body.style.overflow=""}}})();
+  /* PDF inside makePdf: errors are reported before the app's own catch hides them */
+  /* one PDF at a time: two PDFs built together (e.g. right after approval) need twice the memory and fail on phones */
+  const _mk=makePdf;let pq=Promise.resolve(),pn=0;
+  makePdf=function(){const a=arguments,self=this;if(++pn>1)toast("Əvvəlki PDF hazırlanır — bitən kimi bu da hazırlanacaq…",5000);
+    const run=pq.then(()=>_mk.apply(self,a));pq=run.catch(()=>{}).then(()=>{pn--;document.documentElement.style.overflow="";document.body.style.overflow=""});
+    return run.catch(e=>{zsReportErr("PDF (makePdf)",e);throw e})};
+  /* after approval on a phone the PDF is not built in the background (memory); "PDF hazırla" puts it on the server for the accountant */
+  if(typeof apprPdf==="function"){const _ap=apprPdf;apprPdf=async function(id){if(MOB){toast("Təsdiqləndi. Mühasib üçün PDF: “PDF hazırla” düyməsini basın — PDF serverə də yüklənəcək",9000);return}
+    try{return await _ap.apply(this,arguments)}finally{document.documentElement.style.overflow="";document.body.style.overflow=""}}}
+  window.zsPdfScale=MOB?1.3:1.7;
+}catch(e){console.log("pdfguard",e)}})();
 </script>
 </body>
 </html>
