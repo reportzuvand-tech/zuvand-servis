@@ -183,6 +183,7 @@ function pwTry(pwh) {
 }
 const rmrf = d => { try { fs.rmSync(d, { recursive: true, force: true }) } catch (e) { } };
 const SEC = {
+  client_error: (u, b) => { log(u, "client-error", (String(b.msg || "").slice(0, 250) + " | " + String(b.build || "") + " | " + String(b.ua || "").slice(0, 120)).replace(/[\r\n\t]+/g, " ")); return {} },
   sec_info: (u) => ({ epoch: +meta.epoch || 0, hasPw: !!meta.resetPw, boss: !!u.boss }),
   reset_pw_set: (u, b) => { needBoss(u); if (meta.resetPw) pwTry(b.old); if (!/^[0-9a-f]{64}$/.test(String(b.pwh || ""))) err("bad_pw"); meta.resetPw = pwHash(b.pwh); saveMeta(); log(u, "reset-pw", ""); return {} },
   activity: (u, b) => {
