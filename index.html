@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110704;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110706;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -321,6 +321,186 @@ window.ZSTPL=(function(){
     draw()}
   function init(o){O=o;setTimeout(fetchTpl,4000);setInterval(fetchTpl,10*60000);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")fetchTpl()})}
   return {apply,lists,stamp,reg,isCustom,init,card,fetchTpl,_def:()=>DEF}})();
+</script>
+<script>/* ZUVAND — Ayarlar: QR oxumaların statistikası (yalnız rəhbər / statistika icazəsi; məlumat "QR oxumalar" vərəqindən) */
+window.ZSQRST=(function(){let O=null,R=null,busy=false;
+  const g=id=>document.getElementById(id),esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+  const fmt=t=>{const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(t||""));return m?m[3]+"."+m[2]+"."+m[1]+" "+m[4]+":"+m[5]:esc(t)};
+  const MON=["Yan","Fev","Mar","Apr","May","İyn","İyl","Avq","Sen","Okt","Noy","Dek"];
+  function init(o){O=o}
+  const top=(L,f,n)=>{const m={};L.forEach(x=>{const k=f(x);if(k)m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,n)};
+  const bars=(T,lab)=>{const mx=Math.max(1,...T.map(x=>x[1]));return T.length?T.map(([k,v])=>`<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;margin:4px 0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(lab?lab(k):k)}</span><b style="font-variant-numeric:tabular-nums">${v}</b><span style="grid-column:1/-1;height:5px;border-radius:3px;background:var(--surface2,#E8EEEC)"><i style="display:block;height:5px;border-radius:3px;width:${Math.round(v/mx*100)}%;background:var(--accent,#16362E)"></i></span></div>`).join(""):`<p class="note">—</p>`};
+  function body(){const box=g("qrsBody");if(!box)return;if(!R){box.innerHTML="";return}
+    const L=R.rows||[],q=(g("qrsQ")&&g("qrsQ").value||"").trim().toLowerCase(),days=+(g("qrsP")&&g("qrsP").value||0);
+    const since=days?(d=>{const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())})(new Date(Date.now()-days*864e5)):"";
+    const F=L.filter(x=>(!since||String(x[0])>=since)&&(!q||x.join(" ").toLowerCase().includes(q)));
+    const scans=F.filter(x=>x[1]!=="Ad yazıldı"),named=F.filter(x=>x[8]),vis=new Set(scans.map(x=>x[5]).filter(Boolean));
+    const nv=new Set(named.map(x=>x[5]||x[8]));
+    const mon=top(scans,x=>String(x[0]).slice(0,7),24).sort((a,b)=>a[0]<b[0]?-1:1);
+    const who={};named.forEach(x=>{const k=x[5]||x[8];who[k]=x});
+    box.innerHTML=`<div class="stats" style="margin:8px 0"><div class="stat"><b>${scans.length}</b><span>Oxuma</span></div><div class="stat"><b>${vis.size}</b><span>Fərqli telefon</span></div><div class="stat ok"><b>${nv.size}</b><span>Adını yazan</span></div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:14px;margin-top:6px">
+        <div><b>Aylar üzrə</b>${bars(mon,k=>MON[+k.slice(5,7)-1]+" "+k.slice(0,4))}</div>
+        <div><b>Ən çox baxan müştərilər</b>${bars(top(scans,x=>x[3],8))}</div>
+        <div><b>Ən çox baxılan cihaz / hesabat</b>${bars(top(scans,x=>x[2],8))}</div>
+        <div><b>Telefonlar</b>${bars(top(scans,x=>[x[6],x[7]].filter(Boolean).join(" · ")||"naməlum",8))}</div></div>
+      ${Object.keys(who).length?`<p style="margin:14px 0 4px"><b>Adını yazanlar</b></p><div class="tw" style="overflow:auto;max-width:100%;max-height:40vh"><table><thead><tr><th>Vaxt</th><th>Ad</th><th>Şirkət</th><th>Əlaqə</th><th>Müştəri</th><th>Cihaz / hesabat</th></tr></thead><tbody>${Object.values(who).reverse().map(x=>`<tr><td style="white-space:nowrap">${fmt(x[0])}</td><td><b>${esc(x[8])}</b></td><td>${esc(x[9])}</td><td>${esc(x[10])}</td><td>${esc(x[3])}</td><td>${esc(x[2])}</td></tr>`).join("")}</tbody></table></div>`:""}
+      <p style="margin:14px 0 4px"><b>Son oxumalar</b></p><div class="tw" style="overflow:auto;max-width:100%;max-height:50vh"><table><thead><tr><th>Vaxt</th><th>Növ</th><th>Cihaz / hesabat</th><th>Müştəri</th><th>Telefon</th><th>Ziyarətçi</th></tr></thead><tbody>${F.slice(-200).reverse().map(x=>`<tr${x[1]==="Ad yazıldı"?' style="color:var(--ok,#1E7B4F)"':""}><td style="white-space:nowrap">${fmt(x[0])}</td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td>${esc(x[3])}${x[4]?" — "+esc(x[4]):""}</td><td>${esc([x[6],x[7]].filter(Boolean).join(" · "))}</td><td>${x[8]?"<b>"+esc(x[8])+"</b>"+(x[9]?" ("+esc(x[9])+")":""):`<span class="note">#${esc(String(x[5]).slice(0,6))}</span>`}</td></tr>`).join("")||`<tr><td colspan="6">Qeyd yoxdur</td></tr>`}</tbody></table></div>
+      <p class="note">Cəmi qeyd: ${R.total||0}${(R.total||0)>L.length?` (son ${L.length} göstərilir)`:""}. Tam siyahı Google Sheets-də “QR oxumalar” vərəqindədir.</p>`}
+  async function load(){if(busy)return;busy=true;const b=g("qrsGo"),box=g("qrsBody");if(b)b.disabled=true;if(box)box.innerHTML=`<p class="note">Yüklənir…</p>`;
+    try{R=await O.api("qr_stats",{});body()}catch(e){if(box)box.innerHTML=`<p class="note">Alınmadı: ${esc(e&&e.message||e)}</p>`}finally{busy=false;if(b)b.disabled=false}}
+  function card(){const main=g("main");if(!main||!O||!O.ok()||g("qrsCard"))return;
+    const anchor=g("tplCard")||[...main.querySelectorAll(".card")].pop();
+    const h=`<div class="card" id="qrsCard" style="margin-top:12px;min-width:0;max-width:100%;overflow:hidden"><h3>QR oxumalar — kim, nə vaxt baxıb</h3>
+      <p class="note" style="margin:0 0 8px">Müştəri cihazın QR etiketini və ya hesabat PDF-inin QR kodunu oxudanda vaxt, cihaz, telefonun növü və anonim ziyarətçi nömrəsi qeydə alınır. Səhifədə “Kim olduğunuzu qeyd edin” formu var — istəyən adını, şirkətini və əlaqə nömrəsini yazır (könüllü, razılıq ilə).</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" id="qrsGo">Statistikanı göstər</button>
+        <select id="qrsP" aria-label="Dövr"><option value="0">Hamısı</option><option value="7">Son 7 gün</option><option value="30" selected>Son 30 gün</option><option value="90">Son 3 ay</option><option value="365">Son 1 il</option></select>
+        <input type="text" id="qrsQ" placeholder="Axtar: müştəri, S/N, ad…" style="flex:1;min-width:140px" aria-label="Axtar"></div>
+      <div id="qrsBody" style="min-width:0"></div></div>`;
+    if(anchor)anchor.insertAdjacentHTML("afterend",h);else main.insertAdjacentHTML("beforeend",h);
+    g("qrsGo").onclick=load;g("qrsP").onchange=body;g("qrsQ").oninput=body;if(R)body()}
+  return {init,card}})();
+</script>
+<script>/*BTCORE — akkumulyatorların vəziyyətinin dinamikası (proqram və server eyni kodu işlədir; ES5) */
+/* nöqtə: {id, d:'YYYY-MM-DD', no, n, ar, mr, av, mv, at, w, x} — n ölçülmüş blok, ar/mr orta/maks R (mΩ), av/mv orta/min V, at orta T, w Diqqət, x Dəyişdirilməli */
+function btNum(v) { var x = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(x) ? x : null; }
+function btPoint(rows) {
+  var R = [], V = [], T = [], w = 0, x = 0, n = 0;
+  rows.forEach(function (b) { var r = btNum(b.r), v = btNum(b.v), t = btNum(b.t); if (r === null && v === null) return; n++;
+    if (r !== null) R.push(r); if (v !== null) V.push(Math.abs(v)); if (t !== null) T.push(t); if (b.st === 'Diqqət') w++; else if (b.st === 'Dəyişdirilməli') x++; });
+  var avg = function (L) { return L.length ? L.reduce(function (a, b) { return a + b; }, 0) / L.length : null; };
+  return { n: n, ar: avg(R), mr: R.length ? Math.max.apply(null, R) : null, av: avg(V), mv: V.length ? Math.min.apply(null, V) : null, at: avg(T), w: w, x: x };
+}
+function btDt(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN; }
+function btFd(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? m[3] + '.' + m[2] + '.' + m[1] : String(d || ''); }
+/* a new battery set starts the comparison again: install date, a sharp drop of R or a different block count */
+function btSeg(P, inst) {
+  var s = 0;
+  for (var i = 1; i < P.length; i++) { var a = P[i - 1], b = P[i];
+    if ((inst && b.d >= inst && a.d < inst) || (a.ar && b.ar && b.ar < a.ar * 0.7) || (a.n && b.n && Math.abs(b.n - a.n) > Math.max(2, a.n * 0.3))) s = i; }
+  return s;
+}
+function btEval(P, o) {
+  o = o || {}; var wp = btNum(o.warn), fp = btNum(o.fail); if (wp === null) wp = 25; if (fp === null) fp = 50;
+  var byD = {}; P.forEach(function (p) { if (!p || !p.d || !p.n) return; var q = byD[p.d]; if (!q || (p.cur && !q.cur) || (!q.cur && p.n > q.n)) byD[p.d] = p; });
+  P = Object.keys(byD).sort().map(function (d) { return byD[d]; });
+  var s = btSeg(P, o.inst || ''), S = P.slice(s), res = { P: P, s: s, S: S, lv: '', c: [], g: null, rate: null, wp: wp, fp: fp };
+  if (s > 0) res.c.push(['rep', S[0].d]);
+  if (S.length < 2) { res.c.push(['few']); return res; }
+  var A = S[0], B = S[S.length - 1], pv = S[S.length - 2];
+  if (A.ar && B.ar) { res.g = B.ar / A.ar - 1; var yrs = (btDt(B.d) - btDt(A.d)) / 315576e5; if (yrs > 0.2) res.rate = res.g / yrs; }
+  if (res.g !== null && res.g * 100 >= fp) { res.lv = 'bad'; res.c.push(['gf', A.d, res.g]); }
+  else if (res.g !== null && res.g * 100 >= wp) { res.lv = 'warn'; res.c.push(['gw', A.d, res.g]); }
+  else if (res.g !== null) { res.lv = 'ok'; res.c.push(['ok', A.d, res.g]); }
+  if ((B.w + B.x) > (pv.w + pv.x)) { if (res.lv !== 'bad') res.lv = 'warn'; res.c.push(['blk', pv.w + pv.x, B.w + B.x]); }
+  if (res.rate !== null && res.rate > 0.01 && res.g * 100 < fp) { var m = Math.round((fp / 100 - res.g) / res.rate * 12); if (m <= 36) res.c.push(['eta', res.rate, fp, Math.max(1, m)]); }
+  return res;
+}
+var BT_TX = {
+  az: { rep: function (c) { return btFd(c[1]) + ' tarixində akkumulyatorlar dəyişdirilib (ehtimal) — müqayisə bu tarixdən aparılır.'; },
+    few: function () { return 'Müqayisə üçün bu akkumulyatorlarda ən azı iki servis ölçməsi lazımdır.'; },
+    gf: function (c) { return 'Orta daxili müqavimət ilk ölçmədən (' + btFd(c[1]) + ') bəri +' + Math.round(c[2] * 100) + '% artıb — akkumulyatorların dəyişdirilməsi tövsiyə olunur.'; },
+    gw: function (c) { return 'Orta daxili müqavimət ilk ölçmədən (' + btFd(c[1]) + ') bəri +' + Math.round(c[2] * 100) + '% artıb — köhnəlmə müşahidə olunur, diqqətlə izlənməlidir.'; },
+    ok: function (c) { var p = Math.round(c[2] * 100); return 'Vəziyyət stabildir: orta daxili müqavimət ilk ölçmədən (' + btFd(c[1]) + ') bəri ' + (p > 0 ? '+' : '') + p + '% dəyişib.'; },
+    blk: function (c) { return 'Problemli (Diqqət / Dəyişdirilməli) blokların sayı artıb: ' + c[1] + ' → ' + c[2] + '.'; },
+    eta: function (c) { return 'Bu templə (ildə ~' + Math.round(c[1] * 100) + '%) dəyişdirmə həddinə (+' + c[2] + '%) təxminən ' + c[3] + ' ay sonra çatacaq.'; },
+    L: ['Orta R', 'Maks R', 'Diqqət həddi', 'Dəyişdirmə həddi', 'Tarix', 'Hesabat', 'Blok', 'Orta R, mΩ', 'Maks R, mΩ', 'Orta V', 'Min V', 'Diqqət', 'Dəyiş.', 'əvvəlki dəst'] },
+  en: { rep: function (c) { return 'The batteries were replaced on ' + btFd(c[1]) + ' (probably) — the comparison starts from this date.'; },
+    few: function () { return 'At least two service measurements of these batteries are needed for a comparison.'; },
+    gf: function (c) { return 'Average internal resistance has risen by +' + Math.round(c[2] * 100) + '% since the first measurement (' + btFd(c[1]) + ') — battery replacement is recommended.'; },
+    gw: function (c) { return 'Average internal resistance has risen by +' + Math.round(c[2] * 100) + '% since the first measurement (' + btFd(c[1]) + ') — ageing is visible, monitor closely.'; },
+    ok: function (c) { var p = Math.round(c[2] * 100); return 'Condition is stable: average internal resistance changed by ' + (p > 0 ? '+' : '') + p + '% since the first measurement (' + btFd(c[1]) + ').'; },
+    blk: function (c) { return 'The number of problem blocks (Attention / Replace) has increased: ' + c[1] + ' → ' + c[2] + '.'; },
+    eta: function (c) { return 'At this rate (~' + Math.round(c[1] * 100) + '% a year) the replacement limit (+' + c[2] + '%) will be reached in about ' + c[3] + ' months.'; },
+    L: ['Average R', 'Max R', 'Attention limit', 'Replacement limit', 'Date', 'Report', 'Blocks', 'Avg R, mΩ', 'Max R, mΩ', 'Avg V', 'Min V', 'Attention', 'Replace', 'previous set'] },
+  ru: { rep: function (c) { return 'Аккумуляторы заменены ' + btFd(c[1]) + ' (вероятно) — сравнение ведётся с этой даты.'; },
+    few: function () { return 'Для сравнения нужны как минимум два сервисных измерения этих аккумуляторов.'; },
+    gf: function (c) { return 'Среднее внутреннее сопротивление выросло на +' + Math.round(c[2] * 100) + '% с первого измерения (' + btFd(c[1]) + ') — рекомендуется замена аккумуляторов.'; },
+    gw: function (c) { return 'Среднее внутреннее сопротивление выросло на +' + Math.round(c[2] * 100) + '% с первого измерения (' + btFd(c[1]) + ') — заметно старение, требуется наблюдение.'; },
+    ok: function (c) { var p = Math.round(c[2] * 100); return 'Состояние стабильное: среднее внутреннее сопротивление изменилось на ' + (p > 0 ? '+' : '') + p + '% с первого измерения (' + btFd(c[1]) + ').'; },
+    blk: function (c) { return 'Число проблемных блоков (Внимание / Замена) выросло: ' + c[1] + ' → ' + c[2] + '.'; },
+    eta: function (c) { return 'При таком темпе (~' + Math.round(c[1] * 100) + '% в год) порог замены (+' + c[2] + '%) будет достигнут примерно через ' + c[3] + ' мес.'; },
+    L: ['Среднее R', 'Макс R', 'Порог внимания', 'Порог замены', 'Дата', 'Отчёт', 'Блоков', 'Сред. R, mΩ', 'Макс R, mΩ', 'Сред. V', 'Мин V', 'Внимание', 'Замена', 'прежний комплект'] }
+};
+function btTx(lg) { return BT_TX[lg] || BT_TX.az; }
+function btMsgs(res, lg) { var X = btTx(lg); return res.c.map(function (c) { return { k: c[0], t: X[c[0]] ? X[c[0]](c) : '' }; }); }
+function btEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function btF(v, k) { return v === null || v === undefined || !isFinite(v) ? '—' : (+v).toFixed(k == null ? 2 : k); }
+/* line chart: average R (solid) and maximum R (dashed) by date; the limits are counted from the first measurement of the current battery set */
+function btSvg(res, lg, W) {
+  var P = res.P, X = btTx(lg).L; if (!P.length) return '';
+  W = W || 700; var H = Math.round(W * 0.42), L = 34, R = 10, T = 22, B = 34, pw = W - L - R, ph = H - T - B;
+  var S0 = res.S[0], lim = (S0 && S0.ar) ? [[S0.ar * (1 + res.wp / 100), X[2] + ' +' + res.wp + '%', '#B7860B'], [S0.ar * (1 + res.fp / 100), X[3] + ' +' + res.fp + '%', '#B42318']] : [];
+  var mx = 0; P.forEach(function (p) { mx = Math.max(mx, p.mr || 0, p.ar || 0); }); lim.forEach(function (l) { mx = Math.max(mx, l[0]); });
+  if (!mx) return ''; mx *= 1.1; var lo = mx; P.forEach(function (p) { if (p.ar) lo = Math.min(lo, p.ar); }); lo = lo * 0.7;
+  var t0 = btDt(P[0].d), t1 = btDt(P[P.length - 1].d), span = t1 - t0;
+  var xf = function (p, i) { return L + (span > 0 ? (btDt(p.d) - t0) / span * pw : (P.length > 1 ? i / (P.length - 1) * pw : pw / 2)); };
+  var rg = mx - lo, step = rg > 40 ? 10 : rg > 20 ? 5 : rg > 8 ? 2 : rg > 4 ? 1 : rg > 2 ? 0.5 : 0.2; lo = Math.floor(lo / step) * step;
+  var yf = function (v) { return T + ph - (v - lo) / (mx - lo) * ph; };
+  var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" style="max-width:100%;height:auto" font-family="Arial, sans-serif" font-size="' + (W < 520 ? 11 : 10) + '">';
+  for (var k = lo; k <= mx + 1e-9; k += step) g += '<line x1="' + L + '" x2="' + (L + pw) + '" y1="' + yf(k).toFixed(1) + '" y2="' + yf(k).toFixed(1) + '" stroke="#E3E8E6"/><text x="' + (L - 5) + '" y="' + (yf(k) + 3).toFixed(1) + '" text-anchor="end" fill="#6B7672">' + (step < 1 ? k.toFixed(1) : Math.round(k)) + '</text>';
+  g += '<text x="' + L + '" y="12" fill="#6B7672">mΩ</text>';
+  if (res.s > 0) { var xs = (xf(P[res.s - 1], res.s - 1) + xf(P[res.s], res.s)) / 2; g += '<line x1="' + xs.toFixed(1) + '" x2="' + xs.toFixed(1) + '" y1="' + T + '" y2="' + (T + ph) + '" stroke="#9AA5A1" stroke-dasharray="3 3"/><text x="' + (xs - 4).toFixed(1) + '" y="' + (T + 10) + '" text-anchor="end" fill="#9AA5A1">' + btEsc(X[13]) + '</text>'; }
+  var x0 = res.S.length ? xf(res.S[0], res.s) : L;
+  lim.forEach(function (l) { var yy = yf(l[0]).toFixed(1); g += '<line x1="' + x0.toFixed(1) + '" x2="' + (L + pw) + '" y1="' + yy + '" y2="' + yy + '" stroke="' + l[2] + '" stroke-dasharray="5 3"/><text x="' + (x0 + 4).toFixed(1) + '" y="' + (+yy - 3) + '" fill="' + l[2] + '">' + btEsc(l[1]) + '</text>'; });
+  var line = function (key, col, dash) { var d = '', pen = false; P.forEach(function (p, i) { if (p[key] === null || p[key] === undefined) { pen = false; return; } if (i === res.s) pen = false; d += (pen ? 'L' : 'M') + xf(p, i).toFixed(1) + ',' + yf(p[key]).toFixed(1); pen = true; });
+    return d ? '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="' + (dash ? 1.5 : 2.2) + '"' + (dash ? ' stroke-dasharray="4 3"' : '') + '/>' : ''; };
+  g += line('mr', '#C8372D', 1) + line('ar', '#16362E', 0);
+  var every = Math.ceil(P.length / 9);
+  P.forEach(function (p, i) { var x = xf(p, i), old = i < res.s, c = old ? '#9AA5A1' : p.x ? '#C8372D' : p.w ? '#E0A82E' : '#2E8B57';
+    if (p.ar !== null && p.ar !== undefined) { var y = yf(p.ar); g += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="4.2" fill="' + c + '" stroke="#fff" stroke-width="1.2"><title>' + btFd(p.d) + ': ' + btF(p.ar) + ' mΩ</title></circle>';
+      if (i % every === 0 || i === P.length - 1) g += '<text x="' + x.toFixed(1) + '" y="' + (y - 8).toFixed(1) + '" text-anchor="middle" fill="' + (old ? '#9AA5A1' : '#15211E') + '" font-weight="bold">' + btF(p.ar) + '</text>'; }
+    if (i % every === 0 || i === P.length - 1) g += '<text x="' + x.toFixed(1) + '" y="' + (H - 18) + '" text-anchor="' + (P.length > 1 && i === 0 ? 'start' : P.length > 1 && i === P.length - 1 ? 'end' : 'middle') + '" fill="#6B7672">' + btFd(p.d).replace(/\.(\d{2})(\d{2})$/, '.$2') + '</text>'; });
+  g += '<line x1="' + L + '" x2="' + (L + pw) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '" stroke="#9AA5A1"/>';
+  g += '<g transform="translate(' + L + ',' + (H - 4) + ')"><line x1="0" x2="16" y1="-3" y2="-3" stroke="#16362E" stroke-width="2.2"/><text x="20" y="0" fill="#15211E">' + btEsc(X[0]) + '</text><line x1="90" x2="106" y1="-3" y2="-3" stroke="#C8372D" stroke-width="1.5" stroke-dasharray="4 3"/><text x="110" y="0" fill="#15211E">' + btEsc(X[1]) + '</text></g>';
+  return g + '</svg>';
+}
+function btTable(res, lg, repCell) {
+  var X = btTx(lg).L, P = res.P;
+  return '<table class="bttbl"><tr style="text-transform:none"><th style="text-transform:none">' + X[4] + '</th><th style="text-transform:none">' + X[5] + '</th><th style="text-transform:none">' + X[6] + '</th><th style="text-transform:none">' + X[7] + '</th><th style="text-transform:none">' + X[8] + '</th><th style="text-transform:none">' + X[9] + '</th><th style="text-transform:none">' + X[10] + '</th><th style="text-transform:none">' + X[11] + '</th><th style="text-transform:none">' + X[12] + '</th></tr>' +
+    P.slice().reverse().map(function (p) { var i = P.indexOf(p), old = i < res.s;
+      return '<tr' + (old ? ' style="color:#8A9490"' : '') + '><td>' + btFd(p.d) + '</td><td>' + (repCell ? repCell(p) : btEsc(p.no || '')) + '</td><td style="text-align:center">' + (p.n || '') + '</td><td style="text-align:center"><b>' + btF(p.ar) + '</b></td><td style="text-align:center">' + btF(p.mr) + '</td><td style="text-align:center">' + btF(p.av) + '</td><td style="text-align:center">' + btF(p.mv) + '</td><td style="text-align:center' + (p.w ? ';color:#B7860B;font-weight:bold' : '') + '">' + (p.w || 0) + '</td><td style="text-align:center' + (p.x ? ';color:#B42318;font-weight:bold' : '') + '">' + (p.x || 0) + '</td></tr>'; }).join('') + '</table>';
+}
+/*BTCORE-END*/
+/* ZUVAND — akkumulyatorların dinamikası: əvvəlki servislərlə müqayisə (redaktorda, hesabatda / PDF-də); məlumat serverin "Bloklar" vərəqindən və cihazdakı hesabatlardan */
+window.ZSBT=(function(){const C={},AGE=5*60e3;
+  let dk=0;const dict=()=>{if(dk)return;try{if(typeof DICT!=="undefined"){dk=1;Object.assign(DICT.en=DICT.en||{},{"Akkumulyatorların dinamikası — əvvəlki servislərlə müqayisə":"Battery trend — comparison with previous services","Əvvəlki servislərlə müqayisə (dinamika)":"Comparison with previous services (trend)"});
+    Object.assign(DICT.ru=DICT.ru||{},{"Akkumulyatorların dinamikası — əvvəlki servislərlə müqayisə":"Динамика аккумуляторов — сравнение с предыдущими сервисами","Əvvəlki servislərlə müqayisə (dinamika)":"Сравнение с предыдущими сервисами (динамика)"})}}catch(e){}};
+  const K=x=>snNorm(x),snOf=d=>String(d&&d.info&&d.info.sn||"").trim(),hasBat=d=>!!(d&&TYPES[d.type]&&TYPES[d.type].hasBat);
+  const avg=L=>L.length?L.reduce((a,b)=>a+b,0)/L.length:null;
+  /* exact point from a report on this device (same calculation as the report itself) */
+  function pointOf(r,i){const keep=CUR_TYPE,keepD=CUR_DEV;try{const d=r.devices[i];useType(d.type,d);const V=devProxy(r,i),a=analyze(V),ts=a.blocks.map(b=>b.t).filter(x=>x!==null);
+      return {id:r.id,d:String(r.svc&&r.svc.date||"").slice(0,10),no:r.svc&&r.svc.repno||"",n:a.tested.length,ar:avg(a.rv),mr:a.rv.length?Math.max(...a.rv):null,av:avg(a.vv),mv:a.vv.length?Math.min(...a.vv):null,at:avg(ts),w:a.att.length,x:a.rep.length}}
+    catch(e){return null}finally{useType(keep,keepD)}}
+  function collect(r,i){r=realOf(r);const d=r.devices[i],k=K(snOf(d));const M={};
+    if(k&&C[k])C[k].pts.forEach(p=>{if(p.id!==r.id)M[p.id]=p});
+    if(k)Object.values(state.reports||{}).forEach(x=>{x=realOf(x);if(!x||x.sample||x.id===r.id||!Array.isArray(x.devices))return;
+      const j=x.devices.findIndex(dd=>hasBat(dd)&&K(snOf(dd))===k);if(j<0)return;const p=pointOf(x,j);if(p&&p.n)M[x.id]=p});
+    const me=pointOf(r,i);if(me&&me.n){me.cur=1;M[r.id]=me}
+    const B=d.bat||{};return btEval(Object.values(M),{warn:B.warn,fail:B.fail,inst:typeof batInstEff==="function"?batInstEff(B):B.inst})}
+  async function load(sn,force){const k=K(sn);if(!k||typeof hasServer!=="function"||!hasServer()||navigator.onLine===false)return false;
+    if(!force&&C[k]&&Date.now()-C[k].at<AGE)return false;
+    try{const j=await Promise.race([api("bat_trend",{sn}),new Promise((_,rj)=>setTimeout(()=>rj(new Error("timeout")),9000))]);C[k]={at:Date.now(),pts:Array.isArray(j.pts)?j.pts:[]};return true}catch(e){return false}}
+  /* before the PDF: the history of every battery device is fetched (once in 5 minutes) */
+  async function ensure(r){r=realOf(r);if(!r||!Array.isArray(r.devices))return false;let ch=false;
+    for(const d of r.devices)if(hasBat(d)&&snOf(d))ch=(await load(snOf(d)))||ch;return ch}
+  const LV={bad:"#B42318",warn:"#9A6B00",ok:"#0B6B3A"};
+  const msgs=(res,lg,app)=>btMsgs(res,lg).map(m=>{const c=m.k==="gf"?"bad":(m.k==="gw"||m.k==="blk")?"warn":m.k==="ok"?"ok":"";return `<p style="margin:0 0 5px;${c?"color:"+(app?`var(--${c},${LV[c]})`:LV[c])+";font-weight:600":app?"":"color:#3F4B48"}">${btEsc(m.t)}</p>`}).join("");
+  /* section of the printed report: only when there is something to compare */
+  function paper(r,i,V,a,head,W){try{dict();const res=collect(r,i);if(res.P.length<2)return "";const lg=typeof PL==="string"?PL:"az";
+      return W(head("Akkumulyatorların dinamikası — əvvəlki servislərlə müqayisə")+msgs(res,lg)+`<div style="margin:4px 0">${btSvg(res,lg,700)}</div>`+btTable(res,lg))}catch(e){console.log("bt",e);return ""}}
+  /* card in the "Akkum." tab */
+  function card(){const main=document.getElementById("main");if(!main||!state.rep||!state.cur||state.tab!=="bat")return;const r=realOf(state.rep),i=state.di||0,d=r.devices[i];if(!hasBat(d))return;
+    let el=document.getElementById("btCard");if(!el){el=document.createElement("div");el.className="card";el.id="btCard";const nb=main.querySelector(".nextbar");if(nb)nb.before(el);else main.append(el)}
+    const sn=snOf(d);if(!sn){el.innerHTML=`<h3>Akkumulyatorların dinamikası</h3><p class="note" style="margin:0">Cihazın seriya № yazılsa, bu akkumulyatorların əvvəlki servislərdəki ölçmələri ilə müqayisə burada görünəcək.</p>`;return}
+    const res=collect(r,i),k=K(sn),busy=hasServer()&&!C[k];
+    el.innerHTML=`<h3>Akkumulyatorların dinamikası — əvvəlki servislərlə müqayisə</h3>${res.P.length<2?`<p class="note" style="margin:0">${busy?"Əvvəlki servislər yüklənir…":btEsc(btTx("az").few())}</p>`:msgs(res,"az",1)+`<div style="margin:6px 0;overflow-x:auto;background:#fff;border-radius:8px;padding:6px;max-width:660px">${btSvg(res,"az",640)}</div><div class="tw" style="overflow-x:auto">${btTable(res,"az")}</div>`}
+      <p class="note" style="margin:6px 0 0">Orta daxili müqavimət hər servisdə ölçülmüş bloklar üzrədir; hədlər (+${btEsc(res.wp)}% / +${btEsc(res.fp)}%) bu akkumulyator dəstinin ilk ölçməsinə görə hesablanır. Dəst dəyişdiriləndə (quraşdırma tarixi və ya R kəskin azalanda) müqayisə yenidən başlayır.</p>`;
+    if(busy)load(sn).then(ch=>{if(ch&&document.getElementById("btCard")&&state.tab==="bat")card()})}
+  function chk(){const c=document.querySelector('#main input[data-chart="chartT"]');if(!c||document.querySelector('#main input[data-chart="chartH"]'))return;const lb=c.closest("label");
+    lb.insertAdjacentHTML("afterend",`<label class="f" style="display:flex;gap:8px;align-items:center;grid-template-columns:none"><input type="checkbox" data-chart="chartH" style="width:auto;min-height:0" ${state.cur.bat.chartH!=="0"?"checked":""}><span>Əvvəlki servislərlə müqayisə (dinamika)</span></label>`)}
+  function hook(){try{chk();card()}catch(e){console.log("bt",e)}}
+  return {ensure,paper,hook,collect,C}})();
 </script>
 <script>/* ZUVAND — Ayarlar: hər bölmənin başlığına toxunanda açılır / bağlanır (vəziyyət cihazda yadda qalır) */
 (function(){try{
@@ -1216,7 +1396,7 @@ function summaryOf(r){r=realOf(r);const A=analyzeReport(r),d0=r.devices[0]||{inf
   types:r.devices.map(d=>d.type).join(","),type:r.svc.type||"",devn:n,fill:fillOf(r),photos:r.devices.reduce((x,d)=>x+((d.photos||[]).length),0),creator:r.creator||"",sns:snsOf(r),team:teamStr(r),payer:String(r.cl.payer||"").trim(),eng:r.svc.eng,overall:A.overall,cls:A.cls,tested:A.tested,rep:A.rep,att:A.att,next:A.next,updatedAt:r.updatedAt,by:r.by||"",appr:r.appr&&r.appr.at?(r.appr.by||"✓"):"",sub:r.sub&&r.sub.at?(r.sub.by||"✓"):""}}
 function blocksOf(r){r=realOf(r);const keep=CUR_TYPE,keepD=CUR_DEV,out=[],ups=r.devices.map((d,i)=>i).filter(i=>TYPES[r.devices[i].type].hasBat);
   ups.forEach(i=>{useType(r.devices[i].type,r.devices[i]);const V=devProxy(r,i),a=analyze(V),p=Math.floor(num(V.bat.per))||1,pre=ups.length>1?"C"+(i+1)+"-":"";
-    a.blocks.filter(b=>b.st).forEach(b=>out.push([pre+b.lab,b.s,b.i%p+1,b.v,b.r,b.t,b.st]))});
+    const sn=String(r.devices[i].info&&r.devices[i].info.sn||"").trim();a.blocks.filter(b=>b.st).forEach(b=>out.push([pre+b.lab,b.s,b.i%p+1,b.v,b.r,b.t,b.st,sn]))});
   useType(keep,keepD);return out}
 const clsOfOverall=o=>/TƏCİLİ/.test(o||"")?"bad":/DİQQƏT/.test(o||"")?"warn":o?"ok":"";
 
@@ -2283,7 +2463,7 @@ function paperHTML(R,_a,lang){PL=lang||state.plang||"az";const r=realOf(R),keep=
         const cell=(q)=>{if(q>=p)return `<td></td>`+Array.from({length:ns},()=>"<td></td>").join("");let rr=`<td>${q+1}</td>`;for(let g=0;g<ns;g++){const b=a.blocks[g*p+q];rr+=b?`<td class="${pc(b.st)}">${b.v!==null?b.v.toFixed(2):"—"} / ${b.r!==null?b.r.toFixed(2):"—"}</td>`:"<td></td>"}return rr};
         const rowsH=[];for(let q=0;q<rpf;q++){let rr="<tr>";for(let f=0;f<fold;f++)rr+=cell(f*rpf+q);rowsH.push(rr+"</tr>")}
         const chunks=rowsH.length>45?tblChunks(hdr,rowsH,30):[rowsH];
-        h+=(V.bat.tblB==="0"?"":chunks.map((c,ci)=>W((ci===0?head("Akkumulyator ölçmə cədvəli (V / mΩ)"):"")+`<table class="bt">${hdr}${c.join("")}</table>`)).join(""))+(V.bat.chartR!=="0"?rChartsHTML(V,a,head("Daxili müqavimət — qruplar üzrə diaqram")):"")+(V.bat.chartV!=="0"?vChartsHTML(V,a,head("Blok gərginliyi — qruplar üzrə diaqram")):"")+(V.bat.chartT!=="0"?tChartsHTML(V,a,head("Blok temperaturu — qruplar üzrə diaqram")):"")}}
+        h+=(V.bat.tblB==="0"?"":chunks.map((c,ci)=>W((ci===0?head("Akkumulyator ölçmə cədvəli (V / mΩ)"):"")+`<table class="bt">${hdr}${c.join("")}</table>`)).join(""))+(V.bat.chartR!=="0"?rChartsHTML(V,a,head("Daxili müqavimət — qruplar üzrə diaqram")):"")+(V.bat.chartV!=="0"?vChartsHTML(V,a,head("Blok gərginliyi — qruplar üzrə diaqram")):"")+(V.bat.chartT!=="0"?tChartsHTML(V,a,head("Blok temperaturu — qruplar üzrə diaqram")):"")+(V.bat.chartH!=="0"&&typeof ZSBT!=="undefined"?ZSBT.paper(r,i,V,a,head,W):"")}}
     const BD=(V.bad||[]).filter(x=>x.name);if(BD.length)h+=W(head("Yararsız / dəyişdirilməli detallar")+`<table><tr><th>#</th><th style="text-align:left">${t("Detal")}</th><th>${t("Kod / Part №")}</th><th>${t("Say")}</th><th style="text-align:left">${t("Səbəb / qeyd")}</th></tr>${BD.map((x,j)=>`<tr class="r-bad"><td class="c">${j+1}</td><td>${esc(ft(x.name))}</td><td class="c">${esc(x.code)}</td><td class="c">${esc(x.qty)}</td><td>${esc(ft(x.note))}</td></tr>`).join("")}</table>`);
     const PT=(V.parts||[]).filter(x=>x.name);if(PT.length)h+=W(head("Dəyişdirilən / quraşdırılan hissələr")+`<table><tr><th>#</th><th style="text-align:left">${t("Hissə")}</th><th>${t("Kod / Part №")}</th><th>${t("Say")}</th><th style="text-align:left">${t("Qeyd")}</th></tr>${PT.map((x,j)=>`<tr class="r-part"><td class="c">${j+1}</td><td>${esc(ft(x.name))}</td><td class="c">${esc(x.code)}</td><td class="c">${esc(x.qty)}</td><td>${esc(ft(x.note))}</td></tr>`).join("")}</table>`);
     const PH=(V.photos||[]);if(PH.length){const cells=PH.map((p,q)=>`<figure class="pfig">${PHOTO_CACHE[p.id]?`<div class="pbox"><img src="${PHOTO_CACHE[p.id]}" alt=""></div>`:`<div class="pmiss">${t("Şəkil yüklənmədi")}</div>`}<figcaption>${q+1}. ${esc(ft(p.cap))}</figcaption></figure>`);
@@ -3704,8 +3884,8 @@ window.ZSBK=(function(){
       savePending();const T=B.tasks||[];for(let i=0;i<T.length;i++){prog(i+1,T.length,"Tapşırıqlar");try{await api("task_save",{task:T[i]});tk++}catch(e){}}
       try{await sync({all:true})}catch(e){}
       return ok+" hesabat"+(bad?" ("+bad+" alınmadı)":"")+", "+tk+" tapşırıq"+(ph?", "+ph+" şəkil":"")}});
-  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}try{ZSSEC.card()}catch(e){}try{ZSTPL.card()}catch(e){}try{ZSCOL.on()}catch(e){}return r};
-  try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>!!state.me.boss||(!(typeof CFG!=="undefined"&&CFG.hub)&&state.me.role==="admin"),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}try{API_TIMEOUT.factory_reset=330000;API_TIMEOUT.activity=60000;API_TIMEOUT.sec_info=15000;ZSSEC.init({app:"ups",api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub})}catch(e){}try{ZSTPL.init({api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),isAdmin:()=>!hasServer()||state.me.role==="admin",me:()=>state.me.name||""})}catch(e){}
+  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}try{ZSSEC.card()}catch(e){}try{ZSTPL.card()}catch(e){}try{ZSQRST.card()}catch(e){}try{ZSCOL.on()}catch(e){}return r};
+  try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>!!state.me.boss||(!(typeof CFG!=="undefined"&&CFG.hub)&&state.me.role==="admin"),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}try{API_TIMEOUT.factory_reset=330000;API_TIMEOUT.activity=60000;API_TIMEOUT.sec_info=15000;ZSSEC.init({app:"ups",api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub})}catch(e){}try{ZSTPL.init({api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),isAdmin:()=>!hasServer()||state.me.role==="admin",me:()=>state.me.name||""})}catch(e){}try{ZSQRST.init({api:(a,p)=>api(a,p),ok:()=>!!state.me.key&&hasServer()&&!(typeof CFG!=="undefined"&&CFG.hub)&&(!!state.me.boss||state.me.role==="admin"||svCan("stats"))})}catch(e){}
   /* the "Ayarlar" button was bound to the old function at start-up */
   const hs=document.getElementById("hSettings");if(hs)hs.onclick=()=>renderSettings();
 }catch(e){console.log("backup",e)}})();
@@ -3787,6 +3967,8 @@ window.ZSBK=(function(){
   window.ensureQr=async function(r){r=realOf(r);if(!r||r.sample||!hasServer())return false;const sns=r.devices.filter(d=>d.type!=="pq").map(d=>String(d.info&&d.info.sn||"").trim()).filter(Boolean);
     if(r.qr&&r.qr.base&&r.qr.r&&sns.every(s=>r.qr.d&&r.qr.d[s]))return false;
     try{const mu0=String(state.me.url||"").split("?")[0];if(navigator.onLine===false)return false;const q=await Promise.race([api("qr_tokens",{rid:r.id,sns,base:mu0}),new Promise((_,rj)=>setTimeout(()=>rj(new Error("qr_timeout")),7000))]);const mu=String(state.me.url||"").split("?")[0],base=/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(mu)?mu:q.base;if(!base||!q.r)return false;r.qr={base,r:q.r,d:q.d||{}};return true}catch(e){return false}};
+  {const _mb=makePdf;makePdf=async function(r,L){try{if(await ZSBT.ensure(r)){const ps=$("#ps");if(ps){ps.innerHTML=paperHTML(r,null,L);fitPaper()}}}catch(e){}return _mb.apply(this,arguments)}}
+  {const _rb=renderEditor;renderEditor=function(){const o=_rb.apply(this,arguments);try{ZSBT.hook();if(state.tab==="rep"&&state.rep){const rp=state.rep;ZSBT.ensure(rp).then(ch=>{if(ch&&state.tab==="rep"&&state.rep===rp&&state.view==="edit")renderEditor()})}}catch(e){}return o}}
   const _mk=makePdf;makePdf=async function(r,L){try{if(await ensureQr(r)){const ps=$("#ps");if(ps){ps.innerHTML=paperHTML(r,null,L);fitPaper()}}}catch(e){}return _mk.apply(this,arguments)};
   /* ---------- labels ---------- */
   const SIZES=[["a4s","A4 vərəq — 24 etiket (70×37 mm)",70,37,3,8],["a4l","A4 vərəq — 10 etiket (105×57 mm)",105,57,2,5],["p5030","Etiket printeri — 50×30 mm",50,30],["p6040","Etiket printeri — 60×40 mm",60,40],["p7050","Etiket printeri — 70×50 mm",70,50]];
