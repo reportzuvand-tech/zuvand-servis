@@ -224,6 +224,109 @@ const SEC = {
     return { epoch: meta.epoch, files };
   }
 };
+/*BTCORE — akkumulyatorların vəziyyətinin dinamikası (proqram və server eyni kodu işlədir; ES5) */
+/* nöqtə: {id, d:'YYYY-MM-DD', no, n, ar, mr, av, mv, at, w, x} — n ölçülmüş blok, ar/mr orta/maks R (mΩ), av/mv orta/min V, at orta T, w Diqqət, x Dəyişdirilməli */
+function btNum(v) { var x = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(x) ? x : null; }
+function btPoint(rows) {
+  var R = [], V = [], T = [], w = 0, x = 0, n = 0;
+  rows.forEach(function (b) { var r = btNum(b.r), v = btNum(b.v), t = btNum(b.t); if (r === null && v === null) return; n++;
+    if (r !== null) R.push(r); if (v !== null) V.push(Math.abs(v)); if (t !== null) T.push(t); if (b.st === 'Diqqət') w++; else if (b.st === 'Dəyişdirilməli') x++; });
+  var avg = function (L) { return L.length ? L.reduce(function (a, b) { return a + b; }, 0) / L.length : null; };
+  return { n: n, ar: avg(R), mr: R.length ? Math.max.apply(null, R) : null, av: avg(V), mv: V.length ? Math.min.apply(null, V) : null, at: avg(T), w: w, x: x };
+}
+function btDt(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN; }
+function btFd(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? m[3] + '.' + m[2] + '.' + m[1] : String(d || ''); }
+/* a new battery set starts the comparison again: install date, a sharp drop of R or a different block count */
+function btSeg(P, inst) {
+  var s = 0;
+  for (var i = 1; i < P.length; i++) { var a = P[i - 1], b = P[i];
+    if ((inst && b.d >= inst && a.d < inst) || (a.ar && b.ar && b.ar < a.ar * 0.7) || (a.n && b.n && Math.abs(b.n - a.n) > Math.max(2, a.n * 0.3))) s = i; }
+  return s;
+}
+function btEval(P, o) {
+  o = o || {}; var wp = btNum(o.warn), fp = btNum(o.fail); if (wp === null) wp = 25; if (fp === null) fp = 50;
+  var byD = {}; P.forEach(function (p) { if (!p || !p.d || !p.n) return; var q = byD[p.d]; if (!q || (p.cur && !q.cur) || (!q.cur && p.n > q.n)) byD[p.d] = p; });
+  P = Object.keys(byD).sort().map(function (d) { return byD[d]; });
+  var s = btSeg(P, o.inst || ''), S = P.slice(s), res = { P: P, s: s, S: S, lv: '', c: [], g: null, rate: null, wp: wp, fp: fp };
+  if (s > 0) res.c.push(['rep', S[0].d]);
+  if (S.length < 2) { res.c.push(['few']); return res; }
+  var A = S[0], B = S[S.length - 1], pv = S[S.length - 2];
+  if (A.ar && B.ar) { res.g = B.ar / A.ar - 1; var yrs = (btDt(B.d) - btDt(A.d)) / 315576e5; if (yrs > 0.2) res.rate = res.g / yrs; }
+  if (res.g !== null && res.g * 100 >= fp) { res.lv = 'bad'; res.c.push(['gf', A.d, res.g]); }
+  else if (res.g !== null && res.g * 100 >= wp) { res.lv = 'warn'; res.c.push(['gw', A.d, res.g]); }
+  else if (res.g !== null) { res.lv = 'ok'; res.c.push(['ok', A.d, res.g]); }
+  if ((B.w + B.x) > (pv.w + pv.x)) { if (res.lv !== 'bad') res.lv = 'warn'; res.c.push(['blk', pv.w + pv.x, B.w + B.x]); }
+  if (res.rate !== null && res.rate > 0.01 && res.g * 100 < fp) { var m = Math.round((fp / 100 - res.g) / res.rate * 12); if (m <= 36) res.c.push(['eta', res.rate, fp, Math.max(1, m)]); }
+  return res;
+}
+var BT_TX = {
+  az: { rep: function (c) { return btFd(c[1]) + ' tarixində akkumulyatorlar dəyişdirilib (ehtimal) — müqayisə bu tarixdən aparılır.'; },
+    few: function () { return 'Müqayisə üçün bu akkumulyatorlarda ən azı iki servis ölçməsi lazımdır.'; },
+    gf: function (c) { return 'Orta daxili müqavimət ilk ölçmədən (' + btFd(c[1]) + ') bəri +' + Math.round(c[2] * 100) + '% artıb — akkumulyatorların dəyişdirilməsi tövsiyə olunur.'; },
+    gw: function (c) { return 'Orta daxili müqavimət ilk ölçmədən (' + btFd(c[1]) + ') bəri +' + Math.round(c[2] * 100) + '% artıb — köhnəlmə müşahidə olunur, diqqətlə izlənməlidir.'; },
+    ok: function (c) { var p = Math.round(c[2] * 100); return 'Vəziyyət stabildir: orta daxili müqavimət ilk ölçmədən (' + btFd(c[1]) + ') bəri ' + (p > 0 ? '+' : '') + p + '% dəyişib.'; },
+    blk: function (c) { return 'Problemli (Diqqət / Dəyişdirilməli) blokların sayı artıb: ' + c[1] + ' → ' + c[2] + '.'; },
+    eta: function (c) { return 'Bu templə (ildə ~' + Math.round(c[1] * 100) + '%) dəyişdirmə həddinə (+' + c[2] + '%) təxminən ' + c[3] + ' ay sonra çatacaq.'; },
+    L: ['Orta R', 'Maks R', 'Diqqət həddi', 'Dəyişdirmə həddi', 'Tarix', 'Hesabat', 'Blok', 'Orta R, mΩ', 'Maks R, mΩ', 'Orta V', 'Min V', 'Diqqət', 'Dəyiş.', 'əvvəlki dəst'] },
+  en: { rep: function (c) { return 'The batteries were replaced on ' + btFd(c[1]) + ' (probably) — the comparison starts from this date.'; },
+    few: function () { return 'At least two service measurements of these batteries are needed for a comparison.'; },
+    gf: function (c) { return 'Average internal resistance has risen by +' + Math.round(c[2] * 100) + '% since the first measurement (' + btFd(c[1]) + ') — battery replacement is recommended.'; },
+    gw: function (c) { return 'Average internal resistance has risen by +' + Math.round(c[2] * 100) + '% since the first measurement (' + btFd(c[1]) + ') — ageing is visible, monitor closely.'; },
+    ok: function (c) { var p = Math.round(c[2] * 100); return 'Condition is stable: average internal resistance changed by ' + (p > 0 ? '+' : '') + p + '% since the first measurement (' + btFd(c[1]) + ').'; },
+    blk: function (c) { return 'The number of problem blocks (Attention / Replace) has increased: ' + c[1] + ' → ' + c[2] + '.'; },
+    eta: function (c) { return 'At this rate (~' + Math.round(c[1] * 100) + '% a year) the replacement limit (+' + c[2] + '%) will be reached in about ' + c[3] + ' months.'; },
+    L: ['Average R', 'Max R', 'Attention limit', 'Replacement limit', 'Date', 'Report', 'Blocks', 'Avg R, mΩ', 'Max R, mΩ', 'Avg V', 'Min V', 'Attention', 'Replace', 'previous set'] },
+  ru: { rep: function (c) { return 'Аккумуляторы заменены ' + btFd(c[1]) + ' (вероятно) — сравнение ведётся с этой даты.'; },
+    few: function () { return 'Для сравнения нужны как минимум два сервисных измерения этих аккумуляторов.'; },
+    gf: function (c) { return 'Среднее внутреннее сопротивление выросло на +' + Math.round(c[2] * 100) + '% с первого измерения (' + btFd(c[1]) + ') — рекомендуется замена аккумуляторов.'; },
+    gw: function (c) { return 'Среднее внутреннее сопротивление выросло на +' + Math.round(c[2] * 100) + '% с первого измерения (' + btFd(c[1]) + ') — заметно старение, требуется наблюдение.'; },
+    ok: function (c) { var p = Math.round(c[2] * 100); return 'Состояние стабильное: среднее внутреннее сопротивление изменилось на ' + (p > 0 ? '+' : '') + p + '% с первого измерения (' + btFd(c[1]) + ').'; },
+    blk: function (c) { return 'Число проблемных блоков (Внимание / Замена) выросло: ' + c[1] + ' → ' + c[2] + '.'; },
+    eta: function (c) { return 'При таком темпе (~' + Math.round(c[1] * 100) + '% в год) порог замены (+' + c[2] + '%) будет достигнут примерно через ' + c[3] + ' мес.'; },
+    L: ['Среднее R', 'Макс R', 'Порог внимания', 'Порог замены', 'Дата', 'Отчёт', 'Блоков', 'Сред. R, mΩ', 'Макс R, mΩ', 'Сред. V', 'Мин V', 'Внимание', 'Замена', 'прежний комплект'] }
+};
+function btTx(lg) { return BT_TX[lg] || BT_TX.az; }
+function btMsgs(res, lg) { var X = btTx(lg); return res.c.map(function (c) { return { k: c[0], t: X[c[0]] ? X[c[0]](c) : '' }; }); }
+function btEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function btF(v, k) { return v === null || v === undefined || !isFinite(v) ? '—' : (+v).toFixed(k == null ? 2 : k); }
+/* line chart: average R (solid) and maximum R (dashed) by date; the limits are counted from the first measurement of the current battery set */
+function btSvg(res, lg, W) {
+  var P = res.P, X = btTx(lg).L; if (!P.length) return '';
+  W = W || 700; var H = Math.round(W * 0.42), L = 34, R = 10, T = 22, B = 34, pw = W - L - R, ph = H - T - B;
+  var S0 = res.S[0], lim = (S0 && S0.ar) ? [[S0.ar * (1 + res.wp / 100), X[2] + ' +' + res.wp + '%', '#B7860B'], [S0.ar * (1 + res.fp / 100), X[3] + ' +' + res.fp + '%', '#B42318']] : [];
+  var mx = 0; P.forEach(function (p) { mx = Math.max(mx, p.mr || 0, p.ar || 0); }); lim.forEach(function (l) { mx = Math.max(mx, l[0]); });
+  if (!mx) return ''; mx *= 1.1; var lo = mx; P.forEach(function (p) { if (p.ar) lo = Math.min(lo, p.ar); }); lo = lo * 0.7;
+  var t0 = btDt(P[0].d), t1 = btDt(P[P.length - 1].d), span = t1 - t0;
+  var xf = function (p, i) { return L + (span > 0 ? (btDt(p.d) - t0) / span * pw : (P.length > 1 ? i / (P.length - 1) * pw : pw / 2)); };
+  var rg = mx - lo, step = rg > 40 ? 10 : rg > 20 ? 5 : rg > 8 ? 2 : rg > 4 ? 1 : rg > 2 ? 0.5 : 0.2; lo = Math.floor(lo / step) * step;
+  var yf = function (v) { return T + ph - (v - lo) / (mx - lo) * ph; };
+  var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" style="max-width:100%;height:auto" font-family="Arial, sans-serif" font-size="' + (W < 520 ? 11 : 10) + '">';
+  for (var k = lo; k <= mx + 1e-9; k += step) g += '<line x1="' + L + '" x2="' + (L + pw) + '" y1="' + yf(k).toFixed(1) + '" y2="' + yf(k).toFixed(1) + '" stroke="#E3E8E6"/><text x="' + (L - 5) + '" y="' + (yf(k) + 3).toFixed(1) + '" text-anchor="end" fill="#6B7672">' + (step < 1 ? k.toFixed(1) : Math.round(k)) + '</text>';
+  g += '<text x="' + L + '" y="12" fill="#6B7672">mΩ</text>';
+  if (res.s > 0) { var xs = (xf(P[res.s - 1], res.s - 1) + xf(P[res.s], res.s)) / 2; g += '<line x1="' + xs.toFixed(1) + '" x2="' + xs.toFixed(1) + '" y1="' + T + '" y2="' + (T + ph) + '" stroke="#9AA5A1" stroke-dasharray="3 3"/><text x="' + (xs - 4).toFixed(1) + '" y="' + (T + 10) + '" text-anchor="end" fill="#9AA5A1">' + btEsc(X[13]) + '</text>'; }
+  var x0 = res.S.length ? xf(res.S[0], res.s) : L;
+  lim.forEach(function (l) { var yy = yf(l[0]).toFixed(1); g += '<line x1="' + x0.toFixed(1) + '" x2="' + (L + pw) + '" y1="' + yy + '" y2="' + yy + '" stroke="' + l[2] + '" stroke-dasharray="5 3"/><text x="' + (x0 + 4).toFixed(1) + '" y="' + (+yy - 3) + '" fill="' + l[2] + '">' + btEsc(l[1]) + '</text>'; });
+  var line = function (key, col, dash) { var d = '', pen = false; P.forEach(function (p, i) { if (p[key] === null || p[key] === undefined) { pen = false; return; } if (i === res.s) pen = false; d += (pen ? 'L' : 'M') + xf(p, i).toFixed(1) + ',' + yf(p[key]).toFixed(1); pen = true; });
+    return d ? '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="' + (dash ? 1.5 : 2.2) + '"' + (dash ? ' stroke-dasharray="4 3"' : '') + '/>' : ''; };
+  g += line('mr', '#C8372D', 1) + line('ar', '#16362E', 0);
+  var every = Math.ceil(P.length / 9);
+  P.forEach(function (p, i) { var x = xf(p, i), old = i < res.s, c = old ? '#9AA5A1' : p.x ? '#C8372D' : p.w ? '#E0A82E' : '#2E8B57';
+    if (p.ar !== null && p.ar !== undefined) { var y = yf(p.ar); g += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="4.2" fill="' + c + '" stroke="#fff" stroke-width="1.2"><title>' + btFd(p.d) + ': ' + btF(p.ar) + ' mΩ</title></circle>';
+      if (i % every === 0 || i === P.length - 1) g += '<text x="' + x.toFixed(1) + '" y="' + (y - 8).toFixed(1) + '" text-anchor="middle" fill="' + (old ? '#9AA5A1' : '#15211E') + '" font-weight="bold">' + btF(p.ar) + '</text>'; }
+    if (i % every === 0 || i === P.length - 1) g += '<text x="' + x.toFixed(1) + '" y="' + (H - 18) + '" text-anchor="' + (P.length > 1 && i === 0 ? 'start' : P.length > 1 && i === P.length - 1 ? 'end' : 'middle') + '" fill="#6B7672">' + btFd(p.d).replace(/\.(\d{2})(\d{2})$/, '.$2') + '</text>'; });
+  g += '<line x1="' + L + '" x2="' + (L + pw) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '" stroke="#9AA5A1"/>';
+  g += '<g transform="translate(' + L + ',' + (H - 4) + ')"><line x1="0" x2="16" y1="-3" y2="-3" stroke="#16362E" stroke-width="2.2"/><text x="20" y="0" fill="#15211E">' + btEsc(X[0]) + '</text><line x1="90" x2="106" y1="-3" y2="-3" stroke="#C8372D" stroke-width="1.5" stroke-dasharray="4 3"/><text x="110" y="0" fill="#15211E">' + btEsc(X[1]) + '</text></g>';
+  return g + '</svg>';
+}
+function btTable(res, lg, repCell) {
+  var X = btTx(lg).L, P = res.P;
+  return '<table class="bttbl"><tr style="text-transform:none"><th style="text-transform:none">' + X[4] + '</th><th style="text-transform:none">' + X[5] + '</th><th style="text-transform:none">' + X[6] + '</th><th style="text-transform:none">' + X[7] + '</th><th style="text-transform:none">' + X[8] + '</th><th style="text-transform:none">' + X[9] + '</th><th style="text-transform:none">' + X[10] + '</th><th style="text-transform:none">' + X[11] + '</th><th style="text-transform:none">' + X[12] + '</th></tr>' +
+    P.slice().reverse().map(function (p) { var i = P.indexOf(p), old = i < res.s;
+      return '<tr' + (old ? ' style="color:#8A9490"' : '') + '><td>' + btFd(p.d) + '</td><td>' + (repCell ? repCell(p) : btEsc(p.no || '')) + '</td><td style="text-align:center">' + (p.n || '') + '</td><td style="text-align:center"><b>' + btF(p.ar) + '</b></td><td style="text-align:center">' + btF(p.mr) + '</td><td style="text-align:center">' + btF(p.av) + '</td><td style="text-align:center">' + btF(p.mv) + '</td><td style="text-align:center' + (p.w ? ';color:#B7860B;font-weight:bold' : '') + '">' + (p.w || 0) + '</td><td style="text-align:center' + (p.x ? ';color:#B42318;font-weight:bold' : '') + '">' + (p.x || 0) + '</td></tr>'; }).join('') + '</table>';
+}
+/*BTCORE-END*/
+/* akkumulyator dinamikası: hər hesabatda bu seriya №-li cihazın blok ölçmələri */
+const btSnK = x => String(x || "").toLowerCase().replace(/[\s\-_.\/\\]+/g, "").replace(/^(s\/?n|sn)(?=\w)/, "");
 const ACTIONS = {
   ping: (u) => who(u),
   /* the manager corrects a customer's name everywhere: service reports, the customer base and Satış və Anbar (sales, invoices, contracts, moves) */
@@ -270,7 +373,7 @@ const ACTIONS = {
       if (r.appr) delete r.appr;
     }
     if (cur) keepVersion(cur);
-    const rec = { report: r, summary: b.summary || {}, items: Array.isArray(b.items) ? b.items.slice(0, 2000) : [], pdf: cur ? cur.pdf : "", savedAt: now(), savedBy: u.name, creator: cur ? cur.creator : (r.creator || u.name) };
+    const rec = { report: r, summary: b.summary || {}, items: Array.isArray(b.items) ? b.items.slice(0, 2000) : [], blocks: Array.isArray(b.blocks) ? b.blocks.slice(0, 4000) : (cur && cur.blocks) || [], pdf: cur ? cur.pdf : "", savedAt: now(), savedBy: u.name, creator: cur ? cur.creator : (r.creator || u.name) };
     saveReport(rec); log(u, "save", r.id + " " + (r.cl.name || ""));
     try { learnCustomer(r) } catch (e) { log(u, "learn-error", e.message) }
     if (r.appr && r.appr.at && !(cur && cur.report.appr && cur.report.appr.at === r.appr.at)) log(u, "approve", r.id);
@@ -281,6 +384,19 @@ const ACTIONS = {
     return { summary: summaryOf(rec) };
   },
 
+  bat_trend: (u, b) => {
+    const k = btSnK(b.sn); if (!k) return { pts: [] }; const pts = [];
+    for (const rec of reports.values()) {
+      const r = rec.report; if (!r || !Array.isArray(r.devices) || r.sample) continue;
+      const j = r.devices.findIndex(d => d && d.info && btSnK(d.info.sn) === k && d.bat); if (j < 0) continue;
+      const B = r.devices[j].bat, tot = Math.max(0, Math.floor(+B.per || 0) * Math.floor(+B.str || 0));
+      let rows = (rec.blocks || []).filter(x => Array.isArray(x) && x.length > 7 && btSnK(x[7]) === k).map(x => ({ v: x[3], r: x[4], t: x[5], st: x[6] }));
+      if (!rows.length && tot) rows = (B.blocks || []).slice(0, tot).map(x => ({ v: x && x.v, r: x && x.r, t: x && x.t, st: "" }));
+      const p = btPoint(rows); if (!p.n) continue;
+      p.id = r.id; p.d = String(r.svc && r.svc.date || "").slice(0, 10); p.no = r.svc && r.svc.repno || ""; pts.push(p);
+    }
+    pts.sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0); return { pts };
+  },
   delete: (u, b) => {
     needAdmin(u); const rec = reports.get(String(b.id)); if (!rec) err("notfound");
     keepVersion(rec); reports.delete(rec.report.id); fs.rmSync(P("reports", rec.report.id + ".json"), { force: true });
