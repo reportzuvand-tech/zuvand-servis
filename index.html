@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110702;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110703;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -2610,7 +2610,7 @@ async function exportAct(){const root=await prepareFolder();await flush();const 
   try{if(!window.html2pdf)throw new Error("lib");const host=document.createElement("div");host.style.cssText="position:absolute;left:-12000px;top:0";host.innerHTML=actHTML(r);document.body.appendChild(host);
     let pdf;try{pdf=await buildPdf(host.firstElementChild)}finally{host.remove()}const n=pdf.internal.getNumberOfPages();for(let i=1;i<=n;i++){pdf.setPage(i);pdf.addImage(pageFooterPNG(i,n,"az","TƏHVİL-TƏSLİM AKTI"),"PNG",8,284,194,5)}
     await saveFile(fname(r,"pdf").replace(/\.pdf$/,"_Tehvil-teslim-akti.pdf"),pdf.output("blob"),cfolder(r),root,SUB_ACT,{id:realOf(r).id,k:"act"})}
-  catch(e){toast("Aktı yaratmaq alınmadı")}btn.disabled=false;btn.textContent="Təhvil-təslim aktı (PDF)"}
+  catch(e){if(window.zsPdfFail)zsPdfFail("Akt",e);else toast("Aktı yaratmaq alınmadı")}btn.disabled=false;btn.textContent="Təhvil-təslim aktı (PDF)"}
 /* Word: a real .docx (Office Open XML) built here — a stored ZIP with document.xml */
 function crc32(u){let c,t=crc32.t;if(!t){t=crc32.t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}}c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=t[(c^u[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0}
 function zipStore(files){const enc=new TextEncoder(),parts=[],cen=[];let off=0;const u16=n=>[n&255,(n>>8)&255],u32=n=>[n&255,(n>>8)&255,(n>>16)&255,(n>>>24)&255];
@@ -2718,7 +2718,7 @@ async function exportQa(){const root=await prepareFolder();await flush();const b
   try{if(!window.html2pdf)throw new Error("lib");const host=document.createElement("div");host.style.cssText="position:absolute;left:-12000px;top:0";host.innerHTML=qaHTML(r);document.body.appendChild(host);
     let pdf;try{pdf=await buildPdf(host.firstElementChild)}finally{host.remove()}const n=pdf.internal.getNumberOfPages();for(let i=1;i<=n;i++){pdf.setPage(i);pdf.addImage(pageFooterPNG(i,n,"az","QÜSUR AKTI"),"PNG",8,284,194,5)}
     await saveFile(fname(r,"pdf").replace(/\.pdf$/,"_Qusur-akti.pdf"),pdf.output("blob"),cfolder(r),root,SUB_ACT,{id:realOf(r).id,k:"qa"})}
-  catch(e){toast("Qüsur aktını yaratmaq alınmadı")}btn.disabled=false;btn.textContent="Qüsur aktı (PDF)"}
+  catch(e){if(window.zsPdfFail)zsPdfFail("Qüsur aktı",e);else toast("Qüsur aktını yaratmaq alınmadı")}btn.disabled=false;btn.textContent="Qüsur aktı (PDF)"}
 function qaDocx(R){const Q=qaData(R),r=Q.r,S=Q.S,H2="http:"+"/"+"/",x=v=>String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const run=(t,o={})=>`<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>${o.b?"<w:b/>":""}${o.c?`<w:color w:val="${o.c}"/>`:""}<w:sz w:val="${o.sz||24}"/></w:rPr><w:t xml:space="preserve">${x(t)}</w:t></w:r>`;
   const par=(runs,o={})=>`<w:p><w:pPr>${o.pb?'<w:pageBreakBefore/>':""}${o.jc?`<w:jc w:val="${o.jc}"/>`:""}<w:spacing w:after="${o.after==null?120:o.after}"/>${o.ind?'<w:ind w:firstLine="567"/>':""}</w:pPr>${runs}</w:p>`;
@@ -2758,7 +2758,7 @@ async function exportPdf(){const root=await prepareFolder();await flush();const 
         if(state.remote[r.id])state.remote[r.id].pdf=res.url;const l=$("#pdfLink");if(l){l.href=res.url;l.hidden=false}
         toast("PDF Drive-a da yükləndi")}
       catch(e){toast("PDF Drive-a yüklənmədi (internet?)")}}}
-  catch(e){toast("PDF yaratmaq alınmadı")}
+  catch(e){if(window.zsPdfFail)zsPdfFail("PDF",e);else toast("PDF yaratmaq alınmadı")}
   btn.disabled=false;btn.textContent="PDF hazırla"}
 /* ---------------- Excel export that mirrors the PDF report ----------------
    1) paperToModel(): reads the rendered A4 report (#paper) into plain blocks, so Excel gets exactly
@@ -3830,7 +3830,10 @@ window.ZSBK=(function(){
 <script>/* UPS Servis: PDF hazırlananda proqram ilişib qalmasın — vaxt həddi, ekranın bərpası; proqram xətaları serverin jurnalına yazılır */
 (function(){try{
   const MOB=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const restore=()=>{try{document.documentElement.style.overflow="";document.body.style.overflow="";
+  /* html2pdf covers the whole screen with an invisible layer while it draws; if drawing fails the layer stays and nothing can be tapped */
+  const clean=()=>{try{document.querySelectorAll(".html2pdf__overlay").forEach(x=>x.remove());document.documentElement.style.overflow="";document.body.style.overflow=""}catch(e){}};window.zsPdfClean=clean;
+  window.zsPdfFail=(t,e)=>{clean();zsReportErr(t,e);toast(t+" alınmadı: "+String((e&&e.message)||e||"").slice(0,140),9000)};
+  const restore=()=>{try{clean();
     document.querySelectorAll('body>div[style*="-12000px"],body>div[style*="-9999px"]').forEach(x=>x.remove());
     [["#bPdf","PDF hazırla"],["#bPrint","Çap et"]].forEach(([s,t])=>{const b=$(s);if(b){b.disabled=false;b.textContent=t}})}catch(e){}};
   /* client errors → server log (at most 5 per session, no personal data) */
@@ -3849,7 +3852,7 @@ window.ZSBK=(function(){
   /* one PDF at a time: two PDFs built together (e.g. right after approval) need twice the memory and fail on phones */
   const _mk=makePdf;let pq=Promise.resolve(),pn=0;
   makePdf=function(){const a=arguments,self=this;if(++pn>1)toast("Əvvəlki PDF hazırlanır — bitən kimi bu da hazırlanacaq…",5000);
-    const run=pq.then(()=>_mk.apply(self,a));pq=run.catch(()=>{}).then(()=>{pn--;document.documentElement.style.overflow="";document.body.style.overflow=""});
+    const run=pq.then(()=>Promise.race([_mk.apply(self,a),new Promise((_,rj)=>setTimeout(()=>rj(new Error("PDF 90 saniyədə hazır olmadı — telefonun yaddaşı çatmadı")),90000))]));pq=run.catch(()=>{}).then(()=>{pn--;if(!pn)clean()});
     return run.catch(e=>{zsReportErr("PDF (makePdf)",e);throw e})};
   /* after approval on a phone the PDF is not built in the background (memory); "PDF hazırla" puts it on the server for the accountant */
   if(typeof apprPdf==="function"){const _ap=apprPdf;apprPdf=async function(id){if(MOB){toast("Təsdiqləndi. Mühasib üçün PDF: “PDF hazırla” düyməsini basın — PDF serverə də yüklənəcək",9000);return}
