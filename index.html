@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110706;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110801;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -522,7 +522,16 @@ window.ZSBT=(function(){const C={},AGE=5*60e3;
       if(sec)sec.after(bar);else m.prepend(bar);
       bar.onclick=e=>{const b=e.target.closest("[data-ca]");if(!b)return;const on=b.dataset.ca==="1",L=[];m.querySelectorAll(".card[data-cl]").forEach(c=>{const h=c.querySelector(":scope>h3");setOpen(c,h,on);if(on)L.push(key(h))});put(on?L:[])}}}
   let t=0;const mo=new MutationObserver(()=>{clearTimeout(t);t=setTimeout(apply,30)});
-  window.ZSCOL={on(){const m=document.getElementById("main");if(!m)return;if(!m.querySelector("#zsSetMark"))m.insertAdjacentHTML("beforeend",'<i id="zsSetMark" hidden></i>');m.classList.add("zs-set");apply();mo.disconnect();mo.observe(m,{childList:true,subtree:true})},
+  /* separate cards elsewhere (e.g. the report tab): a card whose title matches opens / closes the same way; the choice is kept on this device */
+  document.head.insertAdjacentHTML("beforeend",`<style>.card.zcl>h3.zch{cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px}
+    .card.zcl>h3.zch::before{content:"▸";display:inline-block;transition:transform .15s;font-size:.9em;opacity:.75}.card.zcl:not(.zcc)>h3.zch::before{transform:rotate(90deg)}
+    .card.zcl.zcc>:not(h3.zch){display:none!important}.card.zcl.zcc>h3.zch{margin-bottom:0}.card.zcl.zcc{padding-top:12px;padding-bottom:12px}</style>`);
+  const K2="zs.cardShut",get2=()=>{try{return JSON.parse(localStorage.getItem(K2)||"[]")}catch(e){return []}},put2=L=>{try{localStorage.setItem(K2,JSON.stringify(L.slice(-40)))}catch(e){}};
+  function cards(root,re){if(!root)return;const shut=get2();root.querySelectorAll(".card").forEach(c=>{const h=c.querySelector(":scope>h3");if(!h||c.dataset.zcl)return;const k=key(h);if(!re.test(k))return;
+    c.dataset.zcl="1";c.classList.add("zcl");h.classList.add("zch");h.setAttribute("role","button");h.tabIndex=0;const set=sh=>{c.classList.toggle("zcc",sh);h.setAttribute("aria-expanded",sh?"false":"true")};set(shut.includes(k));
+    const tog=()=>{const sh=!c.classList.contains("zcc");set(sh);const L=get2().filter(x=>x!==k);if(sh)L.push(k);put2(L)};
+    h.addEventListener("click",e=>{if(e.target.closest("button,a,input,select,label"))return;tog()});h.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();tog()}})})}
+  window.ZSCOL={cards,on(){const m=document.getElementById("main");if(!m)return;if(!m.querySelector("#zsSetMark"))m.insertAdjacentHTML("beforeend",'<i id="zsSetMark" hidden></i>');m.classList.add("zs-set");apply();mo.disconnect();mo.observe(m,{childList:true,subtree:true})},
     off(){const m=document.getElementById("main");if(m)m.classList.remove("zs-set");mo.disconnect()}};
 }catch(e){console.log("zscol",e)}})();
 </script>
@@ -3968,7 +3977,7 @@ window.ZSBK=(function(){
     if(r.qr&&r.qr.base&&r.qr.r&&sns.every(s=>r.qr.d&&r.qr.d[s]))return false;
     try{const mu0=String(state.me.url||"").split("?")[0];if(navigator.onLine===false)return false;const q=await Promise.race([api("qr_tokens",{rid:r.id,sns,base:mu0}),new Promise((_,rj)=>setTimeout(()=>rj(new Error("qr_timeout")),7000))]);const mu=String(state.me.url||"").split("?")[0],base=/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(mu)?mu:q.base;if(!base||!q.r)return false;r.qr={base,r:q.r,d:q.d||{}};return true}catch(e){return false}};
   {const _mb=makePdf;makePdf=async function(r,L){try{if(await ZSBT.ensure(r)){const ps=$("#ps");if(ps){ps.innerHTML=paperHTML(r,null,L);fitPaper()}}}catch(e){}return _mb.apply(this,arguments)}}
-  {const _rb=renderEditor;renderEditor=function(){const o=_rb.apply(this,arguments);try{ZSBT.hook();if(state.tab==="rep"&&state.rep){const rp=state.rep;ZSBT.ensure(rp).then(ch=>{if(ch&&state.tab==="rep"&&state.rep===rp&&state.view==="edit")renderEditor()})}}catch(e){}return o}}
+  {const _rb=renderEditor;renderEditor=function(){const o=_rb.apply(this,arguments);try{ZSBT.hook();const zc=()=>{try{ZSCOL.cards(document.getElementById("main"),/^(Avtomatik nəticə|Qüsur aktı)/)}catch(e){}};zc();setTimeout(zc,0);if(state.tab==="rep"&&state.rep){const rp=state.rep;ZSBT.ensure(rp).then(ch=>{if(ch&&state.tab==="rep"&&state.rep===rp&&state.view==="edit")renderEditor()})}}catch(e){}return o}}
   const _mk=makePdf;makePdf=async function(r,L){try{if(await ensureQr(r)){const ps=$("#ps");if(ps){ps.innerHTML=paperHTML(r,null,L);fitPaper()}}}catch(e){}return _mk.apply(this,arguments)};
   /* ---------- labels ---------- */
   const SIZES=[["a4s","A4 vərəq — 24 etiket (70×37 mm)",70,37,3,8],["a4l","A4 vərəq — 10 etiket (105×57 mm)",105,57,2,5],["p5030","Etiket printeri — 50×30 mm",50,30],["p6040","Etiket printeri — 60×40 mm",60,40],["p7050","Etiket printeri — 70×50 mm",70,50]];
