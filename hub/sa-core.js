@@ -85,7 +85,7 @@ function saPubMove(m,role){var o={};for(var k in m)o[k]=m[k];if(!SA_CAN.seeCost(
 function saKindOf(q){return q.kind==="svc"||q.kind==="sale"?q.kind:(q.src&&q.src.type==="service"?"svc":"sale")}
 function saSummary(q){var t=saTotals(q);return {id:q.id,no:q.no||"",kind:saKindOf(q),inv:(q.bill&&q.bill.inv)||"",date:q.date||"",status:q.status||"draft",client:(q.cl&&q.cl.name)||"",cl:q.cl||{},subj:q.subj||"",per:q.per||"",conId:q.conId||"",
   net:t.net,total:t.total,n:(q.lines||[]).length,author:q.author||"",by:q.by||"",updatedAt:q.updatedAt||0,svc:q.src?(q.src.repno||"servis"):"",site:q.src&&q.src.site?q.src.site:"",contractId:q.src?q.src.contractId:"",zero:(q.lines||[]).some(function(l){return !saNum(l.price)}),
-  bill:(q.bill&&q.bill.st)||"",nocon:!!(q.src&&q.src.nocon&&!q.del),billDoc:(q.bill&&q.bill.doc)||"",due:!!((q.status==="accepted"||q.status==="done")&&!(q.bill&&q.bill.st==="paid")&&!(q.src&&q.src.nocon)&&!(q.src&&q.src.type==="service"&&q.src.contractId&&(q.billedIn||!(q.bill&&q.bill.st)))),
+  bill:(q.bill&&q.bill.st)||"",nocon:!!(q.src&&q.src.nocon&&!q.del),billDoc:(q.bill&&q.bill.doc)||"",due:!!((q.status==="accepted"||q.status==="done")&&!(q.bill&&q.bill.st==="paid")&&!(q.src&&q.src.nocon)&&!q.billedIn&&!(q.src&&q.src.type==="service"&&q.src.contractId&&(q.billedIn||!(q.bill&&q.bill.st)))),
   wk:q.src&&q.src.type==="service"&&q.src.contractId?1:0,bin:q.billedIn?(q.billedIn.no||"✓"):"",binId:q.billedIn?q.billedIn.id:"",skey:q.src?String(q.src.skey!==undefined&&q.src.skey!==""?q.src.skey:(q.src.site||"")):"",sdate:(q.src&&q.src.date)||"",bmon:q.src&&q.src.type==="bill"?(q.src.month||""):"",nrec:q.src&&q.src.type==="bill"?(q.src.recs||[]).length:0,delAt:q.del?saNum(q.delAt||q.updatedAt):0,delBy:q.del?(q.delBy||q.by||""):"",rev:q.src&&q.src.rev?1:0,dup:q.src&&q.src.dup?(q.src.dup.no||"?"):""}}
 /* purchase prices written on quote lines are seen only by accounting */
 function saPubQuote(q,role){if(!q||SA_CAN.seeCost(role))return q;var o={};for(var k in q)o[k]=q[k];o.lines=(q.lines||[]).map(function(l){var c={};for(var k in l)if(k!=="cost")c[k]=l[k];return c});return o}
@@ -265,11 +265,16 @@ function saHandle(db,u,action,p){
       var hd=(ob?"Obyekt: "+ob+" · ":"")+"hesabat № "+(s0.repno||"")+", "+String(x.date||"").split("-").reverse().join(".")+" · "+(x.no||"");
       (x.lines||[]).forEach(function(l,li){var L={};for(var k in l)if(k!=="id"&&k!=="crow")L[k]=l[k];L.id=saId("l");L.t="xid";
         if(li===0&&String(L.desc||"").indexOf(String(s0.repno||"#"))<0)L.desc=hd+(L.desc?"\n"+L.desc:"");bl.push(L)})});
+    if(p.one&&typeof p.one==="object"){var o1=p.one,pr1=Math.max(0,saR2(saNum(o1.price)));if(!pr1)saErr("price");var byO={},nO=[];
+      bR.forEach(function(x){var s0=x.src||{},ob=String(s0.site||s0.skey||"").trim()||String((x.cl&&x.cl.name)||"").trim()||"—";if(!byO[ob]){byO[ob]={n:0,r:[]};nO.push(ob)}
+        var L0=x.lines||[],sn0=L0.filter(function(l){return l.csn}).length;byO[ob].n+=sn0||L0.length||1;byO[ob].r.push((s0.repno||x.no||"")+(x.date?" ("+String(x.date).split("-").reverse().join(".")+")":""))});
+      var d1=nO.map(function(ob){return ob+" — "+byO[ob].n+" cihaz; hesabat № "+byO[ob].r.join(", ")}).join("\n");
+      bl=[{id:saId("l"),itemId:"",t:"xid",svc:1,name:saStr(o1.name,300).trim()||"Sair elektron qurğulara texniki xidmət",code:saStr(o1.code,60).trim(),unit:saStr(o1.unit||"xidmət",20),qty:Math.max(0,saNum(o1.qty))||1,price:pr1,disc:0,desc:d1.slice(0,1000)}]}
     var ym=mon.split("-"),mlab=SA_MONTHS[+ym[1]-1]+" "+ym[0],cl0=bR[0].cl||{};
     var cl1=bc?{name:bc.client,voen:bc.voen,person:bc.person,tel:bc.tel,addr:bc.addr}:{name:cl0.name,voen:cl0.voen,person:cl0.person,tel:cl0.tel,addr:cl0.addr};
     var ob=saHandle(db,u,"saveQuote",{quote:{date:p.date&&/^\d{4}-\d{2}-\d{2}$/.test(p.date)?p.date:new Date(now).toISOString().slice(0,10),valid:S.valid,status:"accepted",per:mlab,
       subj:"Servis xidməti — "+mlab+" — "+Math.max(1,Object.keys(objs).length)+" obyekt, "+bR.length+" servis"+(bc&&bc.no?" · müqavilə № "+bc.no:""),cl:cl1,vat:true,kind:"svc",
-      terms:{pay:"Xidməti müqaviləyə uyğun",delivery:"",warranty:"",note:""},lines:bl}});
+      terms:{pay:bc?"Xidməti müqaviləyə uyğun":"",delivery:"",warranty:"",note:p.one&&p.one.inv?"E-qaimə № "+saStr(p.one.inv,60):""},lines:bl}});
     var bq=ob.res.quote;bq.src={type:"bill",month:mon,recs:bR.map(function(x){return x.id}),contractId:bc?bc.id:""};bq.kind="svc";
     ob.ch.quotes.forEach(function(x){ch.quotes.push(x)});if(ob.ch.settings){ch.settings=ch.settings||{};for(var k7 in ob.ch.settings)ch.settings[k7]=ob.ch.settings[k7]}
     bR.forEach(function(x){x.billedIn={id:bq.id,no:bq.no};x.updatedAt=now;ch.quotes.push(x)});
