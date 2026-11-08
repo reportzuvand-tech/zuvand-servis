@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110901;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026110902;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -247,7 +247,22 @@ window.ZSTPL=(function(){
     for(const k in DEF)Object.assign(TYPES[k],{meas:cl(DEF[k].meas),chk:DEF[k].chk.slice(),works:DEF[k].works.slice()});
     TYPE_ORDER.splice(0,TYPE_ORDER.length,...DEF_ORDER);
     const T=TPL&&TPL.types||{};for(const k in T){if(!DEF[k])continue;const o=T[k];if(o.meas)TYPES[k].meas=cleanMeas(o.meas);if(o.chk)TYPES[k].chk=cleanList(o.chk);if(o.works)TYPES[k].works=cleanList(o.works)}
-    (TPL&&Array.isArray(TPL.custom)?TPL.custom:[]).forEach(c=>{if(!isCustom(c.key))return;reg(c.key,c);if(!c.hidden)TYPE_ORDER.splice(Math.max(0,TYPE_ORDER.indexOf("pq")),0,c.key)})}
+    (TPL&&Array.isArray(TPL.custom)?TPL.custom:[]).forEach(c=>{if(!isCustom(c.key))return;reg(c.key,c);if(!c.hidden)TYPE_ORDER.splice(Math.max(0,TYPE_ORDER.indexOf("pq")),0,c.key)});
+    try{applySvc()}catch(e){console.log("tpl svc",e)}}
+  /* ---------- service types: their own lists, report title and report-number code ---------- */
+  let SREF=null,SDEF=null;
+  const SVC_P=[["prof","Planlı profilaktik servis"],["diag","Diaqnostika"],["call","Qəza çağırışı"],["inst","Quraşdırma / işə salma"],["upd","Yenilənmə / dəyişdirilmə"],["bat","Akkumulyator testi"],["rep","Təmir"]];
+  const SVC_TABS={inst:[["inst.chk","Montaj yoxlaması"],["inst.test","İşə salma testləri"]],upd:[["upd.kinds","Hissə növləri"],["upd.why","Səbəblər"],["upd.cb","Akkumulyator yoxlaması"],["upd.cp","Detal yoxlaması"],["um","Ölçmələr"],["upd.fate","Köhnə hissələr"]],call:[["call.res","Nəticə variantları"]]};
+  const CODE_L=[["m","Aylıq"],["q","Rüblük"],["h","Yarımillik"],["y","İllik"]],CODE_RE=/^[A-ZƏİÖÜÇŞĞ]{3}$/;
+  const cleanUm=L=>(Array.isArray(L)?L:[]).filter(m=>Array.isArray(m)&&String(m[1]||"").trim()).map((m,i)=>[String(m[0]||("u"+Date.now().toString(36)+i)).slice(0,30),String(m[1]).trim().slice(0,120),String(m[2]||"").trim().slice(0,12),[0,1,2].includes(+m[3])?+m[3]:0,m[4]==="p"?"p":"b"]);
+  function applySvc(ref){if(ref)SREF=ref;if(!SREF)return;
+    if(!SDEF){SDEF={lists:{},um:cl(SREF.um),titles:Object.assign({},SREF.titles),codes:Object.assign({},SREF.codes)};for(const k in SREF.lists)SDEF.lists[k]=SREF.lists[k].slice()}
+    let T=null;try{T=JSON.parse(LSg("ups.tpl")||"null")}catch(e){T=null}const S=(T&&T.svc)||{};
+    for(const k in SREF.lists){const A=SREF.lists[k],v=S.lists&&Array.isArray(S.lists[k])&&cleanList(S.lists[k]).length?cleanList(S.lists[k]):SDEF.lists[k];A.splice(0,A.length,...v)}
+    const um=S.um&&cleanUm(S.um).length?cleanUm(S.um):SDEF.um;SREF.um.splice(0,SREF.um.length,...cl(um));
+    for(const k in SDEF.titles)SREF.titles[k]=SDEF.titles[k];for(const k in (S.titles||{}))if(String(S.titles[k]||"").trim())SREF.titles[k]=String(S.titles[k]).trim().slice(0,120);
+    for(const k in SDEF.codes)SREF.codes[k]=SDEF.codes[k];for(const k in (S.codes||{}))if(CODE_RE.test(S.codes[k]))SREF.codes[k]=S.codes[k]}
+  const svcDef=k=>SDEF&&SDEF.lists[k]?SDEF.lists[k].slice():null;
   /* the lists a device works with: its own copy, or (older reports) the built-in lists */
   function lists(tp,d){if(d&&d.lbl&&Array.isArray(d.lbl.m))return {meas:d.lbl.m,chk:d.lbl.c||[],works:d.lbl.w||[]};
     if(d&&DEF&&DEF[tp])return DEF[tp];const T=TYPES[tp]||TYPES.ups;return {meas:T.meas,chk:T.chk,works:T.works}}
@@ -260,13 +275,14 @@ window.ZSTPL=(function(){
   const g=id=>document.getElementById(id);
   function card(){const main=g("main");if(!main||!O)return;const old=g("tplCard"),adm=O.isAdmin();
     const custom=(TPL&&TPL.custom||[]).filter(c=>!c.hidden),changed=Object.keys(TPL&&TPL.types||{}).filter(k=>DEF&&DEF[k]&&TYPES[k]);
-    const h=`<div class="card" id="tplCard" style="margin-top:12px"><h3>Hesabat şablonları — ölçmələr, yoxlamalar, işlər, cihaz növləri</h3>
-      <p class="note" style="margin:0 0 8px">Hər cihaz növü üçün “Ölçmə”, “Yoxlama” və “İşlər” bölmələrindəki bəndləri dəyişmək, əlavə etmək, silmək, sırasını dəyişmək və yeni cihaz növü yaratmaq olar. Dəyişiklik bütün işçilərə gedir və <b>yeni</b> hesabatlara (yeni əlavə olunan cihazlara) tətbiq olunur; köhnə hesabatlar öz siyahısı ilə qalır.</p>
-      <p style="margin:0 0 8px">${changed.length?"Dəyişdirilmiş növlər: <b>"+changed.map(k=>esc(TYPES[k].title)).join(", ")+"</b>":"Hələ standart siyahılar istifadə olunur."}${custom.length?"<br>Əlavə cihaz növləri: <b>"+custom.map(c=>esc(c.title)).join(", ")+"</b>":""}${TPL&&TPL.v?`<br><span class="note">Son dəyişiklik: ${new Date(TPL.v).toLocaleString()}${TPL.by?" · "+esc(TPL.by):""}</span>`:""}</p>
-      ${adm?`<div class="actions"><button class="btn pri" id="tplEdit">Şablonları redaktə et</button><button class="btn" id="tplNewT">+ Yeni cihaz növü</button></div>`:`<p class="note" style="margin:0">Şablonları rəhbər və servis müdiri dəyişir.</p>`}</div>`;
+    const h=`<div class="card" id="tplCard" style="margin-top:12px"><h3>Hesabat şablonları — cihaz və servis növləri</h3>
+      <p class="note" style="margin:0 0 8px">Hər cihaz növü üçün “Ölçmə”, “Yoxlama” və “İşlər” bölmələrindəki bəndləri dəyişmək, əlavə etmək, silmək, sırasını dəyişmək və yeni cihaz növü yaratmaq olar. Hər servis növü üçün isə hesabatın başlığı, hesabat nömrəsinin kodu (məs. RSH, MSH) və həmin növün öz siyahıları (quraşdırma yoxlaması, işə salma testləri, dəyişdirilən hissə növləri, ölçmələr və s.) dəyişdirilir. Dəyişiklik bütün işçilərə gedir və <b>yeni</b> hesabatlara (yeni əlavə olunan cihazlara) tətbiq olunur; köhnə hesabatlar öz siyahısı ilə qalır.</p>
+      <p style="margin:0 0 8px">${changed.length?"Dəyişdirilmiş cihaz növləri: <b>"+changed.map(k=>esc(TYPES[k].title)).join(", ")+"</b>":"Cihaz növləri: standart siyahılar."}${TPL&&TPL.svc&&Object.keys(TPL.svc).length?"<br>Servis növlərində dəyişiklik var.":""}${custom.length?"<br>Əlavə cihaz növləri: <b>"+custom.map(c=>esc(c.title)).join(", ")+"</b>":""}${TPL&&TPL.v?`<br><span class="note">Son dəyişiklik: ${new Date(TPL.v).toLocaleString()}${TPL.by?" · "+esc(TPL.by):""}</span>`:""}</p>
+      ${adm?`<div class="actions"><button class="btn pri" id="tplEdit">Şablonları redaktə et</button><button class="btn" id="tplNewT">+ Yeni cihaz növü</button><button class="btn" id="tplSvc">Servis növləri</button></div>`:`<p class="note" style="margin:0">Şablonları rəhbər və servis müdiri dəyişir.</p>`}</div>`;
     if(old)old.outerHTML=h;else main.insertAdjacentHTML("beforeend",h);
     if(g("tplEdit"))g("tplEdit").onclick=()=>editor(TYPE_ORDER.filter(k=>k!=="pq")[0]);
-    if(g("tplNewT"))g("tplNewT").onclick=()=>editor("__new")}
+    if(g("tplNewT"))g("tplNewT").onclick=()=>editor("__new");
+    if(g("tplSvc"))g("tplSvc").onclick=()=>editor(TYPE_ORDER.filter(k=>k!=="pq")[0],"upd")}
   function css(){if(g("tplCss"))return;document.head.insertAdjacentHTML("beforeend",`<style id="tplCss">
     .tplov{position:fixed;inset:0;z-index:100000;background:rgba(10,20,18,.45);display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow:auto}
     .tplov .in{background:var(--card,#fff);border-radius:14px;max-width:900px;width:100%;padding:14px;display:grid;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
@@ -274,23 +290,49 @@ window.ZSTPL=(function(){
     .tplov .tabs2{display:flex;gap:6px;flex-wrap:wrap}.tplov .tabs2 button[aria-pressed=true]{background:var(--acc,#16362E);color:#fff;border-color:transparent}
     .tplov .rows{display:grid;gap:6px;max-height:55vh;overflow:auto;padding:2px}.tplov .row{display:grid;gap:6px;align-items:center;grid-template-columns:1fr auto}
     .tplov .row.m{grid-template-columns:minmax(140px,1fr) 70px 64px 64px 86px auto}.tplov .row .bt{display:flex;gap:4px}.tplov .row .bt button{min-width:34px;padding:4px 8px}
-    .tplov .hdrow{font-size:12px;color:var(--muted,#5B6B67)}
-    @media(max-width:620px){.tplov .row.m{grid-template-columns:1fr 1fr 1fr}.tplov .row.m input:first-child{grid-column:1/-1}.tplov .row.m .bt{grid-column:1/-1;justify-content:flex-end}}
+    .tplov .hdrow{font-size:12px;color:var(--muted,#5B6B67)}.tplov .row.u{grid-template-columns:minmax(140px,1fr) 70px 130px 120px auto}.tplov .codes{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+    .tplov .codes input{text-transform:uppercase;font-family:ui-monospace,Consolas,monospace;letter-spacing:.08em}
+    @media(max-width:620px){.tplov .row.m,.tplov .row.u{grid-template-columns:1fr 1fr 1fr}.tplov .row.m input:first-child,.tplov .row.u input:first-child{grid-column:1/-1}.tplov .row.m .bt,.tplov .row.u .bt{grid-column:1/-1;justify-content:flex-end}}
     </style>`)}
-  function editor(start){css();const T0=cl(TPL||{types:{},custom:[]});T0.types=T0.types||{};T0.custom=T0.custom||[];
-    let tp=start,tab="meas";const ov=document.createElement("div");ov.className="tplov";document.body.appendChild(ov);
+  function editor(start,svStart){css();const T0=cl(TPL||{types:{},custom:[]});T0.types=T0.types||{};T0.custom=T0.custom||[];
+    let tp=start,tab="meas",sv=SREF?(svStart||""):"",stab="gen";
+    /* the working copy of the service-type settings (what is in use now) */
+    const WS=SREF?{lists:Object.fromEntries(Object.keys(SREF.lists).map(k=>[k,SREF.lists[k].slice()])),um:cl(SREF.um),titles:Object.assign({},SREF.titles),codes:Object.assign({},SREF.codes)}:null;
+    const commitSvc=()=>{if(!WS)return;const o={};const L={};for(const k in WS.lists){const v=cleanList(WS.lists[k]);if(v.length&&!same(v,SDEF.lists[k]))L[k]=v}if(Object.keys(L).length)o.lists=L;
+      const um=cleanUm(WS.um);if(um.length&&!same(um,SDEF.um))o.um=um;
+      const ti={};for(const k in WS.titles){const v=String(WS.titles[k]||"").trim();if(v&&v!==SDEF.titles[k])ti[k]=v}if(Object.keys(ti).length)o.titles=ti;
+      const co={};for(const k in WS.codes){const v=String(WS.codes[k]||"").trim().toLocaleUpperCase("az");if(v!==SDEF.codes[k])co[k]=v}if(Object.keys(co).length)o.codes=co;
+      if(Object.keys(o).length)T0.svc=o;else delete T0.svc};const ov=document.createElement("div");ov.className="tplov";document.body.appendChild(ov);
     if(tp==="__new"){const key="c_"+Date.now().toString(36);T0.custom.push({key,title:"Yeni cihaz",short:"Cihaz",hasBat:false,info:[["brand","Marka"],["model","Model"],["sn","Seriya №"]],meas:[],chk:["Ümumi vizual vəziyyət"],works:["Təmizlik"]});tp=key;tab="type"}
     const cur=()=>{if(isCustom(tp))return T0.custom.find(c=>c.key===tp);if(!T0.types[tp])T0.types[tp]={};const o=T0.types[tp],T=TYPES[tp];return {meas:o.meas||cl(T.meas),chk:o.chk||T.chk.slice(),works:o.works||T.works.slice(),_b:o}};
     let W=cur();
     const commit=()=>{if(!isCustom(tp)){const o=T0.types[tp];o.meas=W.meas;o.chk=W.chk;o.works=W.works;["meas","chk","works"].forEach(k=>{if(DEF[tp]&&same(o[k],DEF[tp][k]))delete o[k]});if(!Object.keys(o).length)delete T0.types[tp]}};
     const types=()=>[...DEF_ORDER.filter(k=>k!=="pq"),...T0.custom.filter(c=>!c.hidden).map(c=>c.key)];
     const title=k=>isCustom(k)?(T0.custom.find(c=>c.key===k)||{}).title:TYPES[k].title;
-    function draw(){const cu=isCustom(tp),list=tab==="meas"?W.meas:tab==="chk"?W.chk:tab==="works"?W.works:tab==="info"?W.info:null;
+    const svHead=()=>WS?`<div class="hd"><b>Servis növü:</b><select id="svSel" aria-label="Servis növü"><option value=""${sv?"":" selected"}>— cihaz növünün siyahıları —</option>${SVC_P.map(([k,l])=>`<option value="${k}"${k===sv?" selected":""}>${esc(l)}</option>`).join("")}</select><span style="width:34px"></span></div>`:"";
+    function drawSvc(){const tabs=[["gen","Ümumi"]].concat(SVC_TABS[sv]||[]);if(!tabs.some(x=>x[0]===stab))stab="gen";const lab=(SVC_P.find(x=>x[0]===sv)||[])[1]||"";
+      const def=stab==="gen"?null:stab==="um"?SDEF.um:SDEF.lists[stab],curA=stab==="um"?WS.um:WS.lists[stab];
+      let body="";
+      if(stab==="gen")body=`<label class="f"><span>Hesabatın başlığı (PDF-də)</span><input id="svTitle" value="${esc(WS.titles[sv]||"")}"></label><p class="note" style="margin:0">Bütün cihazlar UPS olanda başlığın əvvəlinə “UPS” özü əlavə olunur${sv==="bat"?" (akkumulyator testində əlavə olunmur)":""}.</p>
+        <div><b style="font-size:14px">Hesabat nömrəsinin kodu</b><p class="note" style="margin:2px 0 6px">3 böyük hərf; nömrə belə yaranır: KOD-İLAYGÜN-NN (məs. ${esc(WS.codes[sv==="prof"?"q":sv]||"RSH")}-20261109-01). Köhnə hesabatların nömrəsi dəyişmir.</p>
+        <div class="codes">${(sv==="prof"?CODE_L:[[sv,"Kod"]]).map(([k,l])=>`<label class="f"><span>${esc(l)}</span><input data-code="${k}" value="${esc(WS.codes[k]||"")}" maxlength="3" aria-label="${esc(l)} kodu"></label>`).join("")}</div></div>
+        <p class="note" style="margin:0">${sv==="prof"?"Planlı servisin ölçmə, yoxlama və iş siyahıları cihaz növünə görədir — yuxarıda “Cihaz növü”nü seçin.":SVC_TABS[sv]?"Bu servis növünün öz siyahıları yuxarıdakı bölmələrdədir.":"Bu servis növündə bölmələr sərbəst mətn sahələridir; dəyişdiriləcək siyahı yoxdur."}</p>`;
+      else if(stab==="um")body=`<div class="rows"><div class="row u hdrow"><span>Ölçmə</span><span>Vahid</span><span>Necə yazılır</span><span>Bölmə</span><span></span></div>${WS.um.map((m,i)=>`<div class="row u"><input data-f="1" data-i="${i}" value="${esc(m[1])}" aria-label="Ölçmə"><input data-f="2" data-i="${i}" value="${esc(m[2])}" aria-label="Vahid"><select data-f="3" data-i="${i}" aria-label="Necə yazılır">${[["0","bir qiymət"],["1","əvvəl → sonra"],["2","min / maks"]].map(([v,l])=>`<option value="${v}"${String(m[3])===v?" selected":""}>${l}</option>`).join("")}</select><select data-f="4" data-i="${i}" aria-label="Bölmə"><option value="b"${m[4]!=="p"?" selected":""}>Akkumulyatorlar</option><option value="p"${m[4]==="p"?" selected":""}>Detallar</option></select>${btns(i)}</div>`).join("")}</div>`;
+      else body=`<div class="rows">${curA.map((x,i)=>`<div class="row"><input data-i="${i}" value="${esc(x)}" aria-label="Bənd">${btns(i)}</div>`).join("")||`<p class="note">Bənd yoxdur</p>`}</div>`;
+      ov.innerHTML=`<div class="in"><div class="hd"><b>Cihaz növü:</b><select id="tySel" aria-label="Cihaz növü"><option value="" selected>—</option>${types().map(k=>`<option value="${k}">${esc(title(k))}</option>`).join("")}</select><button class="btn sm ghost" data-x aria-label="Bağla">✕</button></div>${svHead()}
+        <div class="tabs2">${tabs.map(([k,l])=>`<button class="btn sm" data-stab="${k}" aria-pressed="${k===stab}">${esc(l)}${k!=="gen"?" ("+(k==="um"?WS.um.length:WS.lists[k].length)+")":""}</button>`).join("")}</div>
+        ${body}
+        ${stab!=="gen"?`<div class="actions"><button class="btn" id="svAdd">+ ${stab==="um"?"Ölçmə":"Bənd"} əlavə et</button>${def&&!same(stab==="um"?cleanUm(curA):cleanList(curA),def)?`<button class="btn ghost" id="svDef">Standart siyahıya qaytar</button>`:""}</div>`:""}
+        <p class="note" style="margin:0">${esc(lab)}: dəyişiklik yeni hesabatlara tətbiq olunur. Artıq doldurulmuş hesabatlar öz siyahısı ilə qalır.</p>
+        <p class="note" id="tyMsg" style="margin:0"></p>
+        <div class="actions"><button class="btn ghost" data-x>Ləğv et</button><button class="btn pri" id="tySave">Saxla və hamıya göndər</button></div></div>`;
+      bind()}
+    function draw(){if(sv)return drawSvc();const cu=isCustom(tp),list=tab==="meas"?W.meas:tab==="chk"?W.chk:tab==="works"?W.works:tab==="info"?W.info:null;
       const rowsHtml=tab==="meas"?`<div class="row m hdrow"><span>Parametr</span><span>Vahid</span><span>Min</span><span>Maks</span><span>Faza</span><span></span></div>`+W.meas.map((m,i)=>`<div class="row m"><input data-f="0" data-i="${i}" value="${esc(m[0])}" aria-label="Parametr"><input data-f="1" data-i="${i}" value="${esc(m[1])}" aria-label="Vahid"><input data-f="2" data-i="${i}" value="${m[2]==null?"":esc(m[2])}" inputmode="decimal" aria-label="Minimum"><input data-f="3" data-i="${i}" value="${m[3]==null?"":esc(m[3])}" inputmode="decimal" aria-label="Maksimum"><select data-f="4" data-i="${i}" aria-label="Faza"><option value="1"${m[4]!==3?" selected":""}>1 faza</option><option value="3"${m[4]===3?" selected":""}>3 faza</option></select>${btns(i)}</div>`).join("")
         :tab==="info"?W.info.map((x,i)=>`<div class="row"><input data-f="1" data-i="${i}" value="${esc(x[1])}"${["brand","model","sn"].includes(x[0])?" readonly title='Əsas sahə'":""} aria-label="Sahə adı">${["brand","model","sn"].includes(x[0])?"<span></span>":btns(i)}</div>`).join("")
         :tab==="type"?`<label class="f"><span>Cihaz növünün adı (hesabatda başlıq)</span><input id="tyTitle" value="${esc(W.title)}"></label><label class="f"><span>Qısa ad (bölmə düyməsində)</span><input id="tyShort" value="${esc(W.short)}" maxlength="24"></label><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="tyBat" style="width:20px;height:20px"${W.hasBat?" checked":""}> Akkumulyator testi var (akkumulyator və bloklar bölmələri)</label><div class="actions"><button class="btn danger" id="tyDel">Bu cihaz növünü siyahıdan çıxar</button></div><p class="note" style="margin:0">Çıxarılan növ yeni hesabatlarda görünmür; köhnə hesabatlar dəyişmir.</p>`
         :list.map((x,i)=>`<div class="row"><input data-i="${i}" value="${esc(x)}" aria-label="Bənd">${btns(i)}</div>`).join("");
-      ov.innerHTML=`<div class="in"><div class="hd"><b>Cihaz növü:</b><select id="tySel" aria-label="Cihaz növü">${types().map(k=>`<option value="${k}"${k===tp?" selected":""}>${esc(title(k))}</option>`).join("")}</select><button class="btn sm ghost" data-x aria-label="Bağla">✕</button></div>
+      ov.innerHTML=`<div class="in"><div class="hd"><b>Cihaz növü:</b><select id="tySel" aria-label="Cihaz növü">${types().map(k=>`<option value="${k}"${k===tp?" selected":""}>${esc(title(k))}</option>`).join("")}</select><button class="btn sm ghost" data-x aria-label="Bağla">✕</button></div>${svHead()}
         <div class="tabs2">${(cu?[["type","Növ"],["info","Pasport sahələri"]]:[]).concat([["meas","Ölçmələr ("+W.meas.length+")"],["chk","Yoxlamalar ("+W.chk.length+")"],["works","İşlər ("+W.works.length+")"]]).map(([k,l])=>`<button class="btn sm" data-tab="${k}" aria-pressed="${k===tab}">${l}</button>`).join("")}</div>
         <div class="rows">${rowsHtml||`<p class="note">Bənd yoxdur</p>`}</div>
         ${tab!=="type"?`<div class="actions"><button class="btn" id="tyAdd">+ ${tab==="meas"?"Ölçmə":tab==="chk"?"Yoxlama bəndi":tab==="works"?"İş":"Sahə"} əlavə et</button>${!cu&&DEF[tp]&&!same([W.meas,W.chk,W.works],[DEF[tp].meas,DEF[tp].chk,DEF[tp].works])?`<button class="btn ghost" id="tyDef">Standart siyahıya qaytar</button>`:""}</div>`:""}
@@ -299,12 +341,19 @@ window.ZSTPL=(function(){
         <div class="actions"><button class="btn ghost" data-x>Ləğv et</button><button class="btn pri" id="tySave">Saxla və hamıya göndər</button></div></div>`;
       bind()}
     const btns=i=>`<span class="bt"><button class="btn sm" data-up="${i}" aria-label="Yuxarı">↑</button><button class="btn sm" data-dn="${i}" aria-label="Aşağı">↓</button><button class="btn sm danger" data-rm="${i}" aria-label="Sil">✕</button></span>`;
-    const arr=()=>tab==="meas"?W.meas:tab==="chk"?W.chk:tab==="works"?W.works:W.info;
+    const arr=()=>sv?(stab==="um"?WS.um:WS.lists[stab]):tab==="meas"?W.meas:tab==="chk"?W.chk:tab==="works"?W.works:W.info;
     function bind(){const q=s=>ov.querySelectorAll(s);
       q("[data-x]").forEach(b=>b.onclick=()=>{if(confirm("Saxlanılmamış dəyişikliklər itəcək. Bağlansın?"))ov.remove()});
-      ov.querySelector("#tySel").onchange=e=>{commit();tp=e.target.value;W=cur();tab=isCustom(tp)?"type":"meas";draw()};
+      ov.querySelector("#tySel").onchange=e=>{if(!e.target.value)return;commit();tp=e.target.value;sv="";W=cur();tab=isCustom(tp)?"type":"meas";draw()};
+      const ss=ov.querySelector("#svSel");if(ss)ss.onchange=e=>{if(!sv)commit();sv=e.target.value;stab="gen";draw()};
       q("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;draw()});
+      q("[data-stab]").forEach(b=>b.onclick=()=>{stab=b.dataset.stab;draw()});
+      const st=ov.querySelector("#svTitle");if(st)st.oninput=()=>{WS.titles[sv]=st.value};
+      q("[data-code]").forEach(el=>el.oninput=()=>{WS.codes[el.dataset.code]=el.value.trim().toLocaleUpperCase("az")});
+      const sa=ov.querySelector("#svAdd");if(sa)sa.onclick=()=>{const A=arr();if(stab==="um")A.push(["u"+Date.now().toString(36),"","",1,"p"]);else A.push("");draw();const ins=ov.querySelectorAll(".rows input");const last=stab==="um"?ins[ins.length-2]:ins[ins.length-1];if(last)last.focus()};
+      const sd=ov.querySelector("#svDef");if(sd)sd.onclick=()=>{if(!confirm("Standart siyahı qaytarılsın?"))return;if(stab==="um")WS.um=cl(SDEF.um);else WS.lists[stab]=SDEF.lists[stab].slice();draw()};
       q(".rows input,.rows select").forEach(el=>el.oninput=el.onchange=()=>{const i=+el.dataset.i,A=arr();if(el.id)return;
+        if(sv){if(stab==="um"){const f=+el.dataset.f;A[i][f]=f===3?+el.value:el.value}else A[i]=el.value;return}
         if(tab==="meas"){const f=+el.dataset.f;A[i][f]=f===4?+el.value:f>=2?num(el.value):el.value}else if(tab==="info")A[i][1]=el.value;else A[i]=el.value});
       q("[data-up]").forEach(b=>b.onclick=()=>{const i=+b.dataset.up,A=arr();if(i>0&&!(tab==="info"&&i<=3)){[A[i-1],A[i]]=[A[i],A[i-1]];draw()}});
       q("[data-dn]").forEach(b=>b.onclick=()=>{const i=+b.dataset.dn,A=arr();if(i<A.length-1){[A[i+1],A[i]]=[A[i],A[i+1]];draw()}});
@@ -313,14 +362,15 @@ window.ZSTPL=(function(){
       const df=ov.querySelector("#tyDef");if(df)df.onclick=()=>{if(!confirm("Bu cihaz növü üçün standart siyahılar qaytarılsın?"))return;W={meas:cl(DEF[tp].meas),chk:DEF[tp].chk.slice(),works:DEF[tp].works.slice()};draw()};
       const tt=ov.querySelector("#tyTitle");if(tt){tt.oninput=()=>W.title=tt.value;ov.querySelector("#tyShort").oninput=e=>W.short=e.target.value;ov.querySelector("#tyBat").onchange=e=>W.hasBat=e.target.checked;
         ov.querySelector("#tyDel").onclick=()=>{if(!confirm("“"+W.title+"” yeni hesabatlar üçün siyahıdan çıxarılsın?"))return;W.hidden=true;tp=types()[0];W=cur();tab="meas";draw()}};
-      ov.querySelector("#tySave").onclick=async()=>{commit();const msg=t=>ov.querySelector("#tyMsg").textContent=t;
+      ov.querySelector("#tySave").onclick=async()=>{if(!sv)commit();const msg=t=>ov.querySelector("#tyMsg").textContent=t;
+        if(WS){const bad=Object.entries(WS.codes).filter(([k,v])=>!CODE_RE.test(String(v||"").toLocaleUpperCase("az")));if(bad.length){msg("Hesabat nömrəsinin kodu 3 böyük hərf olmalıdır: "+bad.map(x=>x[1]||"(boş)").join(", "));return}commitSvc()}
         for(const c of T0.custom){c.title=String(c.title||"").trim();if(!c.title){msg("Cihaz növünün adını yazın");return}c.short=String(c.short||c.title).trim();c.info=c.info.filter(x=>String(x[1]||"").trim())}
         const clean=o=>{if(o.meas)o.meas=cleanMeas(o.meas);if(o.chk)o.chk=cleanList(o.chk);if(o.works)o.works=cleanList(o.works)};Object.values(T0.types).forEach(clean);T0.custom.forEach(clean);
         const b=ov.querySelector("#tySave");b.disabled=true;msg("Saxlanılır…");
         try{await save(T0);ov.remove();if(O.toast)O.toast("Şablonlar saxlanıldı — yeni hesabatlara tətbiq olunur");card()}catch(e){b.disabled=false;msg("Alınmadı: "+(e&&e.message==="forbidden"?"yalnız rəhbər / servis müdiri":(e&&e.message)||e))}}}
     draw()}
   function init(o){O=o;setTimeout(fetchTpl,4000);setInterval(fetchTpl,10*60000);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")fetchTpl()})}
-  return {apply,lists,stamp,reg,isCustom,init,card,fetchTpl,_def:()=>DEF}})();
+  return {apply,applySvc,svcDef,lists,stamp,reg,isCustom,init,card,fetchTpl,_def:()=>DEF}})();
 </script>
 <script>/* ZUVAND — Ayarlar: QR oxumaların statistikası (yalnız rəhbər / statistika icazəsi; məlumat "QR oxumalar" vərəqindən) */
 window.ZSQRST=(function(){let O=null,R=null,busy=false;
@@ -1938,8 +1988,16 @@ const UPD_M=[["dcOld","Köhnə dəstin ümumi DC gərginliyi","V",0,"b"],["autOl
   ["tIn","Daxili / radiator temperaturu","°C",1,"p"],["dcbus","DC bus gərginliyi","V",1,"p"],["ripple","DC dalğalanma (ripple)","V",1,"p"],["cap","Kondensatorun tutumu (köhnə → yeni)","µF",1,"p"],["esr","Kondensatorun ESR (köhnə → yeni)","mΩ",1,"p"],
   ["vout","Çıxış gərginliyi","V",1,"p"],["fout","Çıxış tezliyi","Hz",1,"p"],["thd","Çıxış gərginliyinin THD","%",1,"p"],["iin","Giriş cərəyanı","A",1,"p"],["pfi","Giriş güc əmsalı","",1,"p"],["fw","Firmware versiyası","",1,"p"],["fan","Ventilyatorların işləməsi (fırlanma, səs)","",1,"p"]];
 const updHasBat=()=>!!(TYPES[CUR_TYPE]&&TYPES[CUR_TYPE].hasBat);
+/* service-type lists can be changed in Ayarlar → Hesabat şablonları; a report keeps the list it was filled with (x._l), older reports use the built-in one */
+const RN_CODES={diag:"DSH",bat:"DSH",call:"TSH",rep:"TSH",inst:"QSH",upd:"MSH",m:"ASH",q:"RSH",h:"YSH",y:"İSH"};
+PROF_TITLE.prof="TEXNİKİ SERVİS HESABATI";if(!PROF_TITLE.diag)PROF_TITLE.diag="TEXNİKİ DİAQNOSTİKA HESABATI";
+const XL_MAP=()=>({"inst.chk":INST_CHK,"inst.test":INST_TEST,"upd.cb":UPD_CHK_BAT,"upd.cp":UPD_CHK_PART});
+function xL(V,path,cur){const X=(V&&V.x)||{};if(X._l&&Array.isArray(X._l[path]))return X._l[path];const has=(getP(X,path)||[]).some(o=>o&&o.s);return has&&typeof ZSTPL!=="undefined"&&ZSTPL.svcDef?(ZSTPL.svcDef(path)||cur):cur}
+function stampL(X,path){const M=XL_MAP();if(!M[path]||!X)return;X._l=X._l||{};if(Array.isArray(X._l[path]))return;const has=(getP(X,path)||[]).some(o=>o&&o.s);
+  X._l[path]=((has&&typeof ZSTPL!=="undefined"&&ZSTPL.svcDef?ZSTPL.svcDef(path):null)||M[path]).slice()}
 const TEST_OPTS=[["Uğurlu","s-ok"],["Qeyd var","s-warn"],["Uğursuz","s-bad"],["Tətbiq olunmur","s-idle"]];
 const CALL_RES=["Bərpa olundu","Müvəqqəti bərpa olundu","Bərpa olunmadı"];
+try{ZSTPL.applySvc({lists:{"inst.chk":INST_CHK,"inst.test":INST_TEST,"upd.cb":UPD_CHK_BAT,"upd.cp":UPD_CHK_PART,"upd.kinds":UPD_KINDS,"upd.why":UPD_WHY,"upd.fate":UPD_FATE,"call.res":CALL_RES},um:UPD_M,titles:PROF_TITLE,codes:RN_CODES})}catch(e){console.log("tpl svc",e)}
 function tabsFor(){const T=TYPES[CUR_TYPE],P=SVC_PROF(state.rep),B=T.hasBat;
   if(P==="inst")return [["svc","Servis"],["ups",T.short],...(B?[["bat","Akkum."]]:[]),["inst","Quraşdırma"],["meas","İlk ölçmələr"],["kit","Təhvil"],["foto","Şəkillər"],["rep","Hesabat"]];
   if(P==="upd")return [["svc","Servis"],["ups",T.short],["upd","Dəyişdirilənlər"],...(B?[["bat","Akkum."],["blk","Bloklar"]]:[]),["umeas","Ölçmələr"],["uchk","Yoxlama"],["kit","Təhvil"],["foto","Şəkillər"],["rep","Hesabat"]];
@@ -1969,6 +2027,7 @@ function renderEditor(){
 }
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-xl],[data-xset],[data-xall],[data-delkit],#addKit,#kitStd");if(!b||!state.cur||lockedRep(state.rep))return;
   const X=state.cur.x||(state.cur.x={}),y=window.scrollY;
+  if(b.dataset.xl||b.dataset.xall)stampL(X,b.dataset.xl||b.dataset.xall);
   if(b.dataset.xl){const path=b.dataset.xl,i=+b.dataset.xi;let L=getP(X,path);if(!Array.isArray(L)){L=[];setP(X,path,L)}L[i]=Object.assign(L[i]||{},{s:L[i]&&L[i].s===b.dataset.v?"":b.dataset.v})}
   else if(b.dataset.xset){setP(X,b.dataset.xset,getP(X,b.dataset.xset)===b.dataset.v?"":b.dataset.v)}
   else if(b.dataset.xall){let L=getP(X,b.dataset.xall);if(!Array.isArray(L)){L=[];setP(X,b.dataset.xall,L)}for(let i=0;i<+b.dataset.n;i++)if(!(L[i]&&L[i].s))L[i]={s:b.dataset.v,n:""}}
@@ -2006,11 +2065,11 @@ function autoLimits(V){if(!V||CUR_TYPE!=="ups"||!V.meas)return;const N=upsNomina
 /* automatic report number: KOD-YYYYMMDD-NN — the code from the kind of work, the date of the work, NN = which work of that day (01, 02, 03 …).
    RSH rüblük · ASH aylıq · YSH yarımillik · İSH illik servis · TSH təmir / qəza · DSH diaqnostika / akkumulyator testi · QSH quraşdırma.
    A number typed by hand is kept; clearing the field brings the automatic one back. */
-function repPrefix(r){const t=String(r.svc.type||""),iv=num(r.svc.interval);
-  if(/Diaq|testi/i.test(t))return "DSH";if(/Təmir|Qəza/i.test(t))return "TSH";if(/Quraşdırma/i.test(t))return "QSH";
-  return iv>0&&iv<=1?"ASH":iv>=12?"İSH":iv>=6?"YSH":"RSH"}
+function repPrefix(r){const iv=num(r.svc.interval),P=SVC_PROF(r),C=RN_CODES;
+  if(P!=="prof")return C[P]||"RSH";
+  return iv>0&&iv<=1?C.m:iv>=12?C.y:iv>=6?C.h:C.q}
 function applyRepNo(r,fresh){if(!r||!r.svc)return;const cur=String(r.svc.repno||"").trim();if(cur&&r.svc.repnoAuto!==true)return;
-  const d=String(r.svc.date||todayISO()).replace(/-/g,"").slice(0,8),pre=repPrefix(r),re=/^[A-ZƏİ]{3}-(\d{8})-(\d{2,})$/,m0=cur.match(re);
+  const d=String(r.svc.date||todayISO()).replace(/-/g,"").slice(0,8),pre=repPrefix(r),re=/^[A-ZƏİÖÜÇŞĞ]{3}-(\d{8})-(\d{2,})$/,m0=cur.match(re);
   if(m0&&m0[1]===d&&!fresh){r.svc.repno=pre+"-"+d+"-"+m0[2];r.svc.repnoAuto=true;return}
   let mx=0;const seen=x=>{const m=String(x||"").match(re);if(m&&m[1]===d)mx=Math.max(mx,+m[2])};
   Object.values(state.reports||{}).forEach(x=>{if(x&&x.id!==r.id&&x.svc)seen(x.svc.repno)});Object.values(state.remote||{}).forEach(x=>{if(x&&x.id!==r.id)seen(x.repno)});
@@ -2046,13 +2105,13 @@ const XSECT={
    <p class="note" style="margin:0">OCV: bir qrupdakı blokların gərginlik fərqi kiçik olmalıdır (adətən ≤ 0,1 V). Float gərginlik 12 V blok üçün 25 °C-də adətən 13,5–13,8 V × blok sayı.</p></div>`:""}
   <div class="card"><h3>Detallar (əvvəl → sonra)</h3>${UPD_M.filter(x=>x[4]==="p").map(row).join("")}</div>`},
  uchk(){const B=updHasBat();return `<h2 class="sec">Yoxlama</h2><p class="hint">Dəyişdirmədən sonra görülən işlər və yoxlamalar.</p>
-  ${B?`<div class="card"><h3>Akkumulyatorlar</h3><div class="actions" style="margin:0 0 8px"><button class="btn sm" data-xall="upd.cb" data-n="${UPD_CHK_BAT.length}" data-v="Edildi">Boşları “Edildi” et</button></div>${xList("upd.cb",UPD_CHK_BAT,UPD_OPTS)}</div>`:""}
-  <div class="card"><h3>Detallar və işə salma</h3><div class="actions" style="margin:0 0 8px"><button class="btn sm" data-xall="upd.cp" data-n="${UPD_CHK_PART.length}" data-v="Edildi">Boşları “Edildi” et</button></div>${xList("upd.cp",UPD_CHK_PART,UPD_OPTS)}</div>`},
+  ${B?`<div class="card"><h3>Akkumulyatorlar</h3><div class="actions" style="margin:0 0 8px"><button class="btn sm" data-xall="upd.cb" data-n="${xL(state.cur,"upd.cb",UPD_CHK_BAT).length}" data-v="Edildi">Boşları “Edildi” et</button></div>${xList("upd.cb",xL(state.cur,"upd.cb",UPD_CHK_BAT),UPD_OPTS)}</div>`:""}
+  <div class="card"><h3>Detallar və işə salma</h3><div class="actions" style="margin:0 0 8px"><button class="btn sm" data-xall="upd.cp" data-n="${xL(state.cur,"upd.cp",UPD_CHK_PART).length}" data-v="Edildi">Boşları “Edildi” et</button></div>${xList("upd.cp",xL(state.cur,"upd.cp",UPD_CHK_PART),UPD_OPTS)}</div>`},
  inst(){return `<h2 class="sec">Quraşdırma və işə salma</h2><p class="hint">Montaj yoxlaması, işə salma testləri və konfiqurasiya.</p>
   <div class="card"><h3>Quraşdırma yeri</h3>${fld("x.inst.place","Otaq / yer",{ph:"məs. Server otağı, 2-ci mərtəbə"})}<div class="grid2">${fld("x.inst.cin","Giriş kabeli (kəsik, mm²)")}${fld("x.inst.cout","Çıxış kabeli (kəsik, mm²)")}</div>
    <div class="grid2">${fld("x.inst.bin","Giriş avtomatı, A")}${fld("x.inst.bout","Çıxış / bypass avtomatı, A")}</div>${fld("x.inst.earth","Torpaqlama müqaviməti, Ω",{n:1})}</div>
-  <div class="card"><h3>Montaj yoxlaması</h3><div class="actions" style="margin:0 0 8px"><button class="btn sm" data-xall="inst.chk" data-n="${INST_CHK.length}" data-v="Yaxşı">Boşları “Yaxşı” et</button></div>${xList("inst.chk",INST_CHK,CHK_OPTS.filter(o=>o[0]!=="Yoxlanılmadı"))}</div>
-  <div class="card"><h3>İşə salma testləri</h3><div class="actions" style="margin:0 0 8px"><button class="btn sm" data-xall="inst.test" data-n="${INST_TEST.length}" data-v="Uğurlu">Boşları “Uğurlu” et</button></div>${xList("inst.test",INST_TEST,TEST_OPTS)}
+  <div class="card"><h3>Montaj yoxlaması</h3><div class="actions" style="margin:0 0 8px"><button class="btn sm" data-xall="inst.chk" data-n="${xL(state.cur,"inst.chk",INST_CHK).length}" data-v="Yaxşı">Boşları “Yaxşı” et</button></div>${xList("inst.chk",xL(state.cur,"inst.chk",INST_CHK),CHK_OPTS.filter(o=>o[0]!=="Yoxlanılmadı"))}</div>
+  <div class="card"><h3>İşə salma testləri</h3><div class="actions" style="margin:0 0 8px"><button class="btn sm" data-xall="inst.test" data-n="${xL(state.cur,"inst.test",INST_TEST).length}" data-v="Uğurlu">Boşları “Uğurlu” et</button></div>${xList("inst.test",xL(state.cur,"inst.test",INST_TEST),TEST_OPTS)}
    <div class="grid2">${fld("x.inst.loadPct","Yük testi — yük, %",{n:1})}${fld("x.inst.loadMin","Yük testi — müddət, dəq",{n:1})}</div></div>
   <div class="card"><h3>Konfiqurasiya</h3><div class="grid2">${fld("x.inst.vout","Çıxış gərginliyi, V",{n:1})}${fld("x.inst.fout","Çıxış tezliyi, Hz",{n:1})}</div>${fld("x.inst.cfg","Təyin edilən parametrlər (akkumulyator sayı, şarj cərəyanı, bypass hədləri, IP / SNMP…)",{area:1})}</div>`},
  kit(){const K=getP(state.cur,"x.kit")||[];return `<h2 class="sec">Təhvil verilən avadanlıq</h2><p class="hint">Bu cihazla birlikdə təhvil verilənlər (akkumulyatorlar, rəf, kabellər, sənədlər, açarlar…). Təhvil-təslim aktının cədvəlinə düşür.</p>
@@ -2065,7 +2124,7 @@ const XSECT={
   <p class="note" style="margin:0">Lazım olan hissələri “Hissələr” bölməsində “Yararsız / dəyişdirilməli detallar” siyahısına yazın — qiymət təklifi üçün istifadə olunur.</p></div>`},
  call(){return `<h2 class="sec">Qəza çağırışı</h2><p class="hint">Problem, görülən işlər və nəticə.</p><div class="card">
   ${fld("x.call.problem","Problem (müştərinin bildirdiyi)",{area:1})}${fld("x.call.found","Səbəb / aşkar edilən",{area:1})}
-  <div><span class="note" style="font-weight:600">Nəticə</span><div class="seg" style="margin-top:4px">${CALL_RES.map((o,i)=>`<button type="button" class="${["s-ok","s-warn","s-bad"][i]}" data-xset="call.res" data-v="${esc(o)}" aria-pressed="${getP(state.cur,"x.call.res")===o}">${esc(o)}</button>`).join("")}</div></div>
+  <div><span class="note" style="font-weight:600">Nəticə</span><div class="seg" style="margin-top:4px">${CALL_RES.map((o,i)=>`<button type="button" class="${["s-ok","s-warn","s-bad"][i]||"s-idle"}" data-xset="call.res" data-v="${esc(o)}" aria-pressed="${getP(state.cur,"x.call.res")===o}">${esc(o)}</button>`).join("")}</div></div>
   ${fld("x.call.next","Sonrakı addımlar",{area:1})}</div>`},
  repair(){return `<h2 class="sec">Təmir</h2><p class="hint">Nasazlıq, görülən təmir və zəmanət. Dəyişdirilən hissələri “Hissələr” bölməsinə yazın.</p><div class="card">
   ${fld("x.rep.fault","Nasazlıq",{area:1})}${fld("x.rep.done","Görülən təmir işləri",{area:1})}${fld("x.rep.warr","Təmirə zəmanət, ay",{n:1})}
@@ -2441,7 +2500,7 @@ function xPaper(V,PF,head,kv,pc,tv,dash,W){const X=V.x||{},esc2=v=>esc(ft(v||"")
   const txt=(rows)=>{const R=rows.filter(([,v])=>String(v||"").trim());return R.length?kv(R.map(([k,v])=>[[k,esc2(v).replace(/\n/g,"<br>")]])):""};
   if(PF==="inst"){const I=X.inst||{};const info=[["Quraşdırma yeri",I.place],["Giriş kabeli",I.cin&&I.cin+" mm²"],["Çıxış kabeli",I.cout&&I.cout+" mm²"],["Giriş avtomatı",I.bin&&I.bin+" A"],["Çıxış / bypass avtomatı",I.bout&&I.bout+" A"],["Torpaqlama müqaviməti",I.earth&&I.earth+" Ω"]].filter(x=>x[1]);
     if(info.length){const rw=[];for(let q=0;q<info.length;q+=2)rw.push(info.slice(q,q+2).map(([k,v])=>[k,esc(v)]));h+=W(head("Quraşdırma məlumatları")+kv(rw))}
-    h+=tbl("Montaj yoxlaması",I.chk,INST_CHK)+tbl("İşə salma testləri",I.test,INST_TEST);
+    h+=tbl("Montaj yoxlaması",I.chk,xL(V,"inst.chk",INST_CHK))+tbl("İşə salma testləri",I.test,xL(V,"inst.test",INST_TEST));
     const cf=[["Yük testi",I.loadPct||I.loadMin?(I.loadPct?I.loadPct+" % "+t("yük"):"")+(I.loadMin?" · "+I.loadMin+" "+t("dəq"):""):""],["Çıxış gərginliyi / tezliyi",[I.vout&&I.vout+" V",I.fout&&I.fout+" Hz"].filter(Boolean).join(" · ")],["Konfiqurasiya",I.cfg]];if(cf.some(x=>String(x[1]||"").trim()))h+=W(head("Konfiqurasiya")+txt(cf));
     const K=(X.kit||[]).filter(k=>k.name);if(K.length)h+=W(head("Təhvil verilən avadanlıq")+`<table><tr><th>#</th><th style="text-align:left">${t("Ad")}</th><th>${t("Seriya №")}</th><th>${t("Say")}</th></tr>${K.map((k,j)=>`<tr><td class="c">${j+1}</td><td>${esc2(k.name)}</td><td class="c">${esc(k.sn||"")}</td><td class="c">${esc(k.qty||"")}</td></tr>`).join("")}</table>`+(X.kitNote?`<p><i>${esc2(X.kitNote)}</i></p>`:""))}
   if(PF==="diag"){const D=X.diag||{};const b=txt([["Müştərinin şikayəti",D.compl],["Xəta kodları / jurnal",D.codes],["Aşkar edilən nasazlıq",D.found],["Tövsiyə olunan təmir",D.rec]]);if(b)h+=W(head("Diaqnostika nəticəsi")+b)}
@@ -2456,7 +2515,7 @@ function xPaper(V,PF,head,kv,pc,tv,dash,W){const X=V.x||{},esc2=v=>esc(ft(v||"")
     const M=U.m||{},has=k=>M[k]&&(String(M[k].a||"").trim()||String(M[k].b||"").trim()),mb=UPD_M.filter(x=>x[4]==="b"&&has(x[0])),mp=UPD_M.filter(x=>x[4]==="p"&&has(x[0]));
     if(mb.length||U.tRes)h+=W(head("Akkumulyator ölçmələri")+`<table><tr><th style="text-align:left">${t("Parametr")}</th><th>${t("Qiymət")}</th><th>${t("Vahid")}</th></tr>${mb.map(([k,l,u,m])=>`<tr><td>${esc(t(l))}</td><td class="c num">${esc(M[k].a||"—")}${m===2?" / "+esc(M[k].b||"—"):""}</td><td class="c">${esc(t(u))}</td></tr>`).join("")}${U.tRes?`<tr><td>${t("Batareya testinin nəticəsi")}</td><td class="c ${U.tRes==="Uğurlu"?"p-ok":"p-bad"}">${tv(U.tRes)}</td><td></td></tr>`:""}</table>`);
     if(mp.length)h+=W(head("Ölçmələr (əvvəl → sonra)")+`<table><tr><th style="text-align:left">${t("Parametr")}</th><th>${t("Əvvəl")}</th><th>${t("Sonra")}</th><th>${t("Vahid")}</th></tr>${mp.map(([k,l,u])=>`<tr><td>${esc(t(l))}</td><td class="c num">${esc(M[k].a||"—")}</td><td class="c num">${esc(M[k].b||"—")}</td><td class="c">${esc(t(u))}</td></tr>`).join("")}</table>`);
-    h+=tbl("Akkumulyatorlar — görülən işlər",U.cb,UPD_CHK_BAT).replace(/>Edildi</g,">"+t("Edildi")+"<")+tbl("Detallar və işə salma",U.cp,UPD_CHK_PART);
+    h+=tbl("Akkumulyatorlar — görülən işlər",U.cb,xL(V,"upd.cb",UPD_CHK_BAT)).replace(/>Edildi</g,">"+t("Edildi")+"<")+tbl("Detallar və işə salma",U.cp,xL(V,"upd.cp",UPD_CHK_PART));
     const K=(X.kit||[]).filter(k=>k.name);if(K.length||U.fate)h+=W(head("Təhvil")+(K.length?`<table><tr><th>#</th><th style="text-align:left">${t("Ad")}</th><th>${t("Seriya №")}</th><th>${t("Say")}</th></tr>${K.map((k,j)=>`<tr><td class="c">${j+1}</td><td>${esc2(k.name)}</td><td class="c">${esc(k.sn||"")}</td><td class="c">${esc(k.qty||"")}</td></tr>`).join("")}</table>`:"")+(U.fate?`<p>${t("Köhnə hissələr")}: <b>${tv(U.fate)}</b></p>`:"")+(X.kitNote?`<p><i>${esc2(X.kitNote)}</i></p>`:""))}
   return h}
 function xConcl(V,PF){const X=V.x||{},C=[];
@@ -2487,7 +2546,7 @@ function paperHTML(R,_a,lang){PL=lang||state.plang||"az";const r=realOf(R),keep=
   const A=analyzeReport(r),multi=r.devices.length>1,allUps=r.devices.every(d=>d.type==="ups");
   const W=x=>`<div class="blk">${x}</div>`;
   const tblChunks=(headRow,rows,max)=>{if(rows.length<=max)return [rows];const out=[];for(let i=0;i<rows.length;i+=max)out.push(rows.slice(i,i+max));return out};
-  const PF=SVC_PROF(r);REPORT_TITLE=PF==="diag"?(allUps?"UPS TEXNİKİ DİAQNOSTİKA HESABATI":"TEXNİKİ DİAQNOSTİKA HESABATI"):PF!=="prof"?(allUps&&PF!=="bat"?"UPS "+PROF_TITLE[PF]:PROF_TITLE[PF]):allUps?"UPS TEXNİKİ SERVİS HESABATI":"TEXNİKİ SERVİS HESABATI";
+  const PF=SVC_PROF(r);REPORT_TITLE=(allUps&&PF!=="bat"?"UPS ":"")+(PROF_TITLE[PF]||PROF_TITLE.prof);
   let h=`<div class="paper" id="paper" lang="${PL}"><div class="ph"><div>${LOGO?`<img class="logo" src="${LOGO}" alt="${esc(S.co||"")}">`:`<div class="co">${esc(S.co||t("[Şirkət adı]"))}</div>`}<div class="coi">${esc([S.coaddr,S.cotel].filter(Boolean).join("   "))}</div></div>
   <div class="meta"><b>${t("Hesabat №")} ${dash(r.svc.repno)}</b><br>${t("Tarix:")} ${dash(fmtDate(r.svc.date))}</div></div>
   <h1>${t(REPORT_TITLE)}</h1><div class="sub">${esc(t(r.svc.type||""))}</div>
@@ -2904,7 +2963,7 @@ function qaDefects(R){const r=realOf(R),keep=CUR_TYPE,keepD=CUR_DEV,out=[];
   r.devices.forEach((d,i)=>{useType(d.type,d);const V=devProxy(r,i),a=analyze(V),X=d.x||{},u=d.info||{},dn=([u.brand,u.model].filter(Boolean).join(" ")+(u.kva?" "+u.kva+" kVA":"")+" "+t(TYPES[d.type].short||TYPES[d.type].title)).trim();
     const add=(what,act)=>{if(String(what||"").trim())out.push({di:i,dev:dn,what:String(what).trim(),act:act||""})};
     CHK.forEach((c,j)=>{const o=V.chk[j]||{};if(o.s==="Nasaz")add(c+(o.n?" — "+o.n:""),"təmir və ya dəyişdirilməsi tələb olunur");else if(o.s==="Yararsız")add(c+(o.n?" — "+o.n:""),"dəyişdirilməsi tələb olunur")});
-    const I=X.inst||{};(I.chk||[]).forEach((o,j)=>{if(o&&o.s==="Nasaz")add((INST_CHK[j]||"")+(o.n?" — "+o.n:""),"aradan qaldırılmalıdır")});(I.test||[]).forEach((o,j)=>{if(o&&o.s==="Uğursuz")add((INST_TEST[j]||"")+" uğursuz"+(o.n?" — "+o.n:""),"aradan qaldırılmalıdır")});
+    const I=X.inst||{};(I.chk||[]).forEach((o,j)=>{if(o&&o.s==="Nasaz")add((xL(V,"inst.chk",INST_CHK)[j]||"")+(o.n?" — "+o.n:""),"aradan qaldırılmalıdır")});(I.test||[]).forEach((o,j)=>{if(o&&o.s==="Uğursuz")add((xL(V,"inst.test",INST_TEST)[j]||"")+" uğursuz"+(o.n?" — "+o.n:""),"aradan qaldırılmalıdır")});
     a.out.forEach(m=>add(m+" norma xaricindədir","səbəbi araşdırılmalıdır"));
     if(a.rep.length)add(a.rep.length+" ədəd akkumulyator bloku nasazdır ("+a.rep.map(b=>b.lab).join(", ")+")"+(batBrandText(V.bat)?", "+batBrandText(V.bat):""),"dəyişdirilməsi vacibdir");
     if(a.age!==null&&a.life>0&&a.age>=a.life)add("akkumulyatorların istismar müddəti bitmişdir ("+a.age.toFixed(1)+" il)","yenilənməsi vacibdir");
