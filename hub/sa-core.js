@@ -631,7 +631,7 @@ function saHandle(db,u,action,p){
       var date=saStr(r.svc.date,10),apD=new Date(apAt).toISOString().slice(0,10);if(p.from&&apD<p.from){skipped++;done.push(r.id);return}
       var site=saStr(r.cl.name,200).trim(),payer=saStr(r.cl.payer,200).trim();if(payer&&saNameHit(payer,site))payer="";
       /* only a planned service is a contract visit; diagnostics, repairs, call-outs etc. come as a draft for the accountant to price */
-      var stype=String(r.svc.type||"").trim(),planned=!stype||/planl|profilakt/i.test(stype);
+      var stype=String(r.svc.type||"").trim(),planned=!stype||/planl|profilakt/i.test(stype)||String(r.svc.prof||"")==="prof";
       var con=payer?saContractFor(db,payer,date,site):saContractFor(db,site,date,saStr(r.cl.obj,120));
       /* who gets the bill: the contract holder, else the intermediary named in the report, else the client itself */
       var billTo=con?con.client:(payer||site);
