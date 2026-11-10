@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111101;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111102;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -722,7 +722,7 @@ function saPubMove(m,role){var o={};for(var k in m)o[k]=m[k];if(!SA_CAN.seeCost(
 function saKindOf(q){return q.kind==="svc"||q.kind==="sale"?q.kind:(q.src&&q.src.type==="service"?"svc":"sale")}
 function saSummary(q){var t=saTotals(q);return {id:q.id,no:q.no||"",kind:saKindOf(q),inv:(q.bill&&q.bill.inv)||"",date:q.date||"",status:q.status||"draft",client:(q.cl&&q.cl.name)||"",cl:q.cl||{},subj:q.subj||"",per:q.per||"",conId:q.conId||"",
   net:t.net,total:t.total,n:(q.lines||[]).length,author:q.author||"",by:q.by||"",updatedAt:q.updatedAt||0,svc:q.src?(q.src.repno||"servis"):"",site:q.src&&q.src.site?q.src.site:"",contractId:q.src?q.src.contractId:"",zero:(q.lines||[]).some(function(l){return !saNum(l.price)}),
-  bill:(q.bill&&q.bill.st)||"",nocon:!!(q.src&&q.src.nocon&&!q.del),billDoc:(q.bill&&q.bill.doc)||"",due:!!((q.status==="accepted"||q.status==="done")&&!(q.bill&&q.bill.st==="paid")&&!(q.src&&q.src.nocon)&&!q.billedIn&&!(q.src&&q.src.type==="service"&&q.src.contractId&&(q.billedIn||!(q.bill&&q.bill.st)))),
+  bill:(q.bill&&q.bill.st)||"",nocon:!!(q.src&&q.src.nocon&&!q.del),billDoc:(q.bill&&q.bill.doc)||"",adv:saNum(q.terms&&q.terms.adv),bpct:q.bill&&q.bill.st==="part"?saNum(q.bill.pct):0,bsum:q.bill&&q.bill.st==="part"?saNum(q.bill.sum):0,due:!!((q.status==="accepted"||q.status==="done")&&!(q.bill&&q.bill.st==="paid")&&!(q.src&&q.src.nocon)&&!q.billedIn&&!(q.src&&q.src.type==="service"&&q.src.contractId&&(q.billedIn||!(q.bill&&q.bill.st)))),
   wk:q.src&&q.src.type==="service"&&q.src.contractId?1:0,bin:q.billedIn?(q.billedIn.no||"✓"):"",binId:q.billedIn?q.billedIn.id:"",skey:q.src?String(q.src.skey!==undefined&&q.src.skey!==""?q.src.skey:(q.src.site||"")):"",sdate:(q.src&&q.src.date)||"",bmon:q.src&&q.src.type==="bill"?(q.src.month||""):"",nrec:q.src&&q.src.type==="bill"?(q.src.recs||[]).length:0,delAt:q.del?saNum(q.delAt||q.updatedAt):0,delBy:q.del?(q.delBy||q.by||""):"",rev:q.src&&q.src.rev?1:0,dup:q.src&&q.src.dup?(q.src.dup.no||"?"):""}}
 /* purchase prices written on quote lines are seen only by accounting */
 function saPubQuote(q,role){if(!q||SA_CAN.seeCost(role))return q;var o={};for(var k in q)o[k]=q[k];o.lines=(q.lines||[]).map(function(l){var c={};for(var k in l)if(k!=="cost")c[k]=l[k];return c});return o}
@@ -856,7 +856,7 @@ function saHandle(db,u,action,p){
     /* "Təhvil verildi" is set by the warehouse issue (or by the manager), not typed in */
     if(SA_CAN.editAnyQuote(role)&&inQ.vatRate!==undefined)q.vatRate=saNum(inQ.vatRate);
     ["name","voen","person","tel","email","addr"].forEach(function(k){q.cl[k]=saStr(inQ.cl&&inQ.cl[k],300)});
-    ["pay","delivery","warranty","note"].forEach(function(k){q.terms[k]=saStr(inQ.terms&&inQ.terms[k],2000)});
+    ["pay","delivery","warranty","note"].forEach(function(k){q.terms[k]=saStr(inQ.terms&&inQ.terms[k],2000)});var av=saNum(inQ.terms&&inQ.terms.adv);if(av>0&&av<100)q.terms.adv=Math.round(av*100)/100;
     var oldLines={};if(old)(old.lines||[]).forEach(function(l){oldLines[l.id]=l});
     (inQ.lines||[]).slice(0,300).forEach(function(l){
       var it=l.itemId?itemById(l.itemId):null;
@@ -882,7 +882,7 @@ function saHandle(db,u,action,p){
     ch.quotes.push(q);return {res:{quote:saPubQuote(q,role),summary:saSummary(q),stock:saStock(db)},ch:ch}}
 
   case "setBill":{need(SA_CAN.setPrice(role));var bq=quoteById(p.id);if(!bq||bq.del)saErr("notfound");var st=["","inv","paid"].indexOf(p.st)>=0?p.st:"";
-    if(st)bq.bill={st:st,doc:saStr(p.doc!==undefined?p.doc:(bq.bill&&bq.bill.doc),80),by:u.name,at:now};else delete bq.bill;bq.updatedAt=now;bq.by=u.name;
+    if(st){var ob=bq.bill||{};bq.bill={st:st,doc:saStr(p.doc!==undefined?p.doc:ob.doc,80),by:u.name,at:now};if(ob.invs){bq.bill.invs=ob.invs;bq.bill.inv=ob.inv;bq.bill.sum=ob.sum}}else delete bq.bill;bq.updatedAt=now;bq.by=u.name;
     bq.hist=(bq.hist||[]).slice(-39);bq.hist.push({at:now,by:u.name,bill:st||"undo",doc:st?bq.bill.doc:""});ch.quotes.push(bq);return {res:{quote:saPubQuote(bq,role)},ch:ch}}
   case "delQuote":{need(SA_CAN.admin(role));var dq=quoteById(p.id);if(!dq)saErr("notfound");
     if(saProtected(db,dq)){if(!db.settings.delPw)saErr("nopw");if(String(p.pwh||"")!==String(db.settings.delPw))saErr("badpw")}
@@ -1073,12 +1073,12 @@ function saHandle(db,u,action,p){
       q=quoteById(oq.res.quote.id);q.fromInv=sv.id}
     /* a service contract billed by this invoice: the visit counts for the next-service date */
     if(con&&con.kind!=="sale"&&allX&&String(sv.date||"")>String(con.lastSvc||"")){con.lastSvc=sv.date;con.updatedAt=now;ch.contracts.push(con)}
-    q.bill={st:"inv",doc:sv.no,by:u.name,at:now,inv:sv.id};q.hist=(q.hist||[]).slice(-39);q.hist.push({at:now,by:u.name,bill:"inv",doc:sv.no});
+    var qT=saTotals(q).total,iT=saInvTotals(sv).total,pv=(q.bill&&q.bill.st==="part"&&Array.isArray(q.bill.invs))?q.bill.invs.filter(function(x){return x.id!==sv.id}):[];var invs=pv.concat([{id:sv.id,no:sv.no,date:sv.date||"",total:iT}]),bSum=saR2(invs.reduce(function(a,x){return a+saNum(x.total)},0));var fin=p.final===true||p.final===false?p.final:(qT<=0||bSum>=qT-0.01||pv.length>0||!(saNum(q.terms&&q.terms.adv)>0));var part=!fin;q.bill={st:part?"part":"inv",doc:invs.map(function(x){return x.no}).join(", "),by:u.name,at:now,inv:sv.id,invs:invs,sum:bSum,pct:part&&qT>0?Math.min(99,Math.round(bSum/qT*100)):100};q.hist=(q.hist||[]).slice(-39);q.hist.push({at:now,by:u.name,bill:part?"part":"inv",doc:sv.no+(part?" ("+q.bill.pct+"%)":"")});
     /* what still has to leave the warehouse: invoice quantity minus what was already issued for this sale */
     var iss=saIssued(db),left={},toShip=0;sv.lines.forEach(function(l){l.ship=0;var it=items0[l.itemId];if(l.t!=="mal"||!it||it.svc)return;var k=q.id+"|"+it.id;if(left[k]===undefined)left[k]=saNum(iss[k]);
       var take=Math.min(left[k],saNum(l.qty));left[k]-=take;l.ship=saR2(saNum(l.qty)-take);toShip+=l.ship});
     sv.quoteId=q.id;sv.quoteNo=q.no;sv.approvedBy=u.name;sv.approvedAt=now;sv.status=toShip>1e-9?"approved":"received";if(madeCon)sv.conId=madeCon.id;else if(con)sv.conId=con.id;
-    if(toShip<=1e-9&&q.status==="accepted"){var rr=saRemaining(db,q),lf=0;Object.keys(rr).forEach(function(id){lf+=rr[id].left});if(lf<=1e-9){q.status="done";q.hist.push({at:now,by:u.name,st:"done"})}}
+    if(toShip<=1e-9&&q.status==="accepted"&&!part){var rr=saRemaining(db,q),lf=0;Object.keys(rr).forEach(function(id){lf+=rr[id].left});if(lf<=1e-9){q.status="done";q.hist.push({at:now,by:u.name,st:"done"})}}
     q.updatedAt=now;q.by=u.name;sv.updatedAt=now;sv.by=u.name;ch.quotes.push(q);ch.invoices.push(sv);
     return {res:{invoice:sv,quote:saPubQuote(q,role),summary:saSummary(q),contract:madeCon,stock:saStock(db)},ch:ch}}
   /* the warehouse hands over the goods of a sales invoice */
@@ -1705,7 +1705,7 @@ function renderLinkMap(){mainTabs("map");lmCss();if(!can("admin")){$("#main").in
   const qLab=s=>{const k=kindOf(s);return k==="bill"?"Aylıq hesab"+(s.bmon?" — "+(SA_MONTHS[+String(s.bmon).slice(5,7)-1]||"")+" "+String(s.bmon).slice(0,4):""):k==="svc"?"Servis sənədi":(s.status==="accepted"||s.status==="done"||s.bill?"Satış":"Təklif")};
   /* what looks wrong — the manager opens it from here and fixes it */
   const qBad=s=>{const B=[];if(s.nocon)B.push(["bad","müqavilə tapılmadı"]);if(s.dup)B.push(["bad","təkrar sənəd ("+s.dup+")"]);if(s.zero&&s.status!=="draft")B.push(["warn","qiyməti yazılmayan sətir var"]);
-    if(s.due&&s.bill!=="inv")B.push(["warn","hesab yazılmalı"]);const c=cById[s.contractId||s.conId];if(c&&s.client&&nk(c.client)!==nk(s.client)&&!String(c.aliases||"").split(/[,;\n]/).some(a=>nk(a)===nk(s.client)))B.push(["bad","müqavilədəki müştəri adı fərqlidir"]);
+    if(s.bill==="part")B.push(["warn",s.bpct+"% hesab yazılıb — yekun qaimə gözlənilir"]);else if(s.due&&s.bill!=="inv")B.push(["warn","hesab yazılmalı"]);const c=cById[s.contractId||s.conId];if(c&&s.client&&nk(c.client)!==nk(s.client)&&!String(c.aliases||"").split(/[,;\n]/).some(a=>nk(a)===nk(s.client)))B.push(["bad","müqavilədəki müştəri adı fərqlidir"]);
     if((s.contractId||s.conId)&&!c)B.push(["bad","bağlı müqavilə silinib"]);if(s.binId&&!qById[s.binId])B.push(["bad","aylıq hesab tapılmadı"]);return B};
   const vBad=v=>{const B=[];if(v.dir==="out"&&!v.quoteId)B.push(["warn","satışa bağlanmayıb"]);if(v.dir==="out"&&v.quoteId&&!qById[v.quoteId])B.push(["bad","bağlı satış tapılmadı"]);
     const nm=(v.lines||[]).filter(l=>l.t==="mal"&&!l.itemId).length;if(nm)B.push(["bad",nm+" mal kataloqa bağlanmayıb"]);if(v.status==="draft")B.push(["warn","qaralama"]);return B};
@@ -1767,7 +1767,7 @@ function render(){header();const v=state.view;if(v==="map")return renderLinkMap(
   if(v==="item")return renderItem(state.arg);if(v==="move")return renderMoveForm(state.arg);if(v==="settings")return renderSettings();if(v==="quote")return renderQuote()}
 const dupLive=s=>!!s.dup&&!(state.deleted||[]).some(d=>d.no===s.dup);
 const dueCount=()=>listQuotes().filter(s=>s.due&&s.bill!=="inv").length;
-const billChip=s=>s.wk&&!s.bill?(s.bin?`<span class="chip ok">aylıq hesabda: ${esc(s.bin)}</span>`:s.status==="accepted"?'<span class="chip warn">aylıq hesaba düşəcək</span>':""):s.nocon?'<span class="chip bad">müqavilə yoxdur</span>':s.bill==="paid"?'<span class="chip ok">ödənilib</span>':s.bill==="inv"?`<span class="chip">hesab yazılıb${s.billDoc?" · "+esc(s.billDoc):""}</span>`:s.due?'<span class="chip warn">hesab yazılmalı</span>':"";
+const billChip=s=>s.wk&&!s.bill?(s.bin?`<span class="chip ok">aylıq hesabda: ${esc(s.bin)}</span>`:s.status==="accepted"?'<span class="chip warn">aylıq hesaba düşəcək</span>':""):s.nocon?'<span class="chip bad">müqavilə yoxdur</span>':s.bill==="paid"?'<span class="chip ok">ödənilib</span>':s.bill==="part"?`<span class="chip warn">${s.bpct}% hesab yazılıb${s.billDoc?" · "+esc(s.billDoc):""} — qalanı iş bitəndə</span>`:s.bill==="inv"?`<span class="chip">hesab yazılıb${s.billDoc?" · "+esc(s.billDoc):""}</span>`:s.due?'<span class="chip warn">hesab yazılmalı</span>':"";
 const lowCount=()=>state.items.filter(i=>!i.svc&&i.active!==false&&saNum(i.min)>0&&stk(i.id).a<saNum(i.min)).length;
 const stk=id=>state.stock[id]||{q:0,r:0,a:0};
 /* ---------- categories ---------- */
@@ -2020,7 +2020,7 @@ function renderQuote(){const q=state.cur;if(!q){go("quotes");return}const ed=can
       <div class="col"><div class="card" id="totals">${totalsHTML()}</div>${can("seeCost")?`<div class="card" id="margin">${marginHTML()}</div>`:""}</div></div>
       <div class="nextbar"><button class="btn" data-goto="cl">← Müştəri</button><button class="btn pri" data-goto="terms">Şərtlər →</button></div>`}
   if(t==="terms"){
-    h+=`<div class="card"><h3>Kommersiya şərtləri</h3>${fld("terms.pay","Ödəniş şərtləri",{ta:1,rows:2})}${fld("terms.delivery","Çatdırılma müddəti",{ta:1,rows:2})}${fld("terms.warranty","Zəmanət",{ta:1,rows:2})}${fld("terms.note","Əlavə qeyd",{ta:1,rows:3})}
+    h+=`<div class="card"><h3>Kommersiya şərtləri</h3>${fld("terms.adv","Əvvəlcədən ödəniş (avans), %",{num:1,ph:"məs. 30 — boş qalsa, avans yoxdur"})}<p class="note" style="margin:-4px 0 8px">Avans yazılsa: avans qaiməsi bağlananda satışda “30% hesab yazılıb” qeyd olunur, iş bitəndə ikinci (yekun) qaimə bağlanır və satış tamamlanır.</p>${fld("terms.pay","Ödəniş şərtləri",{ta:1,rows:2})}${fld("terms.delivery","Çatdırılma müddəti",{ta:1,rows:2})}${fld("terms.warranty","Zəmanət",{ta:1,rows:2})}${fld("terms.note","Əlavə qeyd",{ta:1,rows:3})}
       <div class="actions"><button class="btn sm" id="tDef">Standart şərtləri qaytar</button></div></div>
       <div class="nextbar"><button class="btn" data-goto="items">← Mallar</button><button class="btn pri" data-goto="doc">Təklifə bax →</button></div>`}
   if(t==="doc"){
@@ -2239,7 +2239,7 @@ function paperHTML0(q){const S=state.settings,T=saTotals(q),hasDisc=q.lines.some
     rows=part("mal","A. Mallar","anbardan təhvil verilir")+part("xid","B. Xidmətlər (işçilik)","yerində icra olunur")}
   else rows=q.lines.map((l,i)=>row(l,i)).join("")||`<tr><td colspan="${cols}" class="c" style="color:#888;padding:14px">${L("Sətir əlavə edilməyib")}</td></tr>`;
   const vUntil=fmtDate(addDays(q.date,q.valid)),valid=DL==="en"?`${q.valid} ${L("gün")} (${L("tarixinədək")} ${vUntil})`:DL==="ru"?`${q.valid} ${L("gün")} (${L("tarixinədək")} ${vUntil})`:`${q.valid} gün (${vUntil} tarixinədək)`;
-  const terms=[["Ödəniş şərtləri",q.terms.pay],["Çatdırılma",q.terms.delivery],["Zəmanət",q.terms.warranty],["Qüvvədə olma müddəti",valid,1],["Qeyd",q.terms.note]].filter(x=>x[1]);
+  const terms=[["Ödəniş şərtləri",qPayTxt(q,DL)],["Çatdırılma",q.terms.delivery],["Zəmanət",q.terms.warranty],["Qüvvədə olma müddəti",valid,1],["Qeyd",q.terms.note]].filter(x=>x[1]);
   const con=saleConOf(q);
   return `<div class="paper" id="paper" lang="${DL}">
   <div class="ph"><div>${LOGO?`<img class="logo" src="${LOGO}" alt="">`:`<div class="co">${esc(S.co||"[Şirkət adı]")}</div>`}<div class="coi">${coLine}</div></div>
@@ -2421,7 +2421,7 @@ async function quoteXlsx(q){const prev=DL;DL=qLang(q);try{const S=state.settings
   tot(L("Cəmi")+(q.vat?" "+L("(ƏDV-siz)"):""),T.net);if(q.vat)tot(L("ƏDV")+" "+qf(T.rate)+"%",T.vat);tot(L("YEKUN")+(q.vat?" "+L("(ƏDV daxil)"):"")+", "+(DL==="az"?"₼":"AZN"),T.total,1);
   merge(r,L("Yekun məbləğ:")+" "+amountWordsL(T.total,DL)+(q.vat?"":" "+L("(ƏDV tətbiq edilmir)")),{font:{italic:true,size:10},alignment:{horizontal:"right",wrapText:true}});r+=2;
   const vUntil=fmtDate(addDays(q.date,q.valid)),valid=DL==="az"?`${q.valid} gün (${vUntil} tarixinədək)`:`${q.valid} ${L("gün")} (${L("tarixinədək")} ${vUntil})`;
-  const terms=[["Ödəniş şərtləri",q.terms.pay],["Çatdırılma",q.terms.delivery],["Zəmanət",q.terms.warranty],["Qüvvədə olma müddəti",valid,1],["Qeyd",q.terms.note]].filter(x=>x[1]);
+  const terms=[["Ödəniş şərtləri",qPayTxt(q,DL)],["Çatdırılma",q.terms.delivery],["Zəmanət",q.terms.warranty],["Qüvvədə olma müddəti",valid,1],["Qeyd",q.terms.note]].filter(x=>x[1]);
   if(terms.length){merge(r,L("Kommersiya şərtləri"),{font:{bold:true,size:11,color:{argb:GREEN}}});r++;
     terms.forEach(([k,v,fx])=>{ws.mergeCells(`A${r}:B${r}`);ws.mergeCells(`C${r}:${last}${r}`);const a=ws.getCell(`A${r}`),b=ws.getCell(`C${r}`);a.value=L(k);b.value=fx?v:F(v);a.font={bold:true,size:10};b.font={size:10};b.alignment={wrapText:true,vertical:"top"};a.alignment={vertical:"top"};a.border=b.border=box;
       ws.getRow(r).height=Math.max(16,15*Math.ceil(String(b.value).length/60));r++});r++}
@@ -3371,8 +3371,18 @@ function importSalePdf(R,buf,file){const v=newInv();v.dir="out";v.no=R.no;v.date
   v.link=sinvGuess(v);v.mkCon=true;INV=v;INV.pdfBuf=buf;go("invoice","new");toast(R.lines.length+" sətir oxundu · müştəri: "+(v.supplier||"?"))}
 const sinvTotal=v=>saInvTotals(v).total;
 function sinvCands(v){const k=norm(v.supplier).trim(),T=sinvTotal(v);
-  return listQuotes().filter(s=>(s.status==="accepted"||s.status==="done")&&s.bill!=="paid"&&(!s.inv||s.inv===v.id)&&((v.voen&&s.cl&&s.cl.voen===v.voen)||norm(s.client).trim()===k||saNameHit(s.client,v.supplier,true)))
-    .map(s=>({s,d:Math.abs(saNum(s.total)-T)})).sort((a,b)=>a.d-b.d||String(b.s.date).localeCompare(String(a.s.date)))}
+  return listQuotes().filter(s=>(s.status==="accepted"||s.status==="done")&&s.bill!=="paid"&&(!s.inv||s.inv===v.id||s.bill==="part")&&((v.voen&&s.cl&&s.cl.voen===v.voen)||norm(s.client).trim()===k||saNameHit(s.client,v.supplier,true)))
+    .map(s=>{const tt=saNum(s.total),dA=s.adv>0&&s.bill!=="part"?Math.abs(saR2(tt*s.adv/100)-T):1e12,dR=s.bill==="part"?Math.abs(saR2(tt-saNum(s.bsum))-T):1e12,dF=Math.abs(tt-T),d=Math.min(dA,dR,dF);return {s,d,m:d===dF?"":d===dA?"adv":"rest"}}).sort((a,b)=>a.d-b.d||String(b.s.date).localeCompare(String(a.s.date)))}
+/* advance (part) or final invoice for the chosen sale: null = not a choice (new sale / no advance) */
+function sinvFinal(v){const s=v.link&&v.link!=="new"?listQuotes().find(x=>x.id===v.link):null;if(!s||!(s.adv>0||s.bill==="part"))return null;if(v.final===true||v.final===false)return v.final;
+  const tt=saNum(s.total),T=sinvTotal(v);return s.bill==="part"||T>=tt-0.01||!(s.adv>0)?true:false}
+function sinvFinBox(v){const f=sinvFinal(v);if(f===null)return "";const s=listQuotes().find(x=>x.id===v.link)||{};const tt=saNum(s.total),T=sinvTotal(v),pc=tt>0?Math.round(saR2(saNum(s.bsum)+T)/tt*100):0;
+  return `<div style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:10px;display:grid;gap:6px"><b>${s.bill==="part"?"Bu satışa əvvəl avans qaiməsi bağlanıb ("+s.bpct+"%, "+esc(s.billDoc)+")":"Təklifdə avans: "+s.adv+"%"}</b>
+    <label class="chk"><input type="checkbox" id="sFinal"${f?" checked":""}> Yekun qaimə — iş bitib, satış tamamlanır</label>
+    <p class="note" style="margin:0">${f?"Satış tam bağlanacaq: “hesab yazılıb”.":"Avans qaiməsi kimi bağlanacaq: satışda “"+Math.min(99,pc)+"% hesab yazılıb” qeyd olunur, qalan hissə iş bitəndə ikinci qaimə ilə bağlanır."}</p></div>`}
+/* the advance % joins the payment terms of the printed offer (Azerbaijani text) */
+function qPayTxt(q,DL){const p=String(q.terms&&q.terms.pay||"").trim(),a=saNum(q.terms&&q.terms.adv);if(!(a>0)||(DL&&DL!=="az")||new RegExp("\\b"+String(a).replace(".","[.,]")+"\\s*%").test(p))return p;
+  return [p,`Əvvəlcədən ödəniş (avans) — ${String(a).replace(".",",")}%, qalan ${String(saR2(100-a)).replace(".",",")}% — iş təhvil verildikdən sonra.`].filter(Boolean).join("\n")}
 function sinvGuess(v){const c=sinvCands(v)[0];return c&&c.d<=1?c.s.id:"new"}
 function sinvCon(v){const no=norm(v.con&&v.con.no).trim();return (state.contracts||[]).filter(c=>!c.del).find(c=>no&&norm(c.no).trim()===no&&(saNameHit(c.client,v.supplier,true)||(v.voen&&c.voen===v.voen)||String(c.aliases||"").split(/[,;\n]/).some(x=>saNameHit(x,v.supplier,true))))||null}
 const sinvSvcLike=v=>(v.lines||[]).some(l=>/(aylıq|rüblük|yarımillik|illik)\s+texniki\s+xidm/i.test(l.srcName||l.name||""));
@@ -3385,8 +3395,8 @@ function sinvRender(v){const I=itemsById(),T=saInvTotals(v),ed=can("invoice")&&v
       <datalist id="sClList">${[...new Set(listQuotes().map(s=>s.client).filter(Boolean))].map(c=>`<option value="${esc(c)}">`).join("")}</datalist>
       <label class="f"><span>Əsas (qaimədən)</span><textarea data-v="basis" rows="2">${esc(v.basis||"")}</textarea></label><label class="f"><span>Dövr / əlavə qeyd</span><input data-v="per" value="${esc(v.per||"")}"></label>
       <div class="actions"><button class="btn sm" id="pdfLocal" hidden>PDF-ə bax</button>${v.fileName?`<span class="note">${esc(v.fileName)}</span>`:""}</div></div>
-    <div class="card"><h3>Hansı satışa aiddir</h3><label class="f"><span>Satış sənədi</span><select id="sLink"><option value="new"${v.link==="new"?" selected":""}>— Yeni satış yarat (qaimənin sətirlərindən) —</option>${C.map(x=>`<option value="${x.s.id}"${v.link===x.s.id?" selected":""}>${esc(x.s.no)} · ${fmtDate(x.s.date)} · ${AZN(x.s.total)}${x.d<=1?" ✓ məbləğ uyğundur":" (fərq "+money(x.d)+")"}${x.s.svc?" · servis":""}</option>`).join("")}</select></label>
-      <p class="note" style="margin:0">${C.length?"Müştərinin hesab yazılmamış satışları göstərilir. Məbləği uyğun gələn avtomatik seçilir.":"Bu müştəridə hesab yazılmamış satış tapılmadı — qaimədən yeni satış yaranacaq."} Satışda “Hesab yazıldı № ${esc(v.no||"…")}” qeyd olunacaq.</p></div>
+    <div class="card"><h3>Hansı satışa aiddir</h3><label class="f"><span>Satış sənədi</span><select id="sLink"><option value="new"${v.link==="new"?" selected":""}>— Yeni satış yarat (qaimənin sətirlərindən) —</option>${C.map(x=>`<option value="${x.s.id}"${v.link===x.s.id?" selected":""}>${esc(x.s.no)} · ${fmtDate(x.s.date)} · ${AZN(x.s.total)}${x.s.bill==="part"?" · "+x.s.bpct+"% hesab yazılıb":x.s.adv?" · avans "+x.s.adv+"%":""}${x.d<=1?(x.m==="adv"?" ✓ avans məbləğinə uyğundur":x.m==="rest"?" ✓ qalan məbləğə uyğundur":" ✓ məbləğ uyğundur"):" (fərq "+money(x.d)+")"}${x.s.svc?" · servis":""}</option>`).join("")}</select></label>
+      <p class="note" style="margin:0">${C.length?"Müştərinin hesab yazılmamış satışları göstərilir. Məbləği uyğun gələn avtomatik seçilir.":"Bu müştəridə hesab yazılmamış satış tapılmadı — qaimədən yeni satış yaranacaq."} Satışda “Hesab yazıldı № ${esc(v.no||"…")}” qeyd olunacaq.</p>${sinvFinBox(v)}</div>
     <div class="card"><h3>Müqavilə</h3>${v.con&&v.con.no?`<p style="margin:0">Qaimədə: <b>№ ${esc(v.con.no)}</b>${v.con.date?" · "+fmtDate(v.con.date):""}</p>`:'<p class="note" style="margin:0">Qaimənin “Əsas” sətrində müqavilə tapılmadı.</p>'}
       ${con?`<p style="margin:6px 0 0"><span class="chip ok">tapıldı</span> ${esc(con.client)} · ${isSaleCon(con)?"alqı-satqı":"xidməti"} · № ${esc(con.no||"")}</p>`:v.con&&v.con.no?`<label class="chk"><input type="checkbox" id="sMkCon" ${v.mkCon!==false?"checked":""}> Bu müştəri ilə müqavilə yarat (qaimədən)</label>
         <div class="seg" style="margin-top:4px"><button type="button" class="s-ok" data-ck="svc" aria-pressed="${ck==="svc"}">Xidməti${sinvSvcLike(v)?" — cihazlar və qiymətlər qaimədən":""}</button><button type="button" class="s-ok" data-ck="sale" aria-pressed="${ck==="sale"}">Alqı-satqı</button></div>`:""}</div>
@@ -3397,7 +3407,7 @@ function sinvRender(v){const I=itemsById(),T=saInvTotals(v),ed=can("invoice")&&v
   $("#main").innerHTML=h;bindHead(v);
   const re=()=>renderInvoice(v.isNew?"new":v.id);
   $$('[data-v="supplier"],[data-v="voen"]').forEach(el=>el.onchange=()=>{v.link=sinvGuess(v);re()});
-  $("#sLink").onchange=e=>{v.link=e.target.value};const mk=$("#sMkCon");if(mk)mk.onchange=()=>{v.mkCon=mk.checked};$$("[data-ck]").forEach(b=>b.onclick=()=>{v.conKind=b.dataset.ck;re()});
+  $("#sLink").onchange=e=>{v.link=e.target.value;v.final=undefined;re()};const sf=$("#sFinal");if(sf)sf.onchange=()=>{v.final=sf.checked;re()};const mk=$("#sMkCon");if(mk)mk.onchange=()=>{v.mkCon=mk.checked};$$("[data-ck]").forEach(b=>b.onclick=()=>{v.conKind=b.dataset.ck;re()});
   $$("#sLines .lcard").forEach(c=>{const l=v.lines[+c.dataset.i];
     c.querySelectorAll("[data-k]").forEach(el=>el.oninput=()=>{const k=el.dataset.k;l[k]=k==="srcName"||k==="unit"?el.value:saNum(el.value);if(k==="qty"||k==="price"){l.vat=saR2(saNum(l.qty)*saNum(l.price)*0.18)}
       const sm=c.querySelector("[data-sum]");if(sm)sm.textContent=money(saR2(saNum(l.qty)*saNum(l.price)))+" + ƏDV "+money(l.vat);const T2=saInvTotals(v),b=$$("#invTot .tot b");if(b.length>=4){b[1].textContent=AZN(T2.net);b[2].textContent=AZN(T2.vat);b[3].textContent=AZN(T2.total)}});
@@ -3427,10 +3437,10 @@ function sinvSave(v,post){if(!String(v.no).trim()){toast(ERR.invno);return}if(!S
   const loc={...(old||{status:"draft",created:now,author:state.me.name}),...rec,lines:rec.lines.map(l=>({...l,name:l.itemId?(I[l.itemId]||{}).name:l.srcName,code:l.itemId?(I[l.itemId]||{}).code:l.srcCode})),updatedAt:now,by:state.me.name,pending:true};
   queueOp("saveInvoice",{invoice:rec},post?"":"Qaimə saxlanıldı");
   if(post){const link=v.link||"new",mkCon=!sinvCon(v)&&v.con&&v.con.no&&v.mkCon!==false,ck=v.conKind||(sinvSvcLike(v)?"svc":(v.con&&v.con.kind)||"sale");
-    queueOp("postSaleInvoice",{id:v.id,quoteId:link,mkCon,conKind:ck},"Qaimə satışa bağlandı"+(rec.lines.some(l=>l.t==="mal")?" — mallar anbardan təhvilə göndərildi":""));
+    const fin=sinvFinal(v);queueOp("postSaleInvoice",{id:v.id,quoteId:link,mkCon,conKind:ck,final:fin===null?undefined:fin},(fin===false?"Avans qaiməsi satışa bağlandı":"Qaimə satışa bağlandı")+(rec.lines.some(l=>l.t==="mal")?" — mallar anbardan təhvilə göndərildi":""));
     loc.status=rec.lines.some(l=>l.t==="mal")?"approved":"received";loc.approvedBy=state.me.name;
     /* until the server answers: the sale shows "hesab yazılıb" */
-    if(link!=="new"&&state.remote[link])Object.assign(state.remote[link],{bill:"inv",billDoc:rec.no,inv:v.id,pending:true});
+    if(link!=="new"&&state.remote[link]){const r0=state.remote[link],sm=saR2(saNum(r0.bsum)+sinvTotal(v)),tt=saNum(r0.total);Object.assign(r0,fin===false?{bill:"part",bpct:tt>0?Math.min(99,Math.round(sm/tt*100)):0,bsum:sm,billDoc:[r0.bill==="part"?r0.billDoc:"",rec.no].filter(Boolean).join(", "),inv:v.id,pending:true}:{bill:"inv",billDoc:[r0.bill==="part"?r0.billDoc:"",rec.no].filter(Boolean).join(", "),inv:v.id,pending:true})}
     if(state.local[link]){state.local[link].bill={st:"inv",doc:rec.no,by:state.me.name,at:now,inv:v.id}}}
   state.invoices=[loc,...(state.invoices||[]).filter(x=>x.id!==v.id)];if(wasNew&&v.pdfBuf)pdfPut(v.id,{buf:v.pdfBuf,name:v.fileName||"qaime.pdf"});
   saveCache();INV=null;state.vdir="out";go("invoices")}
