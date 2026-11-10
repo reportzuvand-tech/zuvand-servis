@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111102;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111103;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -848,7 +848,7 @@ function saHandle(db,u,action,p){
       vat:inQ.vat!==false,vatRate:old?saNum(old.vatRate):S.vat,terms:{},lines:[],updatedAt:now,by:u.name};
     if(inQ.showCode!==undefined)q.showCode=!!inQ.showCode;else if(old&&old.showCode!==undefined)q.showCode=old.showCode;
     if(inQ.showDesc!==undefined)q.showDesc=!!inQ.showDesc;else if(old&&old.showDesc!==undefined)q.showDesc=old.showDesc;
-    if(inQ.shortName!==undefined)q.shortName=!!inQ.shortName;else if(old&&old.shortName!==undefined)q.shortName=old.shortName;
+    if(inQ.shortName!==undefined)q.shortName=!!inQ.shortName;else if(old&&old.shortName!==undefined)q.shortName=old.shortName;if(inQ.grp!==undefined){var gn=saStr(inQ.grp&&inQ.grp.name,300).trim();if(inQ.grp&&inQ.grp.on&&gn)q.grp={on:1,name:gn}}else if(old&&old.grp)q.grp=old.grp;
     if(inQ.per!==undefined)q.per=saStr(inQ.per,60).trim();else if(old&&old.per)q.per=old.per;
     if(inQ.conId!==undefined)q.conId=saStr(inQ.conId,60);else if(old&&old.conId)q.conId=old.conId;
     if(old&&old.src)q.src=old.src;if(old&&old.billedIn)q.billedIn=old.billedIn;if(old&&old.bill)q.bill=old.bill;if(old&&old.fromInv)q.fromInv=old.fromInv;
@@ -1071,6 +1071,8 @@ function saHandle(db,u,action,p){
         cl:{name:sv.supplier,voen:sv.voen},vat:true,per:sv.per||"",conId:con?con.id:"",terms:{pay:S.pay,delivery:"",warranty:"",note:sv.basis?"Əsas: "+sv.basis:""},lines:ql}});
       oq.ch.quotes.forEach(function(x){ch.quotes.push(x)});if(oq.ch.settings){ch.settings=ch.settings||{};for(var k0 in oq.ch.settings)ch.settings[k0]=oq.ch.settings[k0]}
       q=quoteById(oq.res.quote.id);q.fromInv=sv.id}
+    /* the invoice bills everything with one sentence (e.g. “Sair elektron qurğulara texniki xidmət”): the offer shows the lines under that sentence */
+    var gPr=sv.lines.filter(function(l){return saNum(l.price)>0});if(!q.grp&&gPr.length===1&&(sv.lines.length===1||sv.lines.every(function(l){return l===gPr[0]||!saNum(l.price)}))&&(q.lines||[]).length>1){var gN=saStr(gPr[0].name||gPr[0].srcName,300).trim();if(gN)q.grp={on:1,name:gN}}
     /* a service contract billed by this invoice: the visit counts for the next-service date */
     if(con&&con.kind!=="sale"&&allX&&String(sv.date||"")>String(con.lastSvc||"")){con.lastSvc=sv.date;con.updatedAt=now;ch.contracts.push(con)}
     var qT=saTotals(q).total,iT=saInvTotals(sv).total,pv=(q.bill&&q.bill.st==="part"&&Array.isArray(q.bill.invs))?q.bill.invs.filter(function(x){return x.id!==sv.id}):[];var invs=pv.concat([{id:sv.id,no:sv.no,date:sv.date||"",total:iT}]),bSum=saR2(invs.reduce(function(a,x){return a+saNum(x.total)},0));var fin=p.final===true||p.final===false?p.final:(qT<=0||bSum>=qT-0.01||pv.length>0||!(saNum(q.terms&&q.terms.adv)>0));var part=!fin;q.bill={st:part?"part":"inv",doc:invs.map(function(x){return x.no}).join(", "),by:u.name,at:now,inv:sv.id,invs:invs,sum:bSum,pct:part&&qT>0?Math.min(99,Math.round(bSum/qT*100)):100};q.hist=(q.hist||[]).slice(-39);q.hist.push({at:now,by:u.name,bill:part?"part":"inv",doc:sv.no+(part?" ("+q.bill.pct+"%)":"")});
@@ -2015,7 +2017,7 @@ function renderQuote(){const q=state.cur;if(!q){go("quotes");return}const ed=can
     h+=`<div class="cols2"><div class="col"><div class="card"><h3>Kataloqdan əlavə et</h3><input type="search" id="addq" placeholder="Ad, kod, brend və ya model yazın…" autocomplete="off"><div class="results" id="addRes"></div>
       <button class="btn" id="addFree">+ Sərbəst sətir (kataloqda olmayan)</button>
       <p class="note" style="margin:0"><b>Mal</b> — anbardan rezerv və məxaric olunur. <b>Xidmət</b> (quraşdırma, rəf hazırlanması, işçilik) — anbara düşmür, iş görüləndə “icra olundu” qeyd edilir. Sərbəst sətir standart olaraq “Xidmət” olur.</p></div>
-      <div class="card"><h3>Sətirlər · ${q.lines.length}</h3><label style="display:flex;gap:8px;align-items:center;margin:-4px 0 10px;cursor:pointer;font-size:14px"><input type="checkbox" id="descOn" style="width:18px;height:18px;min-height:0;margin:0"${qShowDesc(q)?" checked":""}${ed?"":" disabled"}> Təsviri təklifdə göstər <span class="note">(obyekt, seriya № və s. — işarəsiz olanda təklifdə təsvir boş qalır)</span></label>
+      <div class="card"><h3>Sətirlər · ${q.lines.length}</h3><div style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:-4px 0 10px;display:grid;gap:6px"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-size:14px"><input type="checkbox" id="grpOn" style="width:18px;height:18px;min-height:0;margin:0"${q.grp&&q.grp.on?" checked":""}${ed?"":" disabled"}> <b>Qaiməyə uyğun:</b> bütün sətirləri təklifdə bir cümlənin altında göstər</label>${q.grp&&q.grp.on?`<label class="f" style="margin:0"><span>Qaimədəki cümlə (təklifdə bir sətir olur, cihazlar onun altında siyahı kimi)</span><input id="grpName" value="${esc(q.grp.name||"")}" placeholder="məs. Sair elektron qurğulara texniki xidmət"${ed?"":" disabled"}></label>`:""}<span class="note">Qiymətlər ayrı-ayrı yazılsa da, təklifdə bir sətir və ümumi məbləğ çıxır. İşarəsiz — adi təklif forması.</span></div><label style="display:flex;gap:8px;align-items:center;margin:-4px 0 10px;cursor:pointer;font-size:14px"><input type="checkbox" id="descOn" style="width:18px;height:18px;min-height:0;margin:0"${qShowDesc(q)?" checked":""}${ed?"":" disabled"}> Təsviri təklifdə göstər <span class="note">(obyekt, seriya № və s. — işarəsiz olanda təklifdə təsvir boş qalır)</span></label>
         <label style="display:flex;gap:8px;align-items:center;margin:-4px 0 10px;cursor:pointer;font-size:14px"><input type="checkbox" id="shortOn" style="width:18px;height:18px;min-height:0;margin:0"${qShortName(q)?" checked":""}${ed?"":" disabled"}> Adlarda “Texniki xidmət —”, seriya № və yeri göstərmə <span class="note">(təklifdə yalnız cihazın adı qalır, məs. “Siemens Masterguard 100KVA markalı UPS”)</span></label><div style="display:grid;gap:10px" id="lines">${linesHTML()}</div></div></div>
       <div class="col"><div class="card" id="totals">${totalsHTML()}</div>${can("seeCost")?`<div class="card" id="margin">${marginHTML()}</div>`:""}</div></div>
       <div class="nextbar"><button class="btn" data-goto="cl">← Müştəri</button><button class="btn pri" data-goto="terms">Şərtlər →</button></div>`}
@@ -2046,6 +2048,7 @@ function bindQuote(){const q=state.cur;
   const af=$("#addFree");if(af)af.onclick=()=>{q.lines.push({id:saId("l"),itemId:"",code:"",name:"",desc:"",unit:"xidmət",qty:1,price:0,disc:0,t:"xid"});markDirty();redrawLines(true);toast("Sərbəst sətir “Xidmət” kimi əlavə olundu — mal üçün “Mal” seçin")};
   bindLines();bindVat();bindBill(q);bindMerge(q);bindSaleCon(q);bindVia(q);
   {const so=$("#shortOn");if(so)so.onchange=()=>{q.shortName=so.checked;LS.set("sa.shortname",so.checked);markDirty();toast(so.checked?"Təklifdə qısa adlar göstəriləcək":"Təklifdə tam adlar göstəriləcək")}}
+  {const go=$("#grpOn");if(go)go.onchange=()=>{if(go.checked){const pr=q.lines.filter(l=>saNum(l.price)>0);q.grp={on:1,name:(q.grp&&q.grp.name)||(pr.length===1?pr[0].name:"")||"Sair elektron qurğulara texniki xidmət"}}else q.grp={on:0,name:(q.grp&&q.grp.name)||""};markDirty();renderQuote()};const gn=$("#grpName");if(gn)gn.oninput=()=>{q.grp=Object.assign(q.grp||{on:1},{name:gn.value});markDirty()}}
   {const dc=$("#descOn");if(dc)dc.onchange=()=>{q.showDesc=dc.checked;LS.set("sa.showdesc",dc.checked);markDirty();toast(dc.checked?"Təsvir təklifdə göstəriləcək":"Təsvir təklifdə göstərilməyəcək")}}
   const bp=$("#bPdf");if(bp)bp.onclick=exportPdf;const pr=$("#bPrint");if(pr)pr.onclick=printQuote;
   const bx=$("#bXls");if(bx)bx.onclick=exportQuoteXlsx;const bfo=$("#bFolder");if(bfo)bfo.onclick=()=>openSaved(q);const btr=$("#bTr");if(btr)btr.onclick=()=>trPanel(q);
@@ -2230,7 +2233,7 @@ function marginHTML(){const q=state.cur,I=itemsById();let cost=0,miss=0,mal=0,xi
 /* ================= quote paper (A4) ================= */
 let LOGO_OK=null;var LOGO=(typeof LOGO_B64==="string"&&!LOGO_B64.startsWith("__"))?"data:image/jpeg;base64,"+LOGO_B64.replace(/_/g,"/").replace(/-/g,"+"):"";
 function paperHTML(q,lang){const prevDL=DL;DL=lang||qLang(q);try{return paperHTML0(q)}finally{DL=prevDL}}
-function paperHTML0(q){const S=state.settings,T=saTotals(q),hasDisc=q.lines.some(l=>saNum(l.disc)>0),dash=v=>v?esc(v):"—",E=v=>esc(F(v));
+function paperHTML0(q){q=qView(q);const S=state.settings,T=saTotals(q),hasDisc=q.lines.some(l=>saNum(l.disc)>0),dash=v=>v?esc(v):"—",E=v=>esc(F(v));
   const coLine=[S.coaddr,S.cotel&&L("Tel:")+" "+S.cotel,S.coemail,S.covoen&&L("VÖEN:")+" "+S.covoen].filter(Boolean).map(esc).join(" · ");
   const I0=itemsById(),cols=hasDisc?7:6,typed=q.lines.map(l=>({l,t:saLineType(l,I0)})),two=typed.some(x=>x.t==="mal")&&typed.some(x=>x.t==="xid");
   const row=(l,i)=>`<tr><td class="c">${i+1}</td><td><b>${E(qLineName(q,l))}</b>${l.code&&qShowCode(q)?` <span class="c">${esc(l.code)}</span>`:""}${l.desc&&qShowDesc(q)?`<span class="d">${E(l.desc)}</span>`:""}</td><td class="c">${esc(U(l.unit))}</td><td class="r num">${qf(l.qty)}</td><td class="r num">${money(l.price)}</td>${hasDisc?`<td class="r num">${saNum(l.disc)?qf(l.disc)+"%":""}</td>`:""}<td class="r num">${money(saLineSum(l))}</td></tr>`;
@@ -2384,7 +2387,7 @@ async function printQuote(){await flush();const q=state.cur;if(qLang(q)!=="az")a
 /* ================= quotation as an Excel file ================= */
 async function needExcelJS(){if(window.ExcelJS)return true;const H="https:"+"/"+"/";
   for(const u of [...(IS_GAS?[]:["lib/exceljs.min.js"]),H+"cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js",H+"cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"]){try{await loadScriptOnce(u);if(window.ExcelJS)return true}catch(e){}}return false}
-async function quoteXlsx(q){const prev=DL;DL=qLang(q);try{const S=state.settings,T=saTotals(q),hasDisc=q.lines.some(l=>saNum(l.disc)>0),I0=itemsById();
+async function quoteXlsx(q){q=qView(q);const prev=DL;DL=qLang(q);try{const S=state.settings,T=saTotals(q),hasDisc=q.lines.some(l=>saNum(l.disc)>0),I0=itemsById();
   const wb=new ExcelJS.Workbook();wb.creator=S.co||"";const ws=wb.addWorksheet(L("Təklif"),{pageSetup:{paperSize:9,orientation:"portrait",fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.4,right:.4,top:.5,bottom:.5,header:.2,footer:.2}},views:[{showGridLines:false}]});
   const C=hasDisc?["№",L("Adı və texniki göstəriciləri"),L("Vahid"),L("Say"),L("Qiymət, ₼"),L("Endirim"),L("Məbləğ, ₼")]:["№",L("Adı və texniki göstəriciləri"),L("Vahid"),L("Say"),L("Qiymət, ₼"),L("Məbləğ, ₼")];
   ws.columns=(hasDisc?[5,52,9,8,14,10,16]:[5,58,9,8,14,16]).map(w=>({width:w}));const N=C.length,last=String.fromCharCode(64+N);
@@ -3380,6 +3383,12 @@ function sinvFinBox(v){const f=sinvFinal(v);if(f===null)return "";const s=listQu
   return `<div style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:10px;display:grid;gap:6px"><b>${s.bill==="part"?"Bu satışa əvvəl avans qaiməsi bağlanıb ("+s.bpct+"%, "+esc(s.billDoc)+")":"Təklifdə avans: "+s.adv+"%"}</b>
     <label class="chk"><input type="checkbox" id="sFinal"${f?" checked":""}> Yekun qaimə — iş bitib, satış tamamlanır</label>
     <p class="note" style="margin:0">${f?"Satış tam bağlanacaq: “hesab yazılıb”.":"Avans qaiməsi kimi bağlanacaq: satışda “"+Math.min(99,pc)+"% hesab yazılıb” qeyd olunur, qalan hissə iş bitəndə ikinci qaimə ilə bağlanır."}</p></div>`}
+/* “Qaiməyə uyğun”: the printed offer / Excel shows one line (the invoice sentence) with the other lines listed under it */
+function qView(q){if(!q||!q.grp||!q.grp.on||!String(q.grp.name||"").trim()||(q.lines||[]).length<1)return q;const nm=String(q.grp.name).trim(),T=saTotals(q),key=saNormName(nm);
+  const own=(q.lines||[]).find(l=>saNormName(l.name)===key),rest=(q.lines||[]).filter(l=>l!==own&&String(l.name||"").trim());
+  const ls=rest.map(l=>{const u=String(l.unit||"").trim(),n=saNum(l.qty);return String(l.name).trim()+(n?" — "+qf(n)+" "+(!u||/^xidm/i.test(u)?"əd.":u):"")});
+  const desc=[own&&own.desc?own.desc:"",ls.join("\n")].filter(Boolean).join("\n");
+  return Object.assign({},q,{showDesc:true,showCode:false,lines:[{id:"grp",itemId:"",code:"",name:nm,desc,unit:"xidmət",qty:1,price:T.net,disc:0,t:"xid"}]})}
 /* the advance % joins the payment terms of the printed offer (Azerbaijani text) */
 function qPayTxt(q,DL){const p=String(q.terms&&q.terms.pay||"").trim(),a=saNum(q.terms&&q.terms.adv);if(!(a>0)||(DL&&DL!=="az")||new RegExp("\\b"+String(a).replace(".","[.,]")+"\\s*%").test(p))return p;
   return [p,`Əvvəlcədən ödəniş (avans) — ${String(a).replace(".",",")}%, qalan ${String(saR2(100-a)).replace(".",",")}% — iş təhvil verildikdən sonra.`].filter(Boolean).join("\n")}
