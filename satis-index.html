@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111004;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111101;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -1655,7 +1655,7 @@ function grpSubs(){const A=MAIN_TABS().map(x=>x[0]),has=k=>A.includes(k),o={svcb
   if(has("quotes")){if(can("setPrice")||can("contract"))o.svcb.push(["svcbill","Aylıq hesablar"]);o.svcb.push(["quotes:svc","Servis sənədləri"]);o.sale.push(["quotes:sale","Təkliflər"])}
   if(has("invoices"))o.sale.push(["invoices:out","Satış qaimələri"]);if(has("quotes")&&(can("setPrice")||can("admin")))o.sale.push(["stats","Statistika"]);
   if(has("stock"))o.wh.push(["stock","Qalıq"]);if(has("invoices"))o.wh.push(["invoices:in","Mədaxil (alış qaimələri)"]);if(has("catalog"))o.wh.push(["catalog","Kataloq"]);if(has("moves"))o.wh.push(["moves","Hərəkətlər"]);if(has("expenses"))o.wh.push(["expenses","Xərclər"]);
-  if(has("contracts"))o.cc.push(["contracts","Müqavilələr"]);if(has("customers"))o.cc.push(["customers","Müştərilər"]);
+  if(has("contracts"))o.cc.push(["contracts","Müqavilələr"]);if(has("customers"))o.cc.push(["customers","Müştərilər"]);if(can("admin"))o.cc.push(["map","Əlaqələr sxemi"]);
   const ord=can("moveStock")&&!can("invoice")?["wh","sale","svcb","cc"]:(can("setPrice")||can("contract"))?["svcb","sale","wh","cc"]:["sale","svcb","cc","wh"];
   return ord.filter(g=>o[g].length).map(g=>[g,o[g]])}
 const curSub=v=>v==="quotes"?"quotes:"+(state.qk==="svc"?"svc":"sale"):v==="invoices"?"invoices:"+(state.vdir==="out"?"out":"in"):v;
@@ -1665,7 +1665,7 @@ const homeView=()=>{const G=grpSubs();return G.length?subView(G[0][1][0][0]):MAI
 const sbOpen=()=>listQuotes().filter(s=>s.wk&&!s.bin&&!s.bill&&s.status==="accepted").length;
 function header(){const demo=isDemo();modGate();
   $("#hTitle").innerHTML=`Satış və Anbar<small>${esc(state.me.name||"")} · ${esc(saRoleLabel(role()))}${demo?" · demo rejimi":""}</small>`;badge()}
-function mainTabs(active){const t=$("#tabs");t.hidden=false;$("#hBack").hidden=true;$("#hSettings").hidden=false;
+function mainTabs(active){state.fromMap=false;const t=$("#tabs");t.hidden=false;$("#hBack").hidden=true;$("#hSettings").hidden=false;
   const G=grpSubs(),cs=curSub(active),cg=(G.find(([g,L])=>L.some(x=>x[0]===cs))||G[0]||[])[0];
   if(G.length){const bd={svcb:sbOpen()?sbOpen()+" ●":"",sale:can("setPrice")&&listQuotes().filter(s=>s.due&&s.bill!=="inv"&&qKind(s)==="sale").length?listQuotes().filter(s=>s.due&&s.bill!=="inv"&&qKind(s)==="sale").length+" ₼●":"",wh:(lowCount()?lowCount()+"⚠":"")+(can("receive")&&invWaiting()?" "+invWaiting()+"●":""),cc:can("contract")&&listQuotes().some(s=>s.nocon)?listQuotes().filter(s=>s.nocon).length+"●":""};
     t.innerHTML=G.map(([g,L])=>`<button class="tab" role="tab" data-g="${g}" aria-selected="${g===cg}">${GRP_L[g]}${bd[g]?`<span class="n">${bd[g]}</span>`:""}</button>`).join("")+
@@ -1674,12 +1674,94 @@ function mainTabs(active){const t=$("#tabs");t.hidden=false;$("#hBack").hidden=t
     t.querySelectorAll("[data-sub]").forEach(b=>b.onclick=()=>goSub(b.dataset.sub));return}
   t.innerHTML=MAIN_TABS().map(([k,l])=>`<button class="tab" role="tab" data-v="${k}" aria-selected="${k===active}">${l}${k==="quotes"?(can("setPrice")&&dueCount()?`<span class="n">${dueCount()} ₼●</span>`:`<span class="n">${listQuotes().length}</span>`):k==="stock"&&lowCount()?`<span class="n">${lowCount()}⚠</span>`:k==="contracts"&&can("contract")&&listQuotes().some(s=>s.nocon)?`<span class="n">${listQuotes().filter(s=>s.nocon).length}●</span>`:k==="invoices"&&can("receive")&&invWaiting()?`<span class="n">${invWaiting()}●</span>`:""}</button>`).join("");
   t.querySelectorAll(".tab").forEach(b=>b.onclick=()=>go(b.dataset.v))}
-function subPage(backTo,tabs){$("#hBack").hidden=false;$("#hBack").onclick=async()=>{await flush();if(state.view==="quote"){state.cur=null}go(backTo)};
+function subPage(backTo,tabs){if(state.fromMap)backTo="map";$("#hBack").hidden=false;$("#hBack").onclick=async()=>{await flush();if(state.view==="quote"){state.cur=null}go(backTo)};
   const t=$("#tabs");if(!tabs){t.hidden=true;return}t.hidden=false;
   t.innerHTML=tabs.map(([k,l])=>`<button class="tab" role="tab" data-t="${k}" aria-selected="${k===state.etab}">${l}</button>`).join("");
   t.querySelectorAll(".tab").forEach(b=>b.onclick=async()=>{await flush();state.etab=b.dataset.t;renderQuote();window.scrollTo(0,0)})}
 function go(v,arg){state.view=v;state.arg=arg;window.scrollTo(0,0);render()}
-function render(){header();const v=state.view;
+/* ZUVAND — Satış və Anbar: əlaqələr sxemi (rəhbər üçün) — müştəri → müqavilə → aylıq hesab → servis sənədi → qaimə → mallar; təchizatçı → alış qaiməsi → mallar */
+const LMAP={open:new Set(),shut:new Set(),q:"",bad:false,side:"cl",yr:""};
+function lmCss(){if(document.getElementById("lmCss"))return;document.head.insertAdjacentHTML("beforeend",`<style id="lmCss">
+.lm{display:grid;gap:8px}.lm details{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:0}
+.lm summary{cursor:pointer;padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;list-style:none;font-weight:700}
+.lm summary::-webkit-details-marker{display:none}.lm summary::before{content:"▸";transition:transform .15s}.lm details[open]>summary::before{transform:rotate(90deg)}
+.lm .tr{padding:2px 12px 12px 14px}.lm ul{list-style:none;margin:0;padding:0 0 0 18px;border-left:2px solid var(--line)}.lm .tr>ul{border-left:0;padding-left:0}
+.lm li{position:relative;margin:6px 0;padding-left:12px}.lm ul ul>li::before,.lm .tr>ul>li ul>li::before{content:"";position:absolute;left:-2px;top:18px;width:12px;border-top:2px solid var(--line)}
+.lm .nd{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;max-width:100%;padding:6px 10px;border:1px solid var(--line);border-left:5px solid var(--c,#8A9590);border-radius:9px;background:var(--surface);color:inherit;font:inherit;font-size:14px;text-align:left;cursor:pointer;line-height:1.3}
+.lm .nd:hover{border-color:var(--c,#8A9590);box-shadow:0 1px 4px rgba(0,0,0,.08)}.lm .nd b{font-weight:700}.lm .nd small{color:var(--muted);font-size:12.5px}
+.lm .k-con{--c:#2563A8}.lm .k-bill{--c:#7A4FB5}.lm .k-svc{--c:#0B7A4B}.lm .k-sale{--c:#B5761F}.lm .k-inv{--c:#C2410C}.lm .k-item{--c:#6B7280}.lm .k-cl{--c:#16362E}
+.lm .bad{color:#B42318;font-weight:700;font-size:12.5px}.lm .warn{color:#9A6B00;font-weight:700;font-size:12.5px}
+.lm .lg{display:flex;gap:8px;flex-wrap:wrap;font-size:13px}.lm .lg span{display:inline-flex;gap:5px;align-items:center}.lm .lg i{width:12px;height:12px;border-radius:3px;background:var(--c);display:inline-block}
+</style>`)}
+function renderLinkMap(){mainTabs("map");lmCss();if(!can("admin")){$("#main").innerHTML='<div class="locked">Bu bölmə yalnız rəhbər üçündür.</div>';return}
+  state.fromMap=true;const L=LMAP,nk=s=>saNormName(s||""),Q=norm(L.q||""),Y=L.yr;
+  const qs=listQuotes().filter(s=>!s.delAt),qById={};qs.forEach(s=>qById[s.id]=s);
+  const cons=(state.contracts||[]).filter(c=>!c.del),cById={};cons.forEach(c=>cById[c.id]=c);
+  const invs=(state.invoices||[]).filter(v=>!v.del),iById={};invs.forEach(v=>iById[v.id]=v);
+  const items={};(state.items||[]).forEach(i=>items[i.id]=i);
+  const issued={};(state.moves||[]).forEach(m=>{if(m.del||m.kind!=="out"||!m.quoteId)return;const o=(issued[m.quoteId]=issued[m.quoteId]||{});const k=m.itemId||m.name;o[k]=o[k]||{id:m.itemId,name:(items[m.itemId]||{}).name||m.name||"",q:0,t:"mal"};o[k].q+=saNum(m.qty)});
+  const yOk=d=>!Y||String(d||"").startsWith(Y);
+  const kindOf=s=>s.bmon||s.nrec?"bill":s.kind==="svc"||s.svc?"svc":"sale";
+  const qLab=s=>{const k=kindOf(s);return k==="bill"?"Aylıq hesab"+(s.bmon?" — "+(SA_MONTHS[+String(s.bmon).slice(5,7)-1]||"")+" "+String(s.bmon).slice(0,4):""):k==="svc"?"Servis sənədi":(s.status==="accepted"||s.status==="done"||s.bill?"Satış":"Təklif")};
+  /* what looks wrong — the manager opens it from here and fixes it */
+  const qBad=s=>{const B=[];if(s.nocon)B.push(["bad","müqavilə tapılmadı"]);if(s.dup)B.push(["bad","təkrar sənəd ("+s.dup+")"]);if(s.zero&&s.status!=="draft")B.push(["warn","qiyməti yazılmayan sətir var"]);
+    if(s.due&&s.bill!=="inv")B.push(["warn","hesab yazılmalı"]);const c=cById[s.contractId||s.conId];if(c&&s.client&&nk(c.client)!==nk(s.client)&&!String(c.aliases||"").split(/[,;\n]/).some(a=>nk(a)===nk(s.client)))B.push(["bad","müqavilədəki müştəri adı fərqlidir"]);
+    if((s.contractId||s.conId)&&!c)B.push(["bad","bağlı müqavilə silinib"]);if(s.binId&&!qById[s.binId])B.push(["bad","aylıq hesab tapılmadı"]);return B};
+  const vBad=v=>{const B=[];if(v.dir==="out"&&!v.quoteId)B.push(["warn","satışa bağlanmayıb"]);if(v.dir==="out"&&v.quoteId&&!qById[v.quoteId])B.push(["bad","bağlı satış tapılmadı"]);
+    const nm=(v.lines||[]).filter(l=>l.t==="mal"&&!l.itemId).length;if(nm)B.push(["bad",nm+" mal kataloqa bağlanmayıb"]);if(v.status==="draft")B.push(["warn","qaralama"]);return B};
+  const cBad=c=>{const B=[];if(c.end&&c.end<today()&&c.active!==false)B.push(["warn","müddəti bitib"]);return B};
+  const chips=B=>B.map(([k,t])=>`<span class="${k}">⚠ ${esc(t)}</span>`).join(" ");
+  const nd=(k,act,main,sub,B)=>`<button type="button" class="nd k-${k}" data-lm="${esc(act)}"><b>${esc(main)}</b>${sub?`<small>${esc(sub)}</small>`:""}${B&&B.length?chips(B):""}</button>`;
+  const dt=d=>d?String(d).split("-").reverse().join("."):"";
+  /* the tree of one customer */
+  function itemsUl(list){return list.length?`<ul>${list.map(x=>`<li>${nd("item",x.id?"i:"+x.id:"",x.name||"(adsız)",qx(x.q)+" "+(x.unit||(items[x.id]||{}).unit||""),x.id||x.t!=="mal"?[]:[["bad","kataloqda yoxdur"]])}</li>`).join("")}</ul>`:""}
+  function invNode(v){const L0=(v.lines||[]).map(l=>({id:l.itemId,name:(l.itemId&&items[l.itemId]?items[l.itemId].name:"")||l.name||l.srcName,q:l.qty,unit:l.unit,t:l.t}));const t=saInvTotals(v);
+    return `<li>${nd("inv","v:"+v.id,(v.dir==="out"?"Satış qaiməsi ":"Alış qaiməsi ")+(v.no||"—"),[dt(v.date),AZN(t.total),(SA_INV_STATUS[v.status]||v.status||"")].filter(Boolean).join(" · "),vBad(v))}${itemsUl(L0)}</li>`}
+  const invOfQ=s=>invs.filter(v=>v.quoteId===s.id||(s.inv&&v.id===s.inv));
+  function qNode(s,kids){const iss=Object.values(issued[s.id]||{});const vs=invOfQ(s);
+    const sub=[dt(s.date),s.svc&&s.svc!=="servis"?"hesabat № "+s.svc:"",s.site||"",AZN(s.total),SA_STATUS[s.status]||""].filter(Boolean).join(" · ");
+    const inner=(kids||"")+vs.map(invNode).join("")+(iss.length?`<li><small class="note">Anbardan verilən mallar</small>${itemsUl(iss)}</li>`:"")+(s.billDoc&&!vs.length?`<li>${nd("inv","",("Qaimə "+s.billDoc),"qaimə proqramda yoxdur",[])}</li>`:"");
+    return `<li>${nd(kindOf(s),"q:"+s.id,qLab(s)+" "+(s.no||"(nömrəsiz)"),sub,qBad(s))}${inner?`<ul>${inner}</ul>`:""}</li>`}
+  function clTree(g){const used=new Set(),out=[];
+    const qOfCon=c=>g.qs.filter(s=>(s.contractId===c.id||s.conId===c.id));
+    const billKids=b=>g.qs.filter(s=>s.binId===b.id);
+    g.cons.forEach(c=>{const Lq=qOfCon(c).filter(s=>!s.binId||!g.qs.some(x=>x.id===s.binId));Lq.forEach(s=>used.add(s.id));
+      const kids=Lq.map(s=>{const bk=kindOf(s)==="bill"?billKids(s):[];bk.forEach(x=>used.add(x.id));return qNode(s,bk.map(x=>qNode(x)).join(""))}).join("");
+      out.push(`<li>${nd("con","c:"+c.id,(c.kind==="sale"?"Satış müqaviləsi":"Xidmət müqaviləsi")+(c.no?" № "+c.no:""),[dt(c.start)+(c.end?" – "+dt(c.end):""),c.active===false?"bağlanıb":""].filter(Boolean).join(" · "),cBad(c))}${kids?`<ul>${kids}</ul>`:`<ul><li><small class="note">Bu müqaviləyə hələ sənəd bağlanmayıb</small></li></ul>`}</li>`)});
+    const rest=g.qs.filter(s=>!used.has(s.id)&&!(s.binId&&g.qs.some(x=>x.id===s.binId)));
+    if(rest.length)out.push(`<li><small class="note">Müqaviləsiz sənədlər</small><ul>${rest.map(s=>qNode(s,kindOf(s)==="bill"?billKids(s).map(x=>qNode(x)).join(""):"")).join("")}</ul></li>`);
+    const lone=g.invs.filter(v=>!v.quoteId||!qById[v.quoteId]);if(lone.length)out.push(`<li><small class="note">Satışa bağlanmayan qaimələr</small><ul>${lone.map(invNode).join("")}</ul></li>`);
+    return `<ul>${out.join("")}</ul>`}
+  /* group everything by customer (or supplier) */
+  const G={};const grp=(name,f)=>{const k=nk(name)||"—";(G[k]=G[k]||{name:String(name||"").trim()||"Adsız",qs:[],cons:[],invs:[]});f(G[k])};
+  const side=L.side;
+  if(side==="cl"){cons.forEach(c=>grp(c.client,g=>g.cons.push(c)));qs.filter(s=>yOk(s.date)||s.binId).forEach(s=>{const c=cById[s.contractId||s.conId];grp(c?c.client:s.client,g=>g.qs.push(s))});
+    invs.filter(v=>v.dir==="out"&&yOk(v.date)).forEach(v=>{const s=qById[v.quoteId];if(s)return;grp(v.supplier,g=>g.invs.push(v))})}
+  else invs.filter(v=>v.dir!=="out"&&yOk(v.date)).forEach(v=>grp(v.supplier,g=>g.invs.push(v)));
+  const badOf=g=>g.qs.reduce((n,s)=>n+qBad(s).length,0)+g.invs.reduce((n,v)=>n+vBad(v).length,0)+invs.filter(v=>g.qs.some(s=>v.quoteId===s.id)).reduce((n,v)=>n+vBad(v).length,0)+g.cons.reduce((n,c)=>n+cBad(c).length,0);
+  const hay=g=>norm([g.name,...g.cons.map(c=>c.no+" "+(c.aliases||"")),...g.qs.map(s=>[s.no,s.svc,s.site,s.billDoc].join(" ")),...g.invs.map(v=>v.no+" "+(v.lines||[]).map(l=>l.name||l.srcName).join(" ")),...invs.filter(v=>g.qs.some(s=>v.quoteId===s.id)).map(v=>v.no+" "+(v.lines||[]).map(l=>l.name||l.srcName).join(" "))].join(" "));
+  let list=Object.entries(G).map(([k,g])=>({k,g,bad:badOf(g)})).filter(x=>(!Q||hay(x.g).includes(Q))&&(!L.bad||x.bad)&&(x.g.qs.length||x.g.cons.length||x.g.invs.length));
+  list.sort((a,b)=>(b.bad>0)-(a.bad>0)||a.g.name.localeCompare(b.g.name,"az"));
+  const years=[...new Set([...qs.map(s=>String(s.date).slice(0,4)),...invs.map(v=>String(v.date).slice(0,4))].filter(y=>/^\d{4}$/.test(y)))].sort().reverse();
+  const tot=list.reduce((n,x)=>n+x.bad,0);
+  let h=`<h2 class="sec">Əlaqələr sxemi</h2><p class="hint">Hansı müqaviləyə hansı servis sənədləri, hansı aylıq hesaba hansı hesabatlar, hansı qaiməyə hansı mallar bağlıdır. İstənilən bəndə toxunun — həmin sənəd açılır, səhvi düzəldib “← Geri” ilə bura qayıdırsınız.</p>
+   <div class="lm"><div class="kindtabs" role="tablist"><button role="tab" data-lms="cl" aria-pressed="${side==="cl"}">Müştərilər<small>müqavilə → hesab → sənəd → qaimə → mal</small></button><button role="tab" data-lms="sup" aria-pressed="${side==="sup"}">Təchizatçılar<small>alış qaiməsi → mal</small></button></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="lmQ" type="search" placeholder="Axtar: müştəri, nömrə, hesabat №, mal…" value="${esc(L.q)}" style="flex:1;min-width:200px">
+    <select id="lmY" aria-label="İl"><option value="">Bütün illər</option>${years.map(y=>`<option${y===Y?" selected":""}>${y}</option>`).join("")}</select>
+    <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lmBad"${L.bad?" checked":""} style="width:auto;min-height:0">Yalnız səhvi olanlar${tot?` (${tot})`:""}</label></div>
+   <div class="lg"><span class="k-con" style="--c:#2563A8"><i></i>Müqavilə</span><span style="--c:#7A4FB5"><i></i>Aylıq hesab</span><span style="--c:#0B7A4B"><i></i>Servis sənədi</span><span style="--c:#B5761F"><i></i>Təklif / satış</span><span style="--c:#C2410C"><i></i>Qaimə</span><span style="--c:#6B7280"><i></i>Mal / detal</span><span class="bad">⚠ yoxlanılmalı</span></div>
+   ${list.length?list.map(({k,g,bad})=>{const op=L.open.has(k)||((!!Q||L.bad)&&!L.shut.has(k));return `<details data-lmk="${esc(k)}"${op?" open":""}><summary><span>${esc(g.name)}</span><small class="note">${[g.cons.length?g.cons.length+" müqavilə":"",g.qs.length?g.qs.length+" sənəd":"",(side==="sup"?g.invs.length:g.invs.length+invs.filter(v=>g.qs.some(s=>v.quoteId===s.id)).length)?(side==="sup"?g.invs.length:g.invs.length+invs.filter(v=>g.qs.some(s=>v.quoteId===s.id)).length)+" qaimə":""].filter(Boolean).join(" · ")}</small>${bad?`<span class="bad">⚠ ${bad}</span>`:""}${side==="cl"?`<span class="nd k-cl" data-lm="u:${esc(g.name)}" role="button" style="margin-left:auto;padding:3px 8px;font-size:12.5px">Müştəri kartı</span>`:""}</summary><div class="tr">${op?(side==="cl"?clTree(g):`<ul>${g.invs.sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(invNode).join("")}</ul>`):""}</div></details>`}).join(""):`<div class="empty"><h3>Heç nə tapılmadı</h3><p>Axtarışı və ya filtri dəyişin.</p></div>`}</div>`;
+  $("#main").innerHTML=h;
+  const q=$("#lmQ");q.oninput=()=>{L.q=q.value;const p=q.selectionStart;renderLinkMap();const n=$("#lmQ");n.focus();try{n.setSelectionRange(p,p)}catch(e){}};
+  $("#lmY").onchange=e=>{L.yr=e.target.value;renderLinkMap()};$("#lmBad").onchange=e=>{L.bad=e.target.checked;renderLinkMap()};
+  document.querySelectorAll("[data-lms]").forEach(b=>b.onclick=()=>{L.side=b.dataset.lms;L.open.clear();L.shut.clear();renderLinkMap()});
+  document.querySelectorAll(".lm details[data-lmk]>summary").forEach(sm=>sm.onclick=e=>{e.preventDefault();const d=sm.parentNode,k=d.dataset.lmk;if(d.open){L.open.delete(k);L.shut.add(k);d.open=false}else{L.open.add(k);L.shut.delete(k);LMAP.y=window.scrollY;renderLinkMap()}});
+  document.querySelectorAll(".lm [data-lm]").forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const a=b.dataset.lm;if(!a)return;LMAP.y=window.scrollY;const [t,...r]=a.split(":"),id=r.join(":");
+    if(t==="q")openQuote(id);else if(t==="c")go("contract",id);else if(t==="v")go("invoice",id);else if(t==="i")go("item",id);
+    else if(t==="u"){const C=custList().find(c=>saNormName(c.name)===saNormName(id));if(C)go("customer",C.key);else toast("Müştəri kartı tapılmadı")}});
+  if(LMAP.y){const y=LMAP.y;LMAP.y=0;setTimeout(()=>window.scrollTo(0,y),0)}}
+/*LMAP-END*/
+function render(){header();const v=state.view;if(v==="map")return renderLinkMap();
   if(v==="expenses")return renderExpenses();if(v==="expense")return renderExpense(state.arg);if(v==="customers")return renderCustomers();if(v==="customer")return renderCustomer(state.arg);
   if(v==="svcbill")return renderSvcBill();if(v==="stats")return renderSaStats();if(v==="quotes")return renderQuotes();if(v==="catalog")return renderCatalog();if(v==="stock")return renderStock();if(v==="moves")return renderMoves();if(v==="invoices"){INV=null;state.invMode="";return renderInvoices()}if(v==="invoice")return renderInvoice(state.arg);if(v==="contracts")return renderContracts();if(v==="contract")return renderContract(state.arg);
   if(v==="item")return renderItem(state.arg);if(v==="move")return renderMoveForm(state.arg);if(v==="settings")return renderSettings();if(v==="quote")return renderQuote()}
