@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111103;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111104;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -1084,6 +1084,31 @@ function saHandle(db,u,action,p){
     q.updatedAt=now;q.by=u.name;sv.updatedAt=now;sv.by=u.name;ch.quotes.push(q);ch.invoices.push(sv);
     return {res:{invoice:sv,quote:saPubQuote(q,role),summary:saSummary(q),contract:madeCon,stock:saStock(db)},ch:ch}}
   /* the warehouse hands over the goods of a sales invoice */
+  /* a posted sales invoice is moved to another sale (offer), or one more sale is added to it — the old sale loses this invoice */
+  case "relinkSaleInvoice":{need(SA_CAN.invoice(role));var rv=invById(p.id);if(!rv||rv.dir!=="out")saErr("notfound");if(rv.status==="draft")saErr("notapproved");
+    var mode=p.mode==="add"||p.mode==="remove"?p.mode:"replace",tq=quoteById(p.quoteId);if(!tq||tq.del)saErr("notfound");
+    var links=Array.isArray(rv.quoteIds)&&rv.quoteIds.length?rv.quoteIds.slice():(rv.quoteId?[rv.quoteId]:[]);
+    var rT=function(x){return saR2((x||[]).reduce(function(a,y){return a+saNum(y.total)},0))};
+    var unbill=function(q){var b=q.bill;if(!b)return;var L=Array.isArray(b.invs)?b.invs.filter(function(x){return x.id!==rv.id}):(b.inv===rv.id?[]:null);if(L===null)return;
+      if(!L.length){delete q.bill}else{var sm=rT(L),qT=saTotals(q).total,fn=sm>=qT-0.01;q.bill={st:fn?"inv":"part",doc:L.map(function(x){return x.no}).join(", "),by:u.name,at:now,inv:L[L.length-1].id,invs:L,sum:sm,pct:fn?100:(qT>0?Math.min(99,Math.round(sm/qT*100)):0)}}
+      q.hist=(q.hist||[]).slice(-39);q.hist.push({at:now,by:u.name,bill:"undo",doc:rv.no});q.updatedAt=now;q.by=u.name;ch.quotes.push(q)};
+    if(mode==="remove"){if(links.indexOf(tq.id)<0||links.length<2)saErr("notfound");unbill(tq);links=links.filter(function(x){return x!==tq.id})}
+    else{if(links.indexOf(tq.id)>=0&&mode==="add")return {res:{invoice:saPubInv(rv,role),dup:true},ch:ch};
+      if(mode==="replace"){links.forEach(function(id){var oq=quoteById(id);if(!oq||oq.id===tq.id)return;unbill(oq);
+          /* the sale that was made from this invoice only mirrors it: it goes to "Silinənlər" (30 days) so the sale is not counted twice */
+          if(oq.fromInv===rv.id&&!oq.bill&&!db.moves.some(function(m){return !m.del&&m.quoteId===oq.id&&m.invoiceId!==rv.id})){oq.del=true;oq.delAt=now;oq.delBy=u.name;oq.hist.push({at:now,by:u.name,st:"deleted"})}});
+        links=[];db.moves.forEach(function(m){if(!m.del&&m.invoiceId===rv.id){m.quoteId=tq.id;m.quoteNo=tq.no;ch.moves.push(m)}})}
+      if(links.indexOf(tq.id)<0)links.push(tq.id);
+      var qT2=saTotals(tq).total,iT2=mode==="add"?Math.min(qT2,saInvTotals(rv).total):saInvTotals(rv).total,pv2=(tq.bill&&tq.bill.st==="part"&&Array.isArray(tq.bill.invs))?tq.bill.invs.filter(function(x){return x.id!==rv.id}):[];
+      var invs2=pv2.concat([{id:rv.id,no:rv.no,date:rv.date||"",total:iT2}]),bs2=rT(invs2);
+      var fin2=p.final===true||p.final===false?p.final:(qT2<=0||bs2>=qT2-0.01||pv2.length>0||mode==="add"||!(saNum(tq.terms&&tq.terms.adv)>0));
+      tq.bill={st:fin2?"inv":"part",doc:invs2.map(function(x){return x.no}).join(", "),by:u.name,at:now,inv:rv.id,invs:invs2,sum:bs2,pct:fin2?100:(qT2>0?Math.min(99,Math.round(bs2/qT2*100)):0)};
+      tq.hist=(tq.hist||[]).slice(-39);tq.hist.push({at:now,by:u.name,bill:fin2?"inv":"part",doc:rv.no});
+      if(tq.status==="draft"||tq.status==="sent"){tq.status="accepted";tq.hist.push({at:now,by:u.name,st:"accepted"})}
+      if(fin2&&tq.status==="accepted"&&rv.status==="received"){var rr2=saRemaining(db,tq),lf2=0;Object.keys(rr2).forEach(function(id){lf2+=rr2[id].left});if(lf2<=1e-9){tq.status="done";tq.hist.push({at:now,by:u.name,st:"done"})}}
+      tq.updatedAt=now;tq.by=u.name;ch.quotes.push(tq)}
+    var q0=quoteById(links[0]);rv.quoteIds=links;rv.quoteId=links[0]||"";rv.quoteNo=q0?q0.no:"";rv.quoteNos=links.map(function(id){var x=quoteById(id);return x?x.no:""});rv.updatedAt=now;rv.by=u.name;ch.invoices.push(rv);
+    return {res:{invoice:saPubInv(rv,role),stock:saStock(db)},ch:ch}}
   case "shipInvoice":{need(SA_CAN.moveStock(role));var shv=invById(p.id);if(!shv||shv.dir!=="out")saErr("notfound");if(shv.status==="received")return {res:{dup:true,stock:saStock(db)},ch:ch};if(shv.status!=="approved")saErr("notapproved");
     var sq=shv.quoteId?quoteById(shv.quoteId):null,give={},st4=saStock(db),need4={},op4=/^[\w-]{4,60}$/.test(String(p.opId||""))?String(p.opId):saId("o"),k4=0,d4=saStr(p.date,10)||new Date(now).toISOString().slice(0,10);
     (p.lines||[]).forEach(function(l){give[l.id]=Math.max(0,saR2(saNum(l.qty)))});
@@ -1719,7 +1744,7 @@ function renderLinkMap(){mainTabs("map");lmCss();if(!can("admin")){$("#main").in
   function itemsUl(list){return list.length?`<ul>${list.map(x=>`<li>${nd("item",x.id?"i:"+x.id:"",x.name||"(adsız)",qx(x.q)+" "+(x.unit||(items[x.id]||{}).unit||""),x.id||x.t!=="mal"?[]:[["bad","kataloqda yoxdur"]])}</li>`).join("")}</ul>`:""}
   function invNode(v){const L0=(v.lines||[]).map(l=>({id:l.itemId,name:(l.itemId&&items[l.itemId]?items[l.itemId].name:"")||l.name||l.srcName,q:l.qty,unit:l.unit,t:l.t}));const t=saInvTotals(v);
     return `<li>${nd("inv","v:"+v.id,(v.dir==="out"?"Satış qaiməsi ":"Alış qaiməsi ")+(v.no||"—"),[dt(v.date),AZN(t.total),(SA_INV_STATUS[v.status]||v.status||"")].filter(Boolean).join(" · "),vBad(v))}${itemsUl(L0)}</li>`}
-  const invOfQ=s=>invs.filter(v=>v.quoteId===s.id||(s.inv&&v.id===s.inv));
+  const invOfQ=s=>invs.filter(v=>v.quoteId===s.id||(Array.isArray(v.quoteIds)&&v.quoteIds.includes(s.id))||(s.inv&&v.id===s.inv));
   function qNode(s,kids){const iss=Object.values(issued[s.id]||{});const vs=invOfQ(s);
     const sub=[dt(s.date),s.svc&&s.svc!=="servis"?"hesabat № "+s.svc:"",s.site||"",AZN(s.total),SA_STATUS[s.status]||""].filter(Boolean).join(" · ");
     const inner=(kids||"")+vs.map(invNode).join("")+(iss.length?`<li><small class="note">Anbardan verilən mallar</small>${itemsUl(iss)}</li>`:"")+(s.billDoc&&!vs.length?`<li>${nd("inv","",("Qaimə "+s.billDoc),"qaimə proqramda yoxdur",[])}</li>`:"");
@@ -3466,6 +3491,28 @@ function bindDelInv(v){const b=$("#dInv");if(!b)return;b.onclick=()=>{$("#dInvBo
     if(v.dir==="out"&&v.quoteId){const r=state.remote[v.quoteId],l=state.local[v.quoteId];if(r&&/^Qaimə /.test(r.subj||"")&&(r.inv===v.id)){delete state.remote[v.quoteId];delete state.local[v.quoteId]}
       else{if(r&&r.inv===v.id)Object.assign(r,{bill:"",billDoc:"",inv:"",due:true});if(l&&l.bill&&l.bill.inv===v.id)delete l.bill}}
     state.invoices=state.invoices.filter(x=>x.id!==v.id);pdfDel(v.id);saveCache();saveLocal();queueOp("delInvoice",{id:v.id,pwh:h},"Qaimə silindi");INV=null;go("invoices")}}
+/* a posted sales invoice: change its sale (offer) or add one more sale to it */
+function sinvLinkCard(v){if(!can("invoice")||v.dir!=="out"||v.status==="draft")return;const col=document.querySelector("#main .cols2 .col");if(!col)return;
+  const links=(v.quoteIds&&v.quoteIds.length?v.quoteIds:(v.quoteId?[v.quoteId]:[])),all=listQuotes(),byId={};all.forEach(s=>byId[s.id]=s);
+  const T=sinvTotal(v),k=norm(v.supplier).trim(),same=s=>(v.voen&&s.cl&&s.cl.voen===v.voen)||norm(s.client).trim()===k||saNameHit(s.client,v.supplier,true);
+  const C=all.filter(s=>!links.includes(s.id)&&!s.delAt&&s.status!=="rejected").map(s=>({s,m:same(s),d:Math.abs(saNum(s.total)-T)})).sort((a,b)=>(b.m-a.m)||(a.d-b.d)||String(b.s.date).localeCompare(String(a.s.date))).slice(0,80);
+  const sel=state.rlSel&&C.some(x=>x.s.id===state.rlSel)?state.rlSel:(C[0]&&C[0].s.id)||"";
+  const lab=s=>`${esc(s.no||"(nömrəsiz)")} · ${esc(s.client||"")} · ${fmtDate(s.date)} · ${AZN(s.total)} · ${SA_STATUS[s.status]||s.status}${s.bill==="part"?" · "+s.bpct+"% hesab yazılıb":s.bill==="inv"?" · hesab yazılıb":""}`;
+  const h=`<div class="card" id="rlCard"><h3>Hansı satışa (təklifə) aiddir</h3>
+    ${links.length?links.map(id=>{const s=byId[id];return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 6px"><button class="btn sm" data-rlo="${esc(id)}">${s?esc(s.no):"(tapılmadı)"}</button><span class="note">${s?esc(s.client)+" · "+AZN(s.total)+" · "+(SA_STATUS[s.status]||""):""}</span>${links.length>1?`<button class="btn sm ghost" data-rlx="${esc(id)}" title="Bu satışı qaimədən ayır">✕ ayır</button>`:""}</div>`}).join(""):'<p class="note" style="margin:0 0 6px">Qaimə heç bir satışa bağlı deyil.</p>'}
+    ${C.length?`<label class="f" style="margin-top:6px"><span>Başqa satış / təklif seçin</span><select id="rlSel">${C.map(x=>`<option value="${esc(x.s.id)}"${x.s.id===sel?" selected":""}>${x.m?"":"(başqa müştəri) "}${lab(x.s)}</option>`).join("")}</select></label>
+    <div class="actions"><button class="btn" id="rlRep">↺ Satışı bununla dəyişdir</button><button class="btn" id="rlAdd">+ Bu satışı da əlavə et</button></div>
+    <p class="note" style="margin:0">“Dəyişdir” — qaimə köhnə satışdan ayrılır və seçilən satışa bağlanır (“hesab yazılıb”); qaimədən avtomatik yaranmış köhnə satış “Silinənlər”ə keçir (30 gün geri qaytarmaq olar). “Əlavə et” — bir qaimə bir neçə satışı bağlayır.</p>`:'<p class="note" style="margin:0">Seçmək üçün başqa satış yoxdur.</p>'}</div>`;
+  col.insertAdjacentHTML("beforeend",h);
+  const s0=$("#rlSel");if(s0)s0.onchange=()=>{state.rlSel=s0.value};
+  document.querySelectorAll("[data-rlo]").forEach(b=>b.onclick=()=>openQuote(b.dataset.rlo));
+  const run=(mode,qid)=>{const t=byId[qid];if(!t)return;const msg=mode==="replace"?`Qaimə ${v.no} “${links.map(id=>byId[id]?byId[id].no:"").filter(Boolean).join(", ")||"—"}” satışından ayrılıb “${t.no}” satışına bağlansın?`:mode==="add"?`“${t.no}” satışı da qaimə ${v.no}-ə bağlansın?`:`“${t.no}” satışı qaimə ${v.no}-dən ayrılsın?`;
+    if(!confirm(msg))return;const loc=(state.invoices||[]).find(x=>x.id===v.id);let L=links.slice();if(mode==="replace")L=[qid];else if(mode==="add")L.push(qid);else L=L.filter(x=>x!==qid);
+    if(loc){loc.quoteIds=L;loc.quoteId=L[0]||"";loc.quoteNo=byId[L[0]]?byId[L[0]].no:"";loc.pending=true}
+    if(mode!=="remove"&&state.remote[qid])Object.assign(state.remote[qid],{bill:"inv",billDoc:v.no,inv:v.id,pending:true});
+    saveCache();queueOp("relinkSaleInvoice",{id:v.id,quoteId:qid,mode},mode==="remove"?"Satış qaimədən ayrıldı":"Qaimə satışa bağlandı");state.rlSel="";INV=null;go("invoice",v.id)};
+  const rp=$("#rlRep");if(rp)rp.onclick=()=>run("replace",($("#rlSel")||{}).value);const ad=$("#rlAdd");if(ad)ad.onclick=()=>run("add",($("#rlSel")||{}).value);
+  document.querySelectorAll("[data-rlx]").forEach(b=>b.onclick=()=>run("remove",b.dataset.rlx))}
 function sinvView(v){const I=itemsById(),sc=can("seeCost"),T=saInvTotals(v),ship=v.status==="approved"&&can("moveStock"),q=v.quoteId?(state.remote[v.quoteId]||state.local[v.quoteId]):null;
   $("#main").innerHTML=`<h2 class="sec">${esc(v.no)}</h2><p class="hint">${invChip(v)} Satış qaiməsi · ${esc(v.supplier)} · ${fmtDate(v.date)}</p>
   <div class="cols2"><div class="col"><div class="card"><h3>Qaimə</h3><p style="margin:0"><b>${esc(v.supplier)}</b>${v.voen?" · VÖEN "+esc(v.voen):""}</p>${v.basis?`<p class="note" style="margin:4px 0 0">Əsas: ${esc(v.basis)}</p>`:""}${v.per?`<p class="note" style="margin:2px 0 0">${esc(v.per)}</p>`:""}
@@ -3478,7 +3525,7 @@ function sinvView(v){const I=itemsById(),sc=can("seeCost"),T=saInvTotals(v),ship
       ${ship?`<td class="n">${it?qf(stk(it.id).q):""}</td><td class="n">${sh?`<input class="num" inputmode="decimal" data-gv="${l.id}" value="${qf(sh)}" style="width:80px">`:""}</td>`:""}</tr>`}).join("")}</table></div>
     ${ship?`<div class="actions"><button class="btn pri" id="sShip">Təhvil verdim — anbardan çıxış et</button></div><p class="note" style="margin:0">Bu satış üzrə əvvəl verilmiş mallar çıxılıb — yalnız qalan say göstərilir.</p>`:v.status==="approved"?'<p class="note">Anbardar malları təhvil verəndə qaimə tamamlanır.</p>':""}</div></div>
   <div class="actions"><button class="btn ghost" id="vClose">Bağla</button></div>${delInvHTML(v)}`;
-  bindHead(v);bindDelInv(v);$("#vClose").onclick=()=>{INV=null;go("invoices")};const oq=$("#sOpenQ");if(oq)oq.onclick=()=>openQuote(v.quoteId);
+  bindHead(v);bindDelInv(v);sinvLinkCard(v);$("#vClose").onclick=()=>{INV=null;go("invoices")};const oq=$("#sOpenQ");if(oq)oq.onclick=()=>openQuote(v.quoteId);
   const sb=$("#sShip");if(sb)sb.onclick=()=>{const lines=v.lines.filter(l=>saNum(l.ship)).map(l=>{const el=$(`[data-gv="${l.id}"]`);return {id:l.id,itemId:l.itemId,qty:el?Math.max(0,saNum(el.value)):saNum(l.ship)}});
     for(const l of lines){const it=I[l.itemId];if(it&&l.qty>stk(it.id).q+1e-9){toast(ERR.nostock({name:it.name,have:stk(it.id).q}));return}}
     const opId=saId("o"),now=Date.now(),loc=state.invoices.find(x=>x.id===v.id);lines.forEach((l,i)=>{const s0=recalc(l.itemId);s0.q-=l.qty;if(state.remaining[v.quoteId]&&state.remaining[v.quoteId][l.itemId]){state.remaining[v.quoteId][l.itemId].left=Math.max(0,saR2(state.remaining[v.quoteId][l.itemId].left-l.qty));s0.r-=l.qty}recalc(l.itemId);
