@@ -85,7 +85,7 @@ function saPubMove(m,role){var o={};for(var k in m)o[k]=m[k];if(!SA_CAN.seeCost(
 function saKindOf(q){return q.kind==="svc"||q.kind==="sale"?q.kind:(q.src&&q.src.type==="service"?"svc":"sale")}
 function saSummary(q){var t=saTotals(q);return {id:q.id,no:q.no||"",kind:saKindOf(q),inv:(q.bill&&q.bill.inv)||"",date:q.date||"",status:q.status||"draft",client:(q.cl&&q.cl.name)||"",cl:q.cl||{},subj:q.subj||"",per:q.per||"",conId:q.conId||"",
   net:t.net,total:t.total,n:(q.lines||[]).length,author:q.author||"",by:q.by||"",updatedAt:q.updatedAt||0,svc:q.src?(q.src.repno||"servis"):"",site:q.src&&q.src.site?q.src.site:"",contractId:q.src?q.src.contractId:"",zero:(q.lines||[]).some(function(l){return !saNum(l.price)}),
-  bill:(q.bill&&q.bill.st)||"",nocon:!!(q.src&&q.src.nocon&&!q.del),billDoc:(q.bill&&q.bill.doc)||"",due:!!((q.status==="accepted"||q.status==="done")&&!(q.bill&&q.bill.st==="paid")&&!(q.src&&q.src.nocon)&&!q.billedIn&&!(q.src&&q.src.type==="service"&&q.src.contractId&&(q.billedIn||!(q.bill&&q.bill.st)))),
+  bill:(q.bill&&q.bill.st)||"",nocon:!!(q.src&&q.src.nocon&&!q.del),billDoc:(q.bill&&q.bill.doc)||"",adv:saNum(q.terms&&q.terms.adv),bpct:q.bill&&q.bill.st==="part"?saNum(q.bill.pct):0,bsum:q.bill&&q.bill.st==="part"?saNum(q.bill.sum):0,due:!!((q.status==="accepted"||q.status==="done")&&!(q.bill&&q.bill.st==="paid")&&!(q.src&&q.src.nocon)&&!q.billedIn&&!(q.src&&q.src.type==="service"&&q.src.contractId&&(q.billedIn||!(q.bill&&q.bill.st)))),
   wk:q.src&&q.src.type==="service"&&q.src.contractId?1:0,bin:q.billedIn?(q.billedIn.no||"✓"):"",binId:q.billedIn?q.billedIn.id:"",skey:q.src?String(q.src.skey!==undefined&&q.src.skey!==""?q.src.skey:(q.src.site||"")):"",sdate:(q.src&&q.src.date)||"",bmon:q.src&&q.src.type==="bill"?(q.src.month||""):"",nrec:q.src&&q.src.type==="bill"?(q.src.recs||[]).length:0,delAt:q.del?saNum(q.delAt||q.updatedAt):0,delBy:q.del?(q.delBy||q.by||""):"",rev:q.src&&q.src.rev?1:0,dup:q.src&&q.src.dup?(q.src.dup.no||"?"):""}}
 /* purchase prices written on quote lines are seen only by accounting */
 function saPubQuote(q,role){if(!q||SA_CAN.seeCost(role))return q;var o={};for(var k in q)o[k]=q[k];o.lines=(q.lines||[]).map(function(l){var c={};for(var k in l)if(k!=="cost")c[k]=l[k];return c});return o}
@@ -219,7 +219,7 @@ function saHandle(db,u,action,p){
     /* "Təhvil verildi" is set by the warehouse issue (or by the manager), not typed in */
     if(SA_CAN.editAnyQuote(role)&&inQ.vatRate!==undefined)q.vatRate=saNum(inQ.vatRate);
     ["name","voen","person","tel","email","addr"].forEach(function(k){q.cl[k]=saStr(inQ.cl&&inQ.cl[k],300)});
-    ["pay","delivery","warranty","note"].forEach(function(k){q.terms[k]=saStr(inQ.terms&&inQ.terms[k],2000)});
+    ["pay","delivery","warranty","note"].forEach(function(k){q.terms[k]=saStr(inQ.terms&&inQ.terms[k],2000)});var av=saNum(inQ.terms&&inQ.terms.adv);if(av>0&&av<100)q.terms.adv=Math.round(av*100)/100;
     var oldLines={};if(old)(old.lines||[]).forEach(function(l){oldLines[l.id]=l});
     (inQ.lines||[]).slice(0,300).forEach(function(l){
       var it=l.itemId?itemById(l.itemId):null;
@@ -245,7 +245,7 @@ function saHandle(db,u,action,p){
     ch.quotes.push(q);return {res:{quote:saPubQuote(q,role),summary:saSummary(q),stock:saStock(db)},ch:ch}}
 
   case "setBill":{need(SA_CAN.setPrice(role));var bq=quoteById(p.id);if(!bq||bq.del)saErr("notfound");var st=["","inv","paid"].indexOf(p.st)>=0?p.st:"";
-    if(st)bq.bill={st:st,doc:saStr(p.doc!==undefined?p.doc:(bq.bill&&bq.bill.doc),80),by:u.name,at:now};else delete bq.bill;bq.updatedAt=now;bq.by=u.name;
+    if(st){var ob=bq.bill||{};bq.bill={st:st,doc:saStr(p.doc!==undefined?p.doc:ob.doc,80),by:u.name,at:now};if(ob.invs){bq.bill.invs=ob.invs;bq.bill.inv=ob.inv;bq.bill.sum=ob.sum}}else delete bq.bill;bq.updatedAt=now;bq.by=u.name;
     bq.hist=(bq.hist||[]).slice(-39);bq.hist.push({at:now,by:u.name,bill:st||"undo",doc:st?bq.bill.doc:""});ch.quotes.push(bq);return {res:{quote:saPubQuote(bq,role)},ch:ch}}
   case "delQuote":{need(SA_CAN.admin(role));var dq=quoteById(p.id);if(!dq)saErr("notfound");
     if(saProtected(db,dq)){if(!db.settings.delPw)saErr("nopw");if(String(p.pwh||"")!==String(db.settings.delPw))saErr("badpw")}
@@ -436,12 +436,12 @@ function saHandle(db,u,action,p){
       q=quoteById(oq.res.quote.id);q.fromInv=sv.id}
     /* a service contract billed by this invoice: the visit counts for the next-service date */
     if(con&&con.kind!=="sale"&&allX&&String(sv.date||"")>String(con.lastSvc||"")){con.lastSvc=sv.date;con.updatedAt=now;ch.contracts.push(con)}
-    q.bill={st:"inv",doc:sv.no,by:u.name,at:now,inv:sv.id};q.hist=(q.hist||[]).slice(-39);q.hist.push({at:now,by:u.name,bill:"inv",doc:sv.no});
+    var qT=saTotals(q).total,iT=saInvTotals(sv).total,pv=(q.bill&&q.bill.st==="part"&&Array.isArray(q.bill.invs))?q.bill.invs.filter(function(x){return x.id!==sv.id}):[];var invs=pv.concat([{id:sv.id,no:sv.no,date:sv.date||"",total:iT}]),bSum=saR2(invs.reduce(function(a,x){return a+saNum(x.total)},0));var fin=p.final===true||p.final===false?p.final:(qT<=0||bSum>=qT-0.01||pv.length>0||!(saNum(q.terms&&q.terms.adv)>0));var part=!fin;q.bill={st:part?"part":"inv",doc:invs.map(function(x){return x.no}).join(", "),by:u.name,at:now,inv:sv.id,invs:invs,sum:bSum,pct:part&&qT>0?Math.min(99,Math.round(bSum/qT*100)):100};q.hist=(q.hist||[]).slice(-39);q.hist.push({at:now,by:u.name,bill:part?"part":"inv",doc:sv.no+(part?" ("+q.bill.pct+"%)":"")});
     /* what still has to leave the warehouse: invoice quantity minus what was already issued for this sale */
     var iss=saIssued(db),left={},toShip=0;sv.lines.forEach(function(l){l.ship=0;var it=items0[l.itemId];if(l.t!=="mal"||!it||it.svc)return;var k=q.id+"|"+it.id;if(left[k]===undefined)left[k]=saNum(iss[k]);
       var take=Math.min(left[k],saNum(l.qty));left[k]-=take;l.ship=saR2(saNum(l.qty)-take);toShip+=l.ship});
     sv.quoteId=q.id;sv.quoteNo=q.no;sv.approvedBy=u.name;sv.approvedAt=now;sv.status=toShip>1e-9?"approved":"received";if(madeCon)sv.conId=madeCon.id;else if(con)sv.conId=con.id;
-    if(toShip<=1e-9&&q.status==="accepted"){var rr=saRemaining(db,q),lf=0;Object.keys(rr).forEach(function(id){lf+=rr[id].left});if(lf<=1e-9){q.status="done";q.hist.push({at:now,by:u.name,st:"done"})}}
+    if(toShip<=1e-9&&q.status==="accepted"&&!part){var rr=saRemaining(db,q),lf=0;Object.keys(rr).forEach(function(id){lf+=rr[id].left});if(lf<=1e-9){q.status="done";q.hist.push({at:now,by:u.name,st:"done"})}}
     q.updatedAt=now;q.by=u.name;sv.updatedAt=now;sv.by=u.name;ch.quotes.push(q);ch.invoices.push(sv);
     return {res:{invoice:sv,quote:saPubQuote(q,role),summary:saSummary(q),contract:madeCon,stock:saStock(db)},ch:ch}}
   /* the warehouse hands over the goods of a sales invoice */
