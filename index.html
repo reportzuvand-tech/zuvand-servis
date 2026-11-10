@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111003;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111004;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -227,6 +227,24 @@ window.ZSSEC=(function(){
     if(LSg("zssec.pin"))lockNow()}
   try{O={app:window.ZS_APP==="ups"||window.ZS_APP==="zs"?"ups":"sa",hub:()=>window.ZS_APP==="zs"||window.ZS_APP==="zssa"};had0=hasLocal();O=null}catch(e){O=null}
   return {init,card,lockNow,wipe,checkEpoch,sha}})();
+</script>
+<script>/* ZUVAND — hesabat bölmələri arasında ekranı sola / sağa sürüşdürməklə keçid */
+window.ZSSW=(function(){let S=null;
+  const css=()=>{if(document.getElementById("zsswCss"))return;document.head.insertAdjacentHTML("beforeend",`<style id="zsswCss">
+@keyframes zsswL{from{transform:translateX(36px);opacity:.25}to{transform:none;opacity:1}}@keyframes zsswR{from{transform:translateX(-36px);opacity:.25}to{transform:none;opacity:1}}
+#main.zsswL{animation:zsswL .2s ease-out}#main.zsswR{animation:zsswR .2s ease-out}
+@media (prefers-reduced-motion:reduce){#main.zsswL,#main.zsswR{animation:none}}</style>`)};
+  /* a gesture that starts on something that scrolls sideways or takes input is left to that element */
+  function skip(el){for(let e=el;e&&e!==document.body;e=e.parentElement){if(e.matches&&(e.matches("canvas,input[type=range],[contenteditable],.zsPop,.tplov,#ps,.sigpad,[data-noswipe]")||(e===document.activeElement&&e.matches("input,textarea"))))return true;
+      if(e.scrollWidth>e.clientWidth+4){const o=getComputedStyle(e).overflowX;if(o==="auto"||o==="scroll")return true}}return false}
+  function start(e){S=null;if(e.touches.length!==1||state.view!=="edit"||!state.rep)return;if(document.querySelector(".zsPop,.tplov"))return;if(skip(e.target))return;
+    const t=e.touches[0];S={x:t.clientX,y:t.clientY,at:Date.now()}}
+  function end(e){if(!S)return;const t=e.changedTouches[0],dx=t.clientX-S.x,dy=t.clientY-S.y,dt=Date.now()-S.at;S=null;
+    if(dt>800||Math.abs(dx)<70||Math.abs(dx)<Math.abs(dy)*1.8)return;const sel=window.getSelection&&String(window.getSelection());if(sel)return;
+    const T=tabsFor(),i=T.findIndex(x=>x[0]===state.tab),j=dx<0?i+1:i-1;if(i<0||j<0||j>=T.length)return;
+    const b=document.querySelector(`#tabs [data-tab="${T[j][0]}"]`);if(!b)return;b.click();const m=document.getElementById("main");if(m){css();m.classList.remove("zsswL","zsswR");void m.offsetWidth;m.classList.add(dx<0?"zsswL":"zsswR");setTimeout(()=>m.classList.remove("zsswL","zsswR"),260)}}
+  function init(){document.addEventListener("touchstart",start,{passive:true});document.addEventListener("touchend",end,{passive:true});document.addEventListener("touchcancel",()=>{S=null},{passive:true})}
+  return {init}})();
 </script>
 <script>/* ZUVAND — şablonun səhifədə düzəlişi: hesabatın öz səhifəsində ✎ (adı dəyiş), × (sil), + (əlavə et) */
 window.ZSED=(function(){const ID="zs-tpl-ed";let ED=null,busy=false;
@@ -4380,7 +4398,7 @@ window.ZSBK=(function(){
       try{await sync({all:true})}catch(e){}
       return ok+" hesabat"+(bad?" ("+bad+" alınmadı)":"")+", "+tk+" tapşırıq"+(ph?", "+ph+" şəkil":"")}});
   const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}try{ZSSEC.card()}catch(e){}try{ZSTPL.card()}catch(e){}try{ZSQRST.card()}catch(e){}try{ZSCOL.on()}catch(e){}return r};
-  try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>!!state.me.boss||(!(typeof CFG!=="undefined"&&CFG.hub)&&state.me.role==="admin"),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}try{API_TIMEOUT.factory_reset=330000;API_TIMEOUT.activity=60000;API_TIMEOUT.sec_info=15000;ZSSEC.init({app:"ups",api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub})}catch(e){}try{ZSTPL.init({redraw:()=>{try{if(state.view==="edit"&&state.rep)renderEditor();else if(state.view==="settings")renderSettings()}catch(e){}},api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),isAdmin:()=>!hasServer()||state.me.role==="admin",me:()=>state.me.name||""})}catch(e){}try{ZSED.init()}catch(e){}try{ZSQRST.init({api:(a,p)=>api(a,p),ok:()=>!!state.me.key&&hasServer()&&!(typeof CFG!=="undefined"&&CFG.hub)&&(!!state.me.boss||state.me.role==="admin"||svCan("stats"))})}catch(e){}
+  try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>!!state.me.boss||(!(typeof CFG!=="undefined"&&CFG.hub)&&state.me.role==="admin"),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}try{API_TIMEOUT.factory_reset=330000;API_TIMEOUT.activity=60000;API_TIMEOUT.sec_info=15000;ZSSEC.init({app:"ups",api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub})}catch(e){}try{ZSTPL.init({redraw:()=>{try{if(state.view==="edit"&&state.rep)renderEditor();else if(state.view==="settings")renderSettings()}catch(e){}},api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),isAdmin:()=>!hasServer()||state.me.role==="admin",me:()=>state.me.name||""})}catch(e){}try{ZSED.init()}catch(e){}try{ZSSW.init()}catch(e){}try{ZSQRST.init({api:(a,p)=>api(a,p),ok:()=>!!state.me.key&&hasServer()&&!(typeof CFG!=="undefined"&&CFG.hub)&&(!!state.me.boss||state.me.role==="admin"||svCan("stats"))})}catch(e){}
   /* the "Ayarlar" button was bound to the old function at start-up */
   const hs=document.getElementById("hSettings");if(hs)hs.onclick=()=>renderSettings();
 }catch(e){console.log("backup",e)}})();
