@@ -447,6 +447,31 @@ function saHandle(db,u,action,p){
     q.updatedAt=now;q.by=u.name;sv.updatedAt=now;sv.by=u.name;ch.quotes.push(q);ch.invoices.push(sv);
     return {res:{invoice:sv,quote:saPubQuote(q,role),summary:saSummary(q),contract:madeCon,stock:saStock(db)},ch:ch}}
   /* the warehouse hands over the goods of a sales invoice */
+  /* a posted sales invoice is moved to another sale (offer), or one more sale is added to it — the old sale loses this invoice */
+  case "relinkSaleInvoice":{need(SA_CAN.invoice(role));var rv=invById(p.id);if(!rv||rv.dir!=="out")saErr("notfound");if(rv.status==="draft")saErr("notapproved");
+    var mode=p.mode==="add"||p.mode==="remove"?p.mode:"replace",tq=quoteById(p.quoteId);if(!tq||tq.del)saErr("notfound");
+    var links=Array.isArray(rv.quoteIds)&&rv.quoteIds.length?rv.quoteIds.slice():(rv.quoteId?[rv.quoteId]:[]);
+    var rT=function(x){return saR2((x||[]).reduce(function(a,y){return a+saNum(y.total)},0))};
+    var unbill=function(q){var b=q.bill;if(!b)return;var L=Array.isArray(b.invs)?b.invs.filter(function(x){return x.id!==rv.id}):(b.inv===rv.id?[]:null);if(L===null)return;
+      if(!L.length){delete q.bill}else{var sm=rT(L),qT=saTotals(q).total,fn=sm>=qT-0.01;q.bill={st:fn?"inv":"part",doc:L.map(function(x){return x.no}).join(", "),by:u.name,at:now,inv:L[L.length-1].id,invs:L,sum:sm,pct:fn?100:(qT>0?Math.min(99,Math.round(sm/qT*100)):0)}}
+      q.hist=(q.hist||[]).slice(-39);q.hist.push({at:now,by:u.name,bill:"undo",doc:rv.no});q.updatedAt=now;q.by=u.name;ch.quotes.push(q)};
+    if(mode==="remove"){if(links.indexOf(tq.id)<0||links.length<2)saErr("notfound");unbill(tq);links=links.filter(function(x){return x!==tq.id})}
+    else{if(links.indexOf(tq.id)>=0&&mode==="add")return {res:{invoice:saPubInv(rv,role),dup:true},ch:ch};
+      if(mode==="replace"){links.forEach(function(id){var oq=quoteById(id);if(!oq||oq.id===tq.id)return;unbill(oq);
+          /* the sale that was made from this invoice only mirrors it: it goes to "Silinənlər" (30 days) so the sale is not counted twice */
+          if(oq.fromInv===rv.id&&!oq.bill&&!db.moves.some(function(m){return !m.del&&m.quoteId===oq.id&&m.invoiceId!==rv.id})){oq.del=true;oq.delAt=now;oq.delBy=u.name;oq.hist.push({at:now,by:u.name,st:"deleted"})}});
+        links=[];db.moves.forEach(function(m){if(!m.del&&m.invoiceId===rv.id){m.quoteId=tq.id;m.quoteNo=tq.no;ch.moves.push(m)}})}
+      if(links.indexOf(tq.id)<0)links.push(tq.id);
+      var qT2=saTotals(tq).total,iT2=mode==="add"?Math.min(qT2,saInvTotals(rv).total):saInvTotals(rv).total,pv2=(tq.bill&&tq.bill.st==="part"&&Array.isArray(tq.bill.invs))?tq.bill.invs.filter(function(x){return x.id!==rv.id}):[];
+      var invs2=pv2.concat([{id:rv.id,no:rv.no,date:rv.date||"",total:iT2}]),bs2=rT(invs2);
+      var fin2=p.final===true||p.final===false?p.final:(qT2<=0||bs2>=qT2-0.01||pv2.length>0||mode==="add"||!(saNum(tq.terms&&tq.terms.adv)>0));
+      tq.bill={st:fin2?"inv":"part",doc:invs2.map(function(x){return x.no}).join(", "),by:u.name,at:now,inv:rv.id,invs:invs2,sum:bs2,pct:fin2?100:(qT2>0?Math.min(99,Math.round(bs2/qT2*100)):0)};
+      tq.hist=(tq.hist||[]).slice(-39);tq.hist.push({at:now,by:u.name,bill:fin2?"inv":"part",doc:rv.no});
+      if(tq.status==="draft"||tq.status==="sent"){tq.status="accepted";tq.hist.push({at:now,by:u.name,st:"accepted"})}
+      if(fin2&&tq.status==="accepted"&&rv.status==="received"){var rr2=saRemaining(db,tq),lf2=0;Object.keys(rr2).forEach(function(id){lf2+=rr2[id].left});if(lf2<=1e-9){tq.status="done";tq.hist.push({at:now,by:u.name,st:"done"})}}
+      tq.updatedAt=now;tq.by=u.name;ch.quotes.push(tq)}
+    var q0=quoteById(links[0]);rv.quoteIds=links;rv.quoteId=links[0]||"";rv.quoteNo=q0?q0.no:"";rv.quoteNos=links.map(function(id){var x=quoteById(id);return x?x.no:""});rv.updatedAt=now;rv.by=u.name;ch.invoices.push(rv);
+    return {res:{invoice:saPubInv(rv,role),stock:saStock(db)},ch:ch}}
   case "shipInvoice":{need(SA_CAN.moveStock(role));var shv=invById(p.id);if(!shv||shv.dir!=="out")saErr("notfound");if(shv.status==="received")return {res:{dup:true,stock:saStock(db)},ch:ch};if(shv.status!=="approved")saErr("notapproved");
     var sq=shv.quoteId?quoteById(shv.quoteId):null,give={},st4=saStock(db),need4={},op4=/^[\w-]{4,60}$/.test(String(p.opId||""))?String(p.opId):saId("o"),k4=0,d4=saStr(p.date,10)||new Date(now).toISOString().slice(0,10);
     (p.lines||[]).forEach(function(l){give[l.id]=Math.max(0,saR2(saNum(l.qty)))});
