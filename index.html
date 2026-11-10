@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111002;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111003;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -228,6 +228,179 @@ window.ZSSEC=(function(){
   try{O={app:window.ZS_APP==="ups"||window.ZS_APP==="zs"?"ups":"sa",hub:()=>window.ZS_APP==="zs"||window.ZS_APP==="zssa"};had0=hasLocal();O=null}catch(e){O=null}
   return {init,card,lockNow,wipe,checkEpoch,sha}})();
 </script>
+<script>/* ZUVAND — şablonun səhifədə düzəlişi: hesabatın öz səhifəsində ✎ (adı dəyiş), × (sil), + (əlavə et) */
+window.ZSED=(function(){const ID="zs-tpl-ed";let ED=null,busy=false;
+  const esc=x=>String(x==null?"":x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+  const cl=o=>JSON.parse(JSON.stringify(o));
+  const adm=()=>!!(state.me&&(state.me.boss||state.me.role==="admin"))||!(typeof hasServer==="function"&&hasServer());
+  const cur=()=>state.rep?realOf(state.rep):null;
+  const on=()=>!!ED&&!!cur()&&cur().id===ID;
+  const tName=k=>{const T=TYPES[k];return T?T.title:k};
+  function css(){if(document.getElementById("zsedCss"))return;document.head.insertAdjacentHTML("beforeend",`<style id="zsedCss">
+.zsI{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 6px;margin-left:6px;border-radius:7px;border:1px solid var(--line,#C9D3D0);background:var(--surface,#fff);color:var(--ink,#1B1F1E);font:600 14px/1 system-ui,sans-serif;letter-spacing:0;text-transform:none;cursor:pointer;vertical-align:middle;user-select:none;flex:none}
+.zsI:hover{border-color:var(--accent,#16362E)}.zsI.x{color:#B42318}.zsI.p{color:#0B6B3A}.zsI.t{font-size:12.5px;font-weight:600}
+.zsAdd{display:flex;gap:6px;align-items:center;margin:8px 0 0;padding:8px 10px;border:1px dashed var(--accent,#16362E);border-radius:10px;background:transparent;color:var(--accent,#16362E);font:600 14px system-ui,sans-serif;cursor:pointer;width:100%}
+.zsEdBan{border:2px solid var(--accent,#16362E);border-radius:12px;padding:10px 12px;margin:0 0 14px;background:var(--surface,#fff);display:grid;gap:8px}
+.zsEdBan .r{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.zsEdBan select{min-height:38px;max-width:100%}
+body.zsEd #ps h1,body.zsEd #ps h4,body.zsEd #ps h5,body.zsEd #ps th,body.zsEd #ps td.k{cursor:pointer;outline:1px dashed rgba(22,54,46,.35);outline-offset:-1px}
+body.zsEd #ps h1:hover,body.zsEd #ps h4:hover,body.zsEd #ps h5:hover,body.zsEd #ps th:hover,body.zsEd #ps td.k:hover{outline:2px solid #0B6B3A}
+.zsPop{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px}
+.zsPop .in{background:var(--surface,#fff);color:var(--ink,#1B1F1E);border-radius:14px;padding:16px;width:min(520px,100%);max-height:88vh;overflow:auto;display:grid;gap:10px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.zsPop label{display:grid;gap:4px;font-size:14px}.zsPop input,.zsPop select{width:100%;min-height:40px;padding:6px 10px;border:1px solid var(--line,#C9D3D0);border-radius:8px;font:inherit;background:var(--field,#fff);color:inherit}
+.zsPop .lr{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}.zsPop .act{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.zsPop .msg{color:#B42318;font-size:13px;min-height:1em}
+</style>`)}
+  /* ---- small dialogs ---- */
+  function pop(title,fields,ok,o){o=o||{};css();const d=document.createElement("div");d.className="zsPop";
+    d.innerHTML=`<div class="in" role="dialog" aria-label="${esc(title)}"><b style="font-size:16px">${esc(title)}</b>${o.note?`<p class="note" style="margin:0">${esc(o.note)}</p>`:""}
+      ${fields.map((f,i)=>f.t==="check"?`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-i="${i}" style="width:auto;min-height:0"${f.v?" checked":""}>${esc(f.l)}</label>`:`<label>${esc(f.l)}${f.t==="sel"?`<select data-i="${i}">${f.o.map(x=>`<option value="${esc(x[0])}"${x[0]===f.v?" selected":""}>${esc(x[1])}</option>`).join("")}</select>`:`<input data-i="${i}" value="${esc(f.v||"")}" placeholder="${esc(f.ph||"")}"${f.ro?" readonly":""}${f.n?' inputmode="decimal"':""}>`}</label>`).join("")}
+      <div class="msg"></div><div class="act"><button class="btn ghost" data-c>Ləğv et</button><button class="btn${o.danger?" danger":""}" data-ok>${esc(o.okText||"Saxla")}</button></div></div>`;
+    document.body.appendChild(d);const close=()=>d.remove();d.querySelector("[data-c]").onclick=close;d.onclick=e=>{if(e.target===d)close()};
+    const go=async()=>{const v=fields.map((f,i)=>{const el=d.querySelector(`[data-i="${i}"]`);return f.t==="check"?el.checked:String(el.value||"").trim()});
+      const m=fields.findIndex((f,i)=>f.req&&!v[i]);if(m>=0){d.querySelector(".msg").textContent="“"+fields[m].l+"” boş ola bilməz";return}
+      const b=d.querySelector("[data-ok]");b.disabled=true;d.querySelector(".msg").textContent="Saxlanılır…";
+      try{await ok(v);close()}catch(e){b.disabled=false;d.querySelector(".msg").textContent="Alınmadı: "+(e&&e.message==="forbidden"?"yalnız rəhbər / servis müdiri":(e&&e.message)||e)}};
+    d.querySelector("[data-ok]").onclick=go;d.querySelectorAll("input:not([type=checkbox])").forEach(x=>x.onkeydown=e=>{if(e.key==="Enter")go()});
+    const f=d.querySelector("input,select");if(f){f.focus();if(f.select)f.select()}}
+  /* list of choices in one dialog: ✎ in place, × delete, + add */
+  function listPop(title,L,ok,note){css();let W=L.slice();const d=document.createElement("div");d.className="zsPop";
+    const draw=()=>{d.innerHTML=`<div class="in" role="dialog" aria-label="${esc(title)}"><b style="font-size:16px">${esc(title)}</b>${note?`<p class="note" style="margin:0">${esc(note)}</p>`:""}
+      ${W.map((x,i)=>`<div class="lr"><input data-i="${i}" value="${esc(x)}" aria-label="Seçim ${i+1}"><span class="zsI" data-up="${i}" title="Yuxarı">↑</span><span class="zsI x" data-rm="${i}" title="Sil">×</span></div>`).join("")}
+      <button class="zsAdd" data-add>+ Seçim əlavə et</button><div class="msg"></div><div class="act"><button class="btn ghost" data-c>Ləğv et</button><button class="btn" data-ok>Saxla</button></div></div>`;
+      const sync=()=>d.querySelectorAll("input[data-i]").forEach(x=>W[+x.dataset.i]=x.value);
+      d.querySelector("[data-c]").onclick=()=>d.remove();d.querySelector("[data-add]").onclick=()=>{sync();W.push("");draw();const a=d.querySelectorAll("input[data-i]");a[a.length-1].focus()};
+      d.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{sync();W.splice(+b.dataset.rm,1);draw()});
+      d.querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>{sync();const i=+b.dataset.up;if(i>0){[W[i-1],W[i]]=[W[i],W[i-1]];draw()}});
+      d.querySelector("[data-ok]").onclick=async()=>{sync();const v=W.map(x=>String(x||"").trim()).filter(Boolean);if(!v.length){d.querySelector(".msg").textContent="Ən azı bir seçim qalmalıdır";return}
+        try{d.querySelector(".msg").textContent="Saxlanılır…";await ok(v);d.remove()}catch(e){d.querySelector(".msg").textContent="Alınmadı: "+((e&&e.message)||e)}}};
+    draw();document.body.appendChild(d);d.onclick=e=>{if(e.target===d)d.remove()}}
+  /* ---- template changes ---- */
+  async function commit(fn,msg){const T=cl(ZSTPL.raw()||{});fn(T);await ZSTPL.saveT(T);if(msg&&typeof toast==="function")toast(msg)}
+  const RN=()=>window.ZS_RN||{};
+  const rev=()=>{const o={},R=RN();for(const k in R)o[R[k]]=k;return o};
+  const keyOf=txt=>{txt=String(txt||"").replace(/\s+/g," ").trim().replace(/^\d+(\.\d+)*\.\s+/,"").replace(/\s*\(\d+\)$/,"");return rev()[txt]||txt};
+  const ownText=el=>[...el.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join("").replace(/\s+/g," ").trim();
+  function rename(k,what){const cur0=(ZSTPL.raw()&&ZSTPL.raw().names||{})[k]||"";
+    pop("Adı dəyiş",[{l:"Proqramdakı ad",v:k,ro:1},{l:"Yeni ad (boş qalsa, əvvəlki ad qayıdır)",v:cur0||k}],v=>commit(T=>{T.names=T.names||{};const n=v[1];if(!n||n===k)delete T.names[k];else T.names[k]=n},"Ad dəyişdirildi"),{note:what||"Yeni ad redaktorda və hesabatda (PDF) görünür."})}
+  /* device-type lists: meas / chk / works */
+  function devL(T,tp,kind){if(ZSTPL.isCustom(tp)){const c=(T.custom||[]).find(x=>x.key===tp);return c[kind]=c[kind]||[]}T.types=T.types||{};const o=T.types[tp]=T.types[tp]||{};if(!o[kind])o[kind]=cl(TYPES[tp][kind]);return o[kind]}
+  const KN={meas:"ölçmə",chk:"yoxlama bəndi",works:"iş"};
+  function devEdit(tp,kind,i){const L=TYPES[tp][kind],x=L[i];if(kind==="meas"){pop("Ölçməni dəyiş",[{l:"Adı",v:x[0],req:1},{l:"Vahid (V, A, °C …)",v:x[1]},{l:"Norma — min",v:x[2]==null?"":x[2],n:1},{l:"Norma — maks",v:x[3]==null?"":x[3],n:1},{t:"check",l:"Üç faza (L1, L2, L3)",v:+x[4]===3}],
+      v=>commit(T=>{const A=devL(T,tp,"meas");A[i]=[v[0],v[1],v[2]===""?null:+v[2].replace(",","."),v[3]===""?null:+v[3].replace(",","."),v[4]?3:1]},"Ölçmə dəyişdirildi"));return}
+    pop("Bəndi dəyiş",[{l:"Mətn",v:x,req:1}],v=>commit(T=>{devL(T,tp,kind)[i]=v[0]},"Dəyişdirildi"))}
+  function devDel(tp,kind,i){const L=TYPES[tp][kind],x=kind==="meas"?L[i][0]:L[i];pop("Silinsin?",[],()=>commit(T=>{devL(T,tp,kind).splice(i,1)},"Silindi"),{note:"“"+x+"” "+tName(tp)+" cihazlarının yeni hesabatlarından çıxarılır. Köhnə hesabatlar dəyişmir.",okText:"Sil",danger:1})}
+  function devAdd(tp,kind){if(kind==="meas"){pop("Ölçmə əlavə et",[{l:"Adı",req:1},{l:"Vahid (V, A, °C …)"},{l:"Norma — min",n:1},{l:"Norma — maks",n:1},{t:"check",l:"Üç faza (L1, L2, L3)"}],
+      v=>commit(T=>{devL(T,tp,"meas").push([v[0],v[1],v[2]===""?null:+v[2].replace(",","."),v[3]===""?null:+v[3].replace(",","."),v[4]?3:1])},"Ölçmə əlavə olundu"));return}
+    pop(KN[kind][0].toUpperCase()+KN[kind].slice(1)+" əlavə et",[{l:"Mətn",req:1}],v=>commit(T=>{devL(T,tp,kind).push(v[0])},"Əlavə olundu"))}
+  /* service-type lists (per device type) */
+  function svL(T,tp,k){T.svc=T.svc||{};T.svc.dev=T.svc.dev||{};const e=T.svc.dev[tp]=T.svc.dev[tp]||{};e.lists=e.lists||{};if(!e.lists[k])e.lists[k]=ZSTPL.svcList(k,tp).slice();return e.lists[k]}
+  function svUm(T,tp){T.svc=T.svc||{};T.svc.dev=T.svc.dev||{};const e=T.svc.dev[tp]=T.svc.dev[tp]||{};if(!e.um)e.um=cl(ZSTPL.svcUm(tp));return e.um}
+  function svEdit(tp,k,i){const x=ZSTPL.svcList(k,tp)[i];pop("Bəndi dəyiş",[{l:"Mətn",v:x,req:1}],v=>commit(T=>{svL(T,tp,k)[i]=v[0]},"Dəyişdirildi"),{note:tName(tp)+" cihazları üçün."})}
+  function svDel(tp,k,i){const x=ZSTPL.svcList(k,tp)[i];pop("Silinsin?",[],()=>commit(T=>{svL(T,tp,k).splice(i,1)},"Silindi"),{note:"“"+x+"” "+tName(tp)+" cihazlarının yeni hesabatlarından çıxarılır. Köhnə hesabatlar dəyişmir.",okText:"Sil",danger:1})}
+  function svAdd(tp,k){pop("Bənd əlavə et",[{l:"Mətn",req:1}],v=>commit(T=>{svL(T,tp,k).push(v[0])},"Əlavə olundu"),{note:tName(tp)+" cihazları üçün."})}
+  function svSel(tp,k,label){listPop("Seçimlər — "+label,ZSTPL.svcList(k,tp),v=>commit(T=>{const A=svL(T,tp,k);A.splice(0,A.length,...v)},"Seçimlər saxlanıldı"),tName(tp)+" cihazları üçün. Köhnə hesabatlar dəyişmir.")}
+  function umEdit(tp,key){const L=ZSTPL.svcUm(tp),i=L.findIndex(m=>m[0]===key),m=L[i];if(i<0)return;
+    pop("Ölçməni dəyiş",[{l:"Adı",v:m[1],req:1},{l:"Vahid",v:m[2]}],v=>commit(T=>{const A=svUm(T,tp),j=A.findIndex(x=>x[0]===key);if(j>=0){A[j][1]=v[0];A[j][2]=v[1]}},"Dəyişdirildi"))}
+  function umDel(tp,key){const m=ZSTPL.svcUm(tp).find(x=>x[0]===key);if(!m)return;pop("Silinsin?",[],()=>commit(T=>{const A=svUm(T,tp),j=A.findIndex(x=>x[0]===key);if(j>=0)A.splice(j,1)},"Silindi"),{note:"“"+m[1]+"” yeni hesabatlardan çıxarılır.",okText:"Sil",danger:1})}
+  function umAdd(tp,grp){pop("Ölçmə əlavə et",[{l:"Adı",req:1},{l:"Vahid"},{t:"check",l:"İki dəyər (əvvəl → sonra)",v:grp==="p"}],v=>commit(T=>{svUm(T,tp).push(["u"+Date.now().toString(36),v[0],v[1],v[2]?2:0,grp])},"Ölçmə əlavə olundu"))}
+  /* extra fields */
+  function cfL(T,who,key){T.cf=T.cf||{};T.cf[who]=T.cf[who]||{};T.cf[who][key]=T.cf[who][key]||cl(who==="dev"?ZSTPL.cfDev(key):ZSTPL.cfSvc(key));return T.cf[who][key]}
+  const CFT=[["text","mətn"],["area","uzun mətn"],["num","rəqəm"],["date","tarix"],["sel","seçim siyahısı"]];
+  function cfEdit(who,key,k){const f=(who==="dev"?ZSTPL.cfDev(key):ZSTPL.cfSvc(key)).find(x=>x.k===k);if(!f)return;
+    pop("Sahəni dəyiş",[{l:"Sahənin adı",v:f.l,req:1},{l:"Növü",t:"sel",o:CFT,v:f.t},{l:"Seçimlər (vergüllə; yalnız “seçim siyahısı” üçün)",v:f.o}],v=>commit(T=>{const x=cfL(T,who,key).find(y=>y.k===k);if(x){x.l=v[0];x.t=v[1];x.o=v[2]}},"Sahə dəyişdirildi"))}
+  function cfDel(who,key,k){const f=(who==="dev"?ZSTPL.cfDev(key):ZSTPL.cfSvc(key)).find(x=>x.k===k);if(!f)return;pop("Silinsin?",[],()=>commit(T=>{const A=cfL(T,who,key),j=A.findIndex(y=>y.k===k);if(j>=0)A.splice(j,1)},"Sahə silindi"),{note:"“"+f.l+"” sahəsi yeni hesabatlardan çıxarılır.",okText:"Sil",danger:1})}
+  function cfAdd(who,key){pop("Sahə əlavə et",[{l:"Sahənin adı",req:1},{l:"Növü",t:"sel",o:CFT,v:"text"},{l:"Seçimlər (vergüllə; yalnız “seçim siyahısı” üçün)"}],v=>commit(T=>{cfL(T,who,key).push({k:"f"+Date.now().toString(36),l:v[0],t:v[1],o:v[2]})},"Sahə əlavə olundu"),{note:who==="dev"?tName(key)+" cihazlarının bölməsinə əlavə olunur.":"Bu servis növünün “Servis” bölməsinə əlavə olunur."})}
+  /* options of a select that is not a template list: rename each one */
+  function optNames(sel,label){const O=[...sel.options].map(o=>o.value||o.textContent).filter(Boolean),R=ZSTPL.raw()&&ZSTPL.raw().names||{};
+    pop("Seçimlərin adları — "+label,O.map(x=>({l:x,v:R[x]||""})),v=>commit(T=>{T.names=T.names||{};O.forEach((x,i)=>{if(v[i]&&v[i]!==x)T.names[x]=v[i];else delete T.names[x]})},"Adlar saxlanıldı"),{note:"Boş qalsa, ad dəyişmir. Bu siyahının bəndlərini silmək olmur — lazım olan seçimi “Əlavə sahə” kimi yarada bilərsiniz."})}
+  function title(){const r=cur(),PF=SVC_PROF(r),cx=window.ZS_SVCX&&ZS_SVCX[String(r.svc.type||"")];if(cx){if(typeof toast==="function")toast("Bu əlavə servis növünün başlığı “Servis növləri” siyahısında dəyişdirilir");ZSTPL.open({md:"types"});return}
+    const pk=PROF_TITLE[PF]?PF:"prof",tt=((ZSTPL.raw()||{}).svc||{}).titles||{};
+    pop("Hesabatın başlığı",[{l:"Başlıq (PDF-də)",v:tt[pk]||PROF_TITLE[pk]}],v=>commit(T=>{T.svc=T.svc||{};T.svc.titles=T.svc.titles||{};if(!v[0])delete T.svc.titles[pk];else T.svc.titles[pk]=v[0]},"Başlıq saxlanıldı"),{note:"Yazdığınız kimi çıxır (əvvələ “UPS” əlavə olunmur). Boş qalsa, standart başlıq qayıdır."})}
+  /* ---- icons ---- */
+  function ic(el,kind,tt,fn,where){const s=document.createElement("span");s.className="zsI"+(kind==="x"?" x":kind==="p"?" p":kind==="t"?" t":"");s.setAttribute("role","button");s.tabIndex=0;s.title=tt;s.setAttribute("aria-label",tt);
+    s.textContent=kind==="x"?"×":kind==="p"?"+":kind==="t"?"✎ "+tt:"✎";const go=e=>{e.preventDefault();e.stopPropagation();fn()};s.addEventListener("click",go,true);s.onkeydown=e=>{if(e.key==="Enter"||e.key===" ")go(e)};
+    if(where==="before")el.before(s);else if(where==="after")el.after(s);else el.appendChild(s);return s}
+  function addBtn(anchor,txt,fn,pos){const b=document.createElement("button");b.type="button";b.className="zsAdd";b.textContent="+ "+txt;b.onclick=e=>{e.preventDefault();fn()};if(pos==="before")anchor.before(b);else anchor.appendChild(b);return b}
+  /* ---- the page ---- */
+  function banner(main){const r=cur(),tp=CUR_TYPE,ts=TYPE_ORDER.filter(k=>TYPES[k]),ss=SVC_TYPES.slice();if(!ss.includes(r.svc.type))ss.push(r.svc.type);
+    const b=document.createElement("div");b.className="zsEdBan";b.innerHTML=`<b>Şablonun düzəlişi — nümunə səhifə</b>
+      <div class="note" style="margin:0">Hər yazının yanında: <b>✎</b> — adını dəyiş, <b style="color:#B42318">×</b> — sil, <b style="color:#0B6B3A">+</b> — əlavə et. “Hesabat” bölməsində PDF görünüşündəki başlığa və sütun adlarına toxunub dəyişmək olar. Dəyişiklik saxlananda bütün işçilərin yeni hesabatlarına tətbiq olunur; köhnə hesabatlar dəyişmir. Bu səhifə nümunədir — heç yerə göndərilmir.</div>
+      <div class="r"><label>Cihaz növü <select id="zsEdT">${ts.map(k=>`<option value="${esc(k)}"${k===tp?" selected":""}>${esc(TYPES[k].title)}</option>`).join("")}</select></label>
+      <label>Servis növü <select id="zsEdS">${ss.map(k=>`<option${k===r.svc.type?" selected":""}>${esc(k)}</option>`).join("")}</select></label>
+      <span class="zsI t" id="zsEdTy" role="button" tabindex="0">✎ Servis növlərinin siyahısı</span>
+      <button class="btn sm" id="zsEdDone" style="margin-left:auto">✓ Bitir</button></div>`;
+    main.prepend(b);b.querySelector("#zsEdT").onchange=e=>start(e.target.value,ED.st,state.tab);b.querySelector("#zsEdS").onchange=e=>start(ED.tp,e.target.value,state.tab);
+    b.querySelector("#zsEdDone").onclick=exit;b.querySelector("#zsEdTy").onclick=()=>ZSTPL.open({md:"types"})}
+  function deco(){const main=document.getElementById("main");if(!main)return;document.body.classList.toggle("zsEd",on());hdr();if(!on())return;css();
+    main.querySelectorAll(".tplgo,.tplop,.tplnm").forEach(x=>x.remove());if(main.querySelector(".zsEdBan"))return;
+    const tp=CUR_TYPE,r=cur(),PF=SVC_PROF(r),tab=state.tab;banner(main);
+    /* top tabs */
+    const TB=tabsFor();document.querySelectorAll("#tabs [data-tab]").forEach(b=>{if(b.querySelector(".zsI"))return;const t=TB.find(x=>x[0]===b.dataset.tab);if(!t)return;const k=t[2]||t[1];
+      if(b.dataset.tab==="ups")return;ic(b,"e","Bölmənin adını dəyiş",()=>rename(k,"Bölmənin adı yuxarıdakı düymədə görünür."))});
+    /* section title, card titles */
+    main.querySelectorAll("h2.sec,.card>h3,.card h4").forEach(h=>{if(h.closest(".zsEdBan")||h.querySelector(".zsI"))return;const t=ownText(h);if(!t||h.closest("[data-cfc]")&&h.tagName!=="H3")return;ic(h,"e","Adını dəyiş",()=>rename(keyOf(t)))});
+    /* device lists */
+    main.querySelectorAll(".mrow").forEach(m=>{const inp=m.querySelector('[data-path^="meas."]');const b=m.querySelector(".mhead b");if(!inp||!b)return;const i=+inp.dataset.path.split(".")[1];
+      ic(b,"e","Ölçməni dəyiş",()=>devEdit(tp,"meas",i));ic(b,"x","Ölçməni sil",()=>devDel(tp,"meas",i))});
+    if(tab==="meas"){const last=[...main.querySelectorAll(".mrow")].pop();if(last)addBtn(last.parentNode,"Ölçmə əlavə et",()=>devAdd(tp,"meas"))}
+    const lists={};main.querySelectorAll(".citem").forEach(c=>{const b=c.querySelector(":scope>b");if(!b)return;const bt=c.querySelector("[data-chk],[data-work],[data-xl]");if(!bt)return;
+      if(bt.dataset.chk!=null){const i=+bt.dataset.chk;ic(b,"e","Bəndi dəyiş",()=>devEdit(tp,"chk",i));ic(b,"x","Bəndi sil",()=>devDel(tp,"chk",i));lists.chk=c}
+      else if(bt.dataset.work!=null){const i=+bt.dataset.work;ic(b,"e","İşi dəyiş",()=>devEdit(tp,"works",i));ic(b,"x","İşi sil",()=>devDel(tp,"works",i));lists.works=c}
+      else{const k=bt.dataset.xl,i=+bt.dataset.xi;ic(b,"e","Bəndi dəyiş",()=>svEdit(tp,k,i));ic(b,"x","Bəndi sil",()=>svDel(tp,k,i));lists["xl:"+k]=c}});
+    for(const k in lists){const c=lists[k];if(k==="chk")addBtn(c.parentNode,"Yoxlama bəndi əlavə et",()=>devAdd(tp,"chk"));else if(k==="works")addBtn(c.parentNode,"İş əlavə et",()=>devAdd(tp,"works"));else addBtn(c.parentNode,"Bənd əlavə et",()=>svAdd(tp,k.slice(3)))
+      const seg=c.parentNode.querySelector(".citem .seg"),bt=c.querySelector("[data-chk],[data-xl]");if(seg&&bt){const p=bt.dataset.xl;const set=bt.dataset.chk!=null?"chk":p==="inst.test"?"test":p==="inst.chk"?"chk":/^upd\./.test(p)?"upd":null;
+        if(set){const card=c.closest(".card")||c.parentNode;const h=card.querySelector(":scope>h3")||main.querySelector("h2.sec");ic(h,"t","Cavab düymələri",()=>ZSTPL.open({md:"opts",set}))}}}
+    /* service-type measurements (umeas) */
+    main.querySelectorAll('label.f input[data-path^="x.upd.m."]').forEach(inp=>{const p=inp.dataset.path.split(".");if(p[4]!=="a")return;const key=p[3],sp=inp.closest("label").querySelector("span");if(!sp)return;sp.dataset.zsd="1";
+      ic(sp,"e","Ölçməni dəyiş",()=>umEdit(tp,key));ic(sp,"x","Ölçməni sil",()=>umDel(tp,key))});
+    if(tab==="umeas")main.querySelectorAll(".card").forEach(cd=>{if(!cd.querySelector('[data-path^="x.upd.m."]'))return;const h=cd.querySelector("h3");const grp=h&&/Akkumulyator/i.test(keyOf(ownText(h)))?"b":"p";addBtn(cd,"Ölçmə əlavə et",()=>umAdd(tp,grp))});
+    /* extra fields */
+    const cfWho=tab==="svc"?"svc":tab==="ups"?"dev":null,cfKey=cfWho==="svc"?PF:tp;
+    main.querySelectorAll('[data-cfc] label.f').forEach(l=>{const inp=l.querySelector("[data-path]");const sp=l.querySelector("span");if(!inp||!sp||!cfWho)return;const k=inp.dataset.path.split(".").pop();sp.dataset.zsd="1";
+      ic(sp,"e","Sahəni dəyiş",()=>cfEdit(cfWho,cfKey,k));ic(sp,"x","Sahəni sil",()=>cfDel(cfWho,cfKey,k))});
+    if(cfWho){const nb=main.querySelector(".nextbar");const box=main.querySelector("[data-cfc]");if(box)addBtn(box,"Sahə əlavə et",()=>cfAdd(cfWho,cfKey));else if(nb)addBtn(nb,"Sahə əlavə et",()=>cfAdd(cfWho,cfKey),"before")}
+    /* field labels and selects */
+    const SK=["inst.chk","inst.test","upd.cb","upd.cp","upd.kinds","upd.why","upd.fate","call.res"];
+    main.querySelectorAll("label.f>span,label>span").forEach(sp=>{if(sp.dataset.zsd||sp.querySelector(".zsI")||sp.closest(".zsEdBan,.mrow .grid3,.lim,.seg"))return;const t=ownText(sp);if(!t||t.length<3)return;
+      const l=sp.closest("label"),sel=l&&l.querySelector("select");
+      ic(sp,"e","Adını dəyiş",()=>rename(keyOf(t)));
+      if(sel){const O=[...sel.options].map(o=>o.value||o.textContent).filter(Boolean);if(sel.dataset.path==="svc.type"){ic(sp,"t","Seçimlər",()=>ZSTPL.open({md:"types"}));return}
+        const k=SK.find(k=>{const L=ZSTPL.svcList(k,tp);return L.length===O.length&&L.every((x,i)=>x===O[i])});
+        if(k)ic(sp,"t","Seçimlər",()=>svSel(tp,k,keyOf(t)));else if(O.length&&!sel.closest("[data-cfc]"))ic(sp,"t","Seçimlərin adları",()=>optNames(sel,keyOf(t)))}});
+    main.querySelectorAll("th").forEach(th=>{if(th.closest("#ps")||th.querySelector(".zsI"))return;const t=ownText(th);if(t&&t.length>1)ic(th,"e","Adını dəyiş",()=>rename(keyOf(t)))});
+    /* hand-over list */
+    const ks=main.querySelector("#kitStd");if(ks)ic(ks,"e","Standart siyahını dəyiş",()=>ZSTPL.open({md:"kit"}),"after");
+    /* report tab */
+    if(tab==="rep"){const ps=document.getElementById("ps");const c=document.createElement("div");c.className="card";
+      c.innerHTML=`<h3>Hesabatın (PDF) mətnləri</h3><div style="display:grid;gap:8px"><div>Başlıq: <b>${esc(typeof REPORT_TITLE==="string"?REPORT_TITLE:"")}</b> <span class="zsI" data-z="t" role="button" tabindex="0" title="Başlığı dəyiş">✎</span></div>
+        <div>Nəticə və tövsiyələr cümlələri <span class="zsI t" data-z="c" role="button" tabindex="0">✎ Dəyiş</span></div><div>PDF-dəki bütün adlar (axtarışla) <span class="zsI t" data-z="n" role="button" tabindex="0">✎ Dəyiş</span></div>
+        <p class="note" style="margin:0">Aşağıdakı hesabat görünüşündə istənilən bölmə başlığına, sütun adına və ya sahə adına toxunun — adını dəyişmək üçün pəncərə açılır.</p></div>`;
+      c.querySelector('[data-z="t"]').onclick=title;c.querySelector('[data-z="c"]').onclick=()=>ZSTPL.open({md:"concl"});c.querySelector('[data-z="n"]').onclick=()=>ZSTPL.open({md:"names"});
+      const ban=main.querySelector(".zsEdBan");ban.after(c)}}
+  /* a tap on the report preview: rename what was tapped */
+  function psTap(e){if(!on()||state.tab!=="rep")return;const el=e.target.closest("#ps h1,#ps h4,#ps h5,#ps th,#ps td.k");if(!el)return;e.preventDefault();e.stopPropagation();
+    if(el.tagName==="H1"){title();return}if(state.plang&&state.plang!=="az"){if(typeof toast==="function")toast("Adlar Azərbaycan dilindəki hesabat üçün dəyişdirilir");return}
+    const sp=el.querySelector("span");const t=(sp&&el.tagName==="H4"?sp.textContent:ownText(el)||el.textContent).trim();if(!t)return;
+    if(/^Nəticə və tövsiyələr$/i.test(keyOf(t))){pop("Nəticə və tövsiyələr",[{l:"Bölmənin adı",v:(RN()["Nəticə və tövsiyələr"]||"Nəticə və tövsiyələr")}],v=>commit(T=>{T.names=T.names||{};if(!v[0]||v[0]==="Nəticə və tövsiyələr")delete T.names["Nəticə və tövsiyələr"];else T.names["Nəticə və tövsiyələr"]=v[0]},"Ad dəyişdirildi"),{note:"Cümlələrin özünü dəyişmək üçün yuxarıdakı “Nəticə və tövsiyələr cümlələri ✎” düyməsini basın."});return}
+    rename(keyOf(t),"Bu ad hesabatda (PDF) və redaktorda dəyişir.")}
+  /* ---- start / stop ---- */
+  function start(tp,st,tab){if(busy)return;const back=ED&&ED.back!==undefined?ED.back:(cur()&&cur().id!==ID?cur().id:null),bt=ED?ED.bt:(state.view==="edit"?state.tab:"");
+    const r=freshReport(state.settings,TYPES[tp]?tp:"ups");r.id=ID;r.sample=true;r.svc.type=st||"Planlı servis";r.svc.repno="NÜMUNƏ";r.cl.name="Şablon: "+(TYPES[tp]?TYPES[tp].title:"")+" · "+r.svc.type;
+    ED={tp:r.devices[0].type,st:r.svc.type,back,bt};state.reports[ID]=r;openReport(r);if(tab&&tabsFor().some(x=>x[0]===tab)){state.tab=tab;renderEditor()}}
+  function rebuild(){if(!ED)return;const tab=state.tab,y=window.scrollY;start(ED.tp,ED.st,tab);setTimeout(()=>window.scrollTo(0,y),0)}
+  async function exit(){const back=ED&&ED.back,bt=ED&&ED.bt;ED=null;document.body.classList.remove("zsEd");try{await removeReport(ID)}catch(e){delete state.reports[ID]}
+    if(back&&state.reports[back]){openReport(state.reports[back]);if(bt&&tabsFor().some(x=>x[0]===bt)){state.tab=bt;renderEditor()}}else{state.cur=null;state.rep=null;renderSettings()}}
+  function hdr(){const bar=document.querySelector("header.top .bar");if(!bar)return;let b=document.getElementById("hTplEd");
+    if(!b){b=document.createElement("button");b.className="btn sm";b.id="hTplEd";b.type="button";const th=document.getElementById("hTheme");if(th)th.before(b);else bar.appendChild(b);
+      b.onclick=()=>{if(on()){exit();return}const r=cur();if(!r)return;start(CUR_TYPE,r.svc.type,state.tab)};
+      new MutationObserver(()=>{const t=document.getElementById("tabs");if(t&&t.hidden)b.hidden=true}).observe(document.getElementById("tabs"),{attributes:true,attributeFilter:["hidden"]})}
+    const show=state.view==="edit"&&!!state.rep&&adm();b.hidden=!show;b.textContent=on()?"✓ Düzəlişi bitir":"✎ Düzəliş et";b.title=on()?"Şablonun düzəlişini bitir":"Bu səhifənin bölmələrini, adlarını və siyahılarını şablonda dəyişmək";
+    if(ED&&!on()){ED=null;document.body.classList.remove("zsEd");if(state.reports[ID])removeReport(ID).catch(()=>{})}}
+  /* Ayarlar: choose device type and service type */
+  function choose(){if(!adm()){if(typeof toast==="function")toast("Şablonları rəhbər və servis müdiri dəyişir");return}const ts=TYPE_ORDER.filter(k=>TYPES[k]);
+    pop("Hansı səhifə açılsın?",[{l:"Cihaz növü",t:"sel",o:ts.map(k=>[k,TYPES[k].title]),v:ts[0]},{l:"Servis növü",t:"sel",o:SVC_TYPES.map(x=>[x,x]),v:SVC_TYPES[0]}],v=>{ED=null;start(v[0],v[1])},{okText:"Aç",note:"Doldurulacaq hesabat səhifəsi nümunə kimi açılır. Hər yazının yanında ✎ (adını dəyiş), × (sil), + (əlavə et) olur."})}
+  function init(){document.addEventListener("click",psTap,true);window.zsTplSaved=()=>{if(on())rebuild()}}
+  return {deco,start,exit,choose,init,on,rebuild}})();
+</script>
 <script>/* ZUVAND — hesabat şablonları: ölçmələr, yoxlamalar, görülən işlər və yeni cihaz növləri Ayarlardan dəyişdirilir.
    Rəhbər saxlayanda hamıya gedir. Hər cihaz yarananda öz siyahısının surətini saxlayır (d.lbl), ona görə köhnə hesabatlar dəyişmir. */
 window.ZSTPL=(function(){
@@ -418,7 +591,7 @@ window.ZSTPL=(function(){
   function stamp(o){const T=TYPES[o.type];if(!T)return o;o.lbl={m:cl(T.meas),c:T.chk.slice(),w:T.works.slice()};if(T.custom)Object.assign(o.lbl,{t:T.title,s:T.short,b:T.hasBat?1:0,i:cl(T.info)});return o}
   /* ---------- server ---------- */
   async function fetchTpl(){if(!O||!O.logged())return;try{const r=await O.api("tpl_get",{});const js=JSON.stringify(r.tpl||null);if(js!==(LSg("ups.tpl")||"null")){LSs("ups.tpl",js);apply();if(document.getElementById("tplCard"))card()}}catch(e){}}
-  async function save(t){t.v=Date.now();t.by=O&&O.me?O.me():"";if(O&&O.logged()){await O.api("tpl_set",{tpl:t})}LSs("ups.tpl",JSON.stringify(t));apply()}
+  async function save(t){t.v=Date.now();t.by=O&&O.me?O.me():"";if(O&&O.logged()){await O.api("tpl_set",{tpl:t})}LSs("ups.tpl",JSON.stringify(t));apply();if(typeof window.zsTplSaved==="function")setTimeout(window.zsTplSaved,0)}
   /* ---------- Ayarlar card + editor ---------- */
   const esc=x=>String(x==null?"":x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
   const g=id=>document.getElementById(id);
@@ -427,8 +600,9 @@ window.ZSTPL=(function(){
     const h=`<div class="card" id="tplCard" style="margin-top:12px"><h3>Hesabat şablonları — cihaz və servis növləri, sahələr, adlar</h3>
       <p class="note" style="margin:0 0 8px">Hər cihaz növü üçün “Ölçmə”, “Yoxlama” və “İşlər” bölmələrindəki bəndləri dəyişmək, əlavə etmək, silmək, sırasını dəyişmək və yeni cihaz növü yaratmaq olar. Hər servis növü üçün isə hesabatın başlığı, hesabat nömrəsinin kodu (məs. RSH, MSH) və həmin növün öz siyahıları (quraşdırma yoxlaması, işə salma testləri, dəyişdirilən hissə növləri, ölçmələr və s.) dəyişdirilir. Dəyişiklik bütün işçilərə gedir və <b>yeni</b> hesabatlara (yeni əlavə olunan cihazlara) tətbiq olunur; köhnə hesabatlar öz siyahısı ilə qalır.</p>
       <p style="margin:0 0 8px">${changed.length?"Dəyişdirilmiş cihaz növləri: <b>"+changed.map(k=>esc(TYPES[k].title)).join(", ")+"</b>":"Cihaz növləri: standart siyahılar."}${TPL&&TPL.svc&&Object.keys(TPL.svc).length?"<br>Servis növlərində dəyişiklik var.":""}${custom.length?"<br>Əlavə cihaz növləri: <b>"+custom.map(c=>esc(c.title)).join(", ")+"</b>":""}${TPL&&TPL.v?`<br><span class="note">Son dəyişiklik: ${new Date(TPL.v).toLocaleString()}${TPL.by?" · "+esc(TPL.by):""}</span>`:""}</p>
-      ${adm?`<div class="actions"><button class="btn pri" id="tplEdit">Şablonları redaktə et</button><button class="btn" id="tplNewT">+ Yeni cihaz növü</button><button class="btn" id="tplSvc">Servis növləri</button><button class="btn" id="tplOpts">Cavab variantları</button><button class="btn" id="tplCf">Əlavə sahələr</button><button class="btn" id="tplNames">Adlar və başlıqlar</button><button class="btn" id="tplConcl">Nəticə cümlələri</button><button class="btn" id="tplKit">Təhvil siyahısı</button><button class="btn" id="tplTypes">Servis növlərinin siyahısı</button></div><p class="note" style="margin:6px 0 0">Hesabatı doldurarkən hər bölmənin başlığındakı “✎ Şablon” düyməsi də birbaşa həmin bölmənin siyahısını açır.</p>`:`<p class="note" style="margin:0">Şablonları rəhbər və servis müdiri dəyişir.</p>`}</div>`;
+      ${adm?`<div class="actions" style="margin-bottom:8px"><button class="btn pri" id="tplPage">✎ Hesabat səhifəsində düzəliş et</button></div><p class="note" style="margin:0 0 8px">Cihaz növünü və servis növünü seçin — doldurulan hesabat səhifəsi açılır. Hər yazının yanında ✎ (adını dəyiş), × (sil), + (əlavə et) olur. Hesabatı doldurarkən yuxarıdakı “✎ Düzəliş et” düyməsi də eyni səhifəni açır.</p><details><summary style="cursor:pointer">Siyahı şəklində redaktə (əvvəlki üsul)</summary><div class="actions" style="margin-top:8px"><button class="btn" id="tplEdit">Şablonları redaktə et</button><button class="btn" id="tplNewT">+ Yeni cihaz növü</button><button class="btn" id="tplSvc">Servis növləri</button><button class="btn" id="tplOpts">Cavab variantları</button><button class="btn" id="tplCf">Əlavə sahələr</button><button class="btn" id="tplNames">Adlar və başlıqlar</button><button class="btn" id="tplConcl">Nəticə cümlələri</button><button class="btn" id="tplKit">Təhvil siyahısı</button><button class="btn" id="tplTypes">Servis növlərinin siyahısı</button></div></details>`:`<p class="note" style="margin:0">Şablonları rəhbər və servis müdiri dəyişir.</p>`}</div>`;
     if(old)old.outerHTML=h;else main.insertAdjacentHTML("beforeend",h);
+    if(g("tplPage"))g("tplPage").onclick=()=>{if(window.ZSED)ZSED.choose()};
     if(g("tplEdit"))g("tplEdit").onclick=()=>editor(TYPE_ORDER.filter(k=>k!=="pq")[0]);
     if(g("tplNewT"))g("tplNewT").onclick=()=>editor("__new");
     if(g("tplSvc"))g("tplSvc").onclick=()=>editor(TYPE_ORDER.filter(k=>k!=="pq")[0],"upd");
@@ -539,7 +713,7 @@ window.ZSTPL=(function(){
     draw()}
   function init(o){O=o;setTimeout(fetchTpl,4000);setInterval(fetchTpl,10*60000);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")fetchTpl()})}
   const titleCustom=k=>!!(SREF&&SDEF&&String(SREF.titles[k]||"")!==String(SDEF.titles[k]||""));
-  return {titleCustom,apply,applySvc,svcDef,svcList,svcUm,regApp,optSet,cfDev,cfSvc,open,extra,lists,stamp,reg,isCustom,init,card,fetchTpl,_def:()=>DEF}})();
+  return {raw:()=>TPL,saveT:save,titleCustom,apply,applySvc,svcDef,svcList,svcUm,regApp,optSet,cfDev,cfSvc,open,extra,lists,stamp,reg,isCustom,init,card,fetchTpl,_def:()=>DEF}})();
 </script>
 <script>/* ZUVAND — Ayarlar: QR oxumaların statistikası (yalnız rəhbər / statistika icazəsi; məlumat "QR oxumalar" vərəqindən) */
 window.ZSQRST=(function(){let O=null,R=null,busy=false;
@@ -4206,7 +4380,7 @@ window.ZSBK=(function(){
       try{await sync({all:true})}catch(e){}
       return ok+" hesabat"+(bad?" ("+bad+" alınmadı)":"")+", "+tk+" tapşırıq"+(ph?", "+ph+" şəkil":"")}});
   const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}try{ZSSEC.card()}catch(e){}try{ZSTPL.card()}catch(e){}try{ZSQRST.card()}catch(e){}try{ZSCOL.on()}catch(e){}return r};
-  try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>!!state.me.boss||(!(typeof CFG!=="undefined"&&CFG.hub)&&state.me.role==="admin"),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}try{API_TIMEOUT.factory_reset=330000;API_TIMEOUT.activity=60000;API_TIMEOUT.sec_info=15000;ZSSEC.init({app:"ups",api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub})}catch(e){}try{ZSTPL.init({redraw:()=>{try{if(state.view==="edit"&&state.rep)renderEditor();else if(state.view==="settings")renderSettings()}catch(e){}},api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),isAdmin:()=>!hasServer()||state.me.role==="admin",me:()=>state.me.name||""})}catch(e){}try{ZSQRST.init({api:(a,p)=>api(a,p),ok:()=>!!state.me.key&&hasServer()&&!(typeof CFG!=="undefined"&&CFG.hub)&&(!!state.me.boss||state.me.role==="admin"||svCan("stats"))})}catch(e){}
+  try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>!!state.me.boss||(!(typeof CFG!=="undefined"&&CFG.hub)&&state.me.role==="admin"),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}try{API_TIMEOUT.factory_reset=330000;API_TIMEOUT.activity=60000;API_TIMEOUT.sec_info=15000;ZSSEC.init({app:"ups",api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub})}catch(e){}try{ZSTPL.init({redraw:()=>{try{if(state.view==="edit"&&state.rep)renderEditor();else if(state.view==="settings")renderSettings()}catch(e){}},api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),isAdmin:()=>!hasServer()||state.me.role==="admin",me:()=>state.me.name||""})}catch(e){}try{ZSED.init()}catch(e){}try{ZSQRST.init({api:(a,p)=>api(a,p),ok:()=>!!state.me.key&&hasServer()&&!(typeof CFG!=="undefined"&&CFG.hub)&&(!!state.me.boss||state.me.role==="admin"||svCan("stats"))})}catch(e){}
   /* the "Ayarlar" button was bound to the old function at start-up */
   const hs=document.getElementById("hSettings");if(hs)hs.onclick=()=>renderSettings();
 }catch(e){console.log("backup",e)}})();
@@ -4289,22 +4463,14 @@ window.ZSBK=(function(){
     if(r.qr&&r.qr.base&&r.qr.r&&sns.every(s=>r.qr.d&&r.qr.d[s]))return false;
     try{const mu0=String(state.me.url||"").split("?")[0];if(navigator.onLine===false)return false;const q=await Promise.race([api("qr_tokens",{rid:r.id,sns,base:mu0}),new Promise((_,rj)=>setTimeout(()=>rj(new Error("qr_timeout")),7000))]);const mu=String(state.me.url||"").split("?")[0],base=/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(mu)?mu:q.base;if(!base||!q.r)return false;r.qr={base,r:q.r,d:q.d||{}};return true}catch(e){return false}};
   {const _mb=makePdf;makePdf=async function(r,L){try{if(await ZSBT.ensure(r)){const ps=$("#ps");if(ps){ps.innerHTML=paperHTML(r,null,L);fitPaper()}}}catch(e){}return _mb.apply(this,arguments)}}
-  {const _tf=tabsFor;tabsFor=function(){return _tf.apply(this,arguments).map(x=>[x[0],RNM(x[1])])}}
+  {const _tf=tabsFor;tabsFor=function(){return _tf.apply(this,arguments).map(x=>[x[0],RNM(x[1]),x[1]])}}
   /* the template parts of the open section: "✎ Şablon" opens them directly */
   window.zsRenameDom=function(root){const RN=window.ZS_RN||{};if(!root||!Object.keys(RN).length)return;root.querySelectorAll("h2,h3,h4,h5,label span,label b,th,button,option,legend,summary,.stat span,b").forEach(el=>{if(el.closest(".tplov"))return;el.childNodes.forEach(n=>{if(n.nodeType!==3)return;const s=n.textContent,k=s.trim();if(k&&RN[k]&&RN[k]!==k)n.textContent=s.replace(k,RN[k])})})};
   window.zsTplHook=function(){const main=document.getElementById("main");if(!main||!state.rep||!state.cur)return;try{zsRenameDom(main)}catch(e){}const tab=state.tab,PF=SVC_PROF(state.rep),tp=CUR_TYPE;
     if(tab==="svc"&&!main.querySelector("[data-cfc]")){const h=cfHtml(ZSTPL.cfSvc(PF),"svc.cf");if(h){const c=main.querySelector(".card");if(c)c.insertAdjacentHTML("afterend",h)}}
     if(tab==="ups"&&!main.querySelector("[data-cfc]")){const h=cfHtml(ZSTPL.cfDev(tp),"x.cf");if(h){const nb=main.querySelector(".nextbar");if(nb)nb.insertAdjacentHTML("beforebegin",h);else main.insertAdjacentHTML("beforeend",h)}}
-    const isAdm=!!(state.me&&(state.me.boss||state.me.role==="admin"))||!(typeof hasServer==="function"&&hasServer());if(!isAdm||lockedRep(state.rep))return;
-    const B=TYPES[tp]&&TYPES[tp].hasBat,go={meas:{tp,tab:"meas"},chk:{tp,tab:"chk"},work:PF==="prof"?{tp,tab:"works"}:{md:"names"},ups:{md:"cf",who:"dev",key:tp},svc:{md:"cf",who:"svc",key:PF},
-      inst:{tp,sv:"inst",svDev:tp,stab:"inst.chk"},upd:{tp,sv:"upd",svDev:tp,stab:"upd.kinds"},umeas:{tp,sv:"upd",svDev:tp,stab:"um"},uchk:{tp,sv:"upd",svDev:tp,stab:B?"upd.cb":"upd.cp"},
-      call:{tp,sv:"call",svDev:tp,stab:"call.res"},kit:{md:"kit"},rep:{md:"concl"},diag:{md:"names"},repair:{md:"names"},bat:{md:"names"},blk:{md:"names"},foto:{md:"names"}}[tab];
-    const h2=main.querySelector("h2.sec");if(!go||!h2||h2.querySelector(".tplgo"))return;h2.style.display="flex";h2.style.alignItems="center";h2.style.gap="10px";h2.style.flexWrap="wrap";
-    h2.insertAdjacentHTML("beforeend",`<button class="btn sm ghost tplgo" type="button" title="Bu bölmənin siyahılarını və adlarını Ayarlar → Hesabat şablonlarında dəyişmək" style="font-size:12px;letter-spacing:0;text-transform:none">✎ Şablon</button>`);
-    h2.querySelector(".tplgo").onclick=()=>ZSTPL.open(go);
-    const os={chk:"chk",inst:"chk",uchk:"upd"}[tab];if(os&&ZSTPL.optSet){h2.insertAdjacentHTML("beforeend",`<button class="btn sm ghost tplop" type="button" title="Cavab düymələrinin adlarını dəyişmək, əlavə etmək və ya silmək" style="font-size:12px;letter-spacing:0;text-transform:none">✎ Cavablar</button>`);h2.querySelector(".tplop").onclick=()=>ZSTPL.open({md:"opts",set:os})}
-    if(go.md!=="names"){h2.insertAdjacentHTML("beforeend",`<button class="btn sm ghost tplnm" type="button" title="Bu bölmədəki və hesabatdakı başlıqları, sahə adlarını, sütun adlarını dəyişmək" style="font-size:12px;letter-spacing:0;text-transform:none">✎ Adlar</button>`);h2.querySelector(".tplnm").onclick=()=>ZSTPL.open({md:"names"})}};
-  {const _rb=renderEditor;renderEditor=function(){const o=_rb.apply(this,arguments);try{zsTplHook()}catch(e){console.log("tplhook",e)}try{ZSBT.hook();const zc=()=>{try{ZSCOL.cards(document.getElementById("main"),/^(Avtomatik nəticə|Qüsur aktı)/)}catch(e){}};zc();setTimeout(zc,0);if(state.tab==="rep"&&state.rep){const rp=state.rep;ZSBT.ensure(rp).then(ch=>{if(ch&&state.tab==="rep"&&state.rep===rp&&state.view==="edit"&&!(window.zsPdfBusy&&zsPdfBusy()))renderEditor()})}}catch(e){}return o}}
+  };
+  {const _rb=renderEditor;renderEditor=function(){const o=_rb.apply(this,arguments);try{zsTplHook()}catch(e){console.log("tplhook",e)}try{ZSED.deco()}catch(e){console.log("zsed",e)}try{ZSBT.hook();const zc=()=>{try{ZSCOL.cards(document.getElementById("main"),/^(Avtomatik nəticə|Qüsur aktı)/)}catch(e){}};zc();setTimeout(zc,0);if(state.tab==="rep"&&state.rep){const rp=state.rep;ZSBT.ensure(rp).then(ch=>{if(ch&&state.tab==="rep"&&state.rep===rp&&state.view==="edit"&&!(window.zsPdfBusy&&zsPdfBusy()))renderEditor()})}}catch(e){}return o}}
   const _mk=makePdf;makePdf=async function(r,L){try{if(await ensureQr(r)){const ps=$("#ps");if(ps){ps.innerHTML=paperHTML(r,null,L);fitPaper()}}}catch(e){}return _mk.apply(this,arguments)};
   /* ---------- labels ---------- */
   const SIZES=[["a4s","A4 vərəq — 24 etiket (70×37 mm)",70,37,3,8],["a4l","A4 vərəq — 10 etiket (105×57 mm)",105,57,2,5],["p5030","Etiket printeri — 50×30 mm",50,30],["p6040","Etiket printeri — 60×40 mm",60,40],["p7050","Etiket printeri — 70×50 mm",70,50]];
