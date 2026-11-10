@@ -211,7 +211,7 @@ function saHandle(db,u,action,p){
       vat:inQ.vat!==false,vatRate:old?saNum(old.vatRate):S.vat,terms:{},lines:[],updatedAt:now,by:u.name};
     if(inQ.showCode!==undefined)q.showCode=!!inQ.showCode;else if(old&&old.showCode!==undefined)q.showCode=old.showCode;
     if(inQ.showDesc!==undefined)q.showDesc=!!inQ.showDesc;else if(old&&old.showDesc!==undefined)q.showDesc=old.showDesc;
-    if(inQ.shortName!==undefined)q.shortName=!!inQ.shortName;else if(old&&old.shortName!==undefined)q.shortName=old.shortName;
+    if(inQ.shortName!==undefined)q.shortName=!!inQ.shortName;else if(old&&old.shortName!==undefined)q.shortName=old.shortName;if(inQ.grp!==undefined){var gn=saStr(inQ.grp&&inQ.grp.name,300).trim();if(inQ.grp&&inQ.grp.on&&gn)q.grp={on:1,name:gn}}else if(old&&old.grp)q.grp=old.grp;
     if(inQ.per!==undefined)q.per=saStr(inQ.per,60).trim();else if(old&&old.per)q.per=old.per;
     if(inQ.conId!==undefined)q.conId=saStr(inQ.conId,60);else if(old&&old.conId)q.conId=old.conId;
     if(old&&old.src)q.src=old.src;if(old&&old.billedIn)q.billedIn=old.billedIn;if(old&&old.bill)q.bill=old.bill;if(old&&old.fromInv)q.fromInv=old.fromInv;
@@ -434,6 +434,8 @@ function saHandle(db,u,action,p){
         cl:{name:sv.supplier,voen:sv.voen},vat:true,per:sv.per||"",conId:con?con.id:"",terms:{pay:S.pay,delivery:"",warranty:"",note:sv.basis?"Əsas: "+sv.basis:""},lines:ql}});
       oq.ch.quotes.forEach(function(x){ch.quotes.push(x)});if(oq.ch.settings){ch.settings=ch.settings||{};for(var k0 in oq.ch.settings)ch.settings[k0]=oq.ch.settings[k0]}
       q=quoteById(oq.res.quote.id);q.fromInv=sv.id}
+    /* the invoice bills everything with one sentence (e.g. “Sair elektron qurğulara texniki xidmət”): the offer shows the lines under that sentence */
+    var gPr=sv.lines.filter(function(l){return saNum(l.price)>0});if(!q.grp&&gPr.length===1&&(sv.lines.length===1||sv.lines.every(function(l){return l===gPr[0]||!saNum(l.price)}))&&(q.lines||[]).length>1){var gN=saStr(gPr[0].name||gPr[0].srcName,300).trim();if(gN)q.grp={on:1,name:gN}}
     /* a service contract billed by this invoice: the visit counts for the next-service date */
     if(con&&con.kind!=="sale"&&allX&&String(sv.date||"")>String(con.lastSvc||"")){con.lastSvc=sv.date;con.updatedAt=now;ch.contracts.push(con)}
     var qT=saTotals(q).total,iT=saInvTotals(sv).total,pv=(q.bill&&q.bill.st==="part"&&Array.isArray(q.bill.invs))?q.bill.invs.filter(function(x){return x.id!==sv.id}):[];var invs=pv.concat([{id:sv.id,no:sv.no,date:sv.date||"",total:iT}]),bSum=saR2(invs.reduce(function(a,x){return a+saNum(x.total)},0));var fin=p.final===true||p.final===false?p.final:(qT<=0||bSum>=qT-0.01||pv.length>0||!(saNum(q.terms&&q.terms.adv)>0));var part=!fin;q.bill={st:part?"part":"inv",doc:invs.map(function(x){return x.no}).join(", "),by:u.name,at:now,inv:sv.id,invs:invs,sum:bSum,pct:part&&qT>0?Math.min(99,Math.round(bSum/qT*100)):100};q.hist=(q.hist||[]).slice(-39);q.hist.push({at:now,by:u.name,bill:part?"part":"inv",doc:sv.no+(part?" ("+q.bill.pct+"%)":"")});
