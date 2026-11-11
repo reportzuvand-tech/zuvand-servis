@@ -86,7 +86,7 @@ function saKindOf(q){return q.kind==="svc"||q.kind==="sale"?q.kind:(q.src&&q.src
 function saSummary(q){var t=saTotals(q);return {id:q.id,no:q.no||"",kind:saKindOf(q),inv:(q.bill&&q.bill.inv)||"",date:q.date||"",status:q.status||"draft",client:(q.cl&&q.cl.name)||"",cl:q.cl||{},subj:q.subj||"",per:q.per||"",conId:q.conId||"",
   net:t.net,total:t.total,n:(q.lines||[]).length,author:q.author||"",by:q.by||"",updatedAt:q.updatedAt||0,svc:q.src?(q.src.repno||"servis"):"",site:q.src&&q.src.site?q.src.site:"",contractId:q.src?q.src.contractId:"",zero:(q.lines||[]).some(function(l){return !saNum(l.price)}),
   bill:(q.bill&&q.bill.st)||"",nocon:!!(q.src&&q.src.nocon&&!q.del),billDoc:(q.bill&&q.bill.doc)||"",adv:saNum(q.terms&&q.terms.adv),bpct:q.bill&&q.bill.st==="part"?saNum(q.bill.pct):0,bsum:q.bill&&q.bill.st==="part"?saNum(q.bill.sum):0,due:!!((q.status==="accepted"||q.status==="done")&&!(q.bill&&q.bill.st==="paid")&&!(q.src&&q.src.nocon)&&!q.billedIn&&!(q.src&&q.src.type==="service"&&q.src.contractId&&(q.billedIn||!(q.bill&&q.bill.st)))),
-  wk:q.src&&q.src.type==="service"&&q.src.contractId?1:0,bin:q.billedIn?(q.billedIn.no||"✓"):"",binId:q.billedIn?q.billedIn.id:"",skey:q.src?String(q.src.skey!==undefined&&q.src.skey!==""?q.src.skey:(q.src.site||"")):"",sdate:(q.src&&q.src.date)||"",bmon:q.src&&q.src.type==="bill"?(q.src.month||""):"",nrec:q.src&&q.src.type==="bill"?(q.src.recs||[]).length:0,delAt:q.del?saNum(q.delAt||q.updatedAt):0,delBy:q.del?(q.delBy||q.by||""):"",rev:q.src&&q.src.rev?1:0,dup:q.src&&q.src.dup?(q.src.dup.no||"?"):""}}
+  wk:q.src&&q.src.type==="service"&&q.src.contractId?1:0,bin:q.billedIn?(q.billedIn.no||"✓"):"",boff:q.billedIn&&q.billedIn.offer?1:0,srcT:(q.src&&q.src.type)||"",binId:q.billedIn?q.billedIn.id:"",skey:q.src?String(q.src.skey!==undefined&&q.src.skey!==""?q.src.skey:(q.src.site||"")):"",sdate:(q.src&&q.src.date)||"",bmon:q.src&&q.src.type==="bill"?(q.src.month||""):"",nrec:q.src&&q.src.type==="bill"?(q.src.recs||[]).length:0,delAt:q.del?saNum(q.delAt||q.updatedAt):0,delBy:q.del?(q.delBy||q.by||""):"",rev:q.src&&q.src.rev?1:0,dup:q.src&&q.src.dup?(q.src.dup.no||"?"):""}}
 /* purchase prices written on quote lines are seen only by accounting */
 function saPubQuote(q,role){if(!q||SA_CAN.seeCost(role))return q;var o={};for(var k in q)o[k]=q[k];o.lines=(q.lines||[]).map(function(l){var c={};for(var k in l)if(k!=="cost")c[k]=l[k];return c});return o}
 /* a quote that has gone further than a draft offer: deleting it needs the manager's deletion password */
@@ -250,7 +250,13 @@ function saHandle(db,u,action,p){
   case "delQuote":{need(SA_CAN.admin(role));var dq=quoteById(p.id);if(!dq)saErr("notfound");
     if(saProtected(db,dq)){if(!db.settings.delPw)saErr("nopw");if(String(p.pwh||"")!==String(db.settings.delPw))saErr("badpw")}
     dq.del=true;dq.delAt=now;dq.delBy=u.name;
-    if(dq.src&&dq.src.type==="bill")(dq.src.recs||[]).forEach(function(id){var x=quoteById(id);if(x&&x.billedIn&&x.billedIn.id===dq.id){delete x.billedIn;x.updatedAt=now;ch.quotes.push(x)}});dq.updatedAt=now;dq.by=u.name;dq.hist=(dq.hist||[]).slice(-39);dq.hist.push({at:now,by:u.name,st:"deleted"});ch.quotes.push(dq);
+    db.quotes.forEach(function(x){if(x!==dq&&x.billedIn&&x.billedIn.id===dq.id){delete x.billedIn;x.updatedAt=now;x.hist=(x.hist||[]).slice(-39);x.hist.push({at:now,by:u.name,bill:"undo",doc:dq.no||""});ch.quotes.push(x)}});
+    db.invoices.forEach(function(v){if(v.del)return;var L=Array.isArray(v.quoteIds)&&v.quoteIds.length?v.quoteIds:(v.quoteId?[v.quoteId]:[]);if(L.indexOf(dq.id)<0)return;L=L.filter(function(x){return x!==dq.id});
+      var q1=L[0]?quoteById(L[0]):null;v.quoteIds=L;v.quoteId=L[0]||"";v.quoteNo=q1?q1.no:"";v.quoteNos=L.map(function(id){var x=quoteById(id);return x?x.no:""});v.updatedAt=now;v.by=u.name;ch.invoices.push(v)});
+    if(p.ret){var opR=saId("o"),kR=0;db.moves.slice().forEach(function(m){if(m.del||m.kind!=="out"||m.quoteId!==dq.id||m.retBy)return;
+        var rm={id:opR+"_"+(kR++),date:new Date(now).toISOString().slice(0,10),kind:"in",itemId:m.itemId,code:m.code,name:m.name,qty:saNum(m.qty),cost:saNum(m.cost),doc:"Geri qaytarma — "+(dq.no||""),party:m.party||"",quoteId:"",quoteNo:"",retOf:m.id,note:"Təklif "+(dq.no||"")+" silindi — mal anbara qaytarıldı",by:u.name,at:now};
+        m.retBy=rm.id;db.moves.push(rm);ch.moves.push(rm);ch.moves.push(m)})}
+    dq.updatedAt=now;dq.by=u.name;dq.hist=(dq.hist||[]).slice(-39);dq.hist.push({at:now,by:u.name,st:"deleted"});ch.quotes.push(dq);
     return {res:{stock:saStock(db)},ch:ch}}
   /* full copy of the data for a backup file (manager only) */
   case "backup":{need(SA_CAN.admin(role));var cpy=function(a){return JSON.parse(JSON.stringify(a||[]))};
@@ -272,17 +278,26 @@ function saHandle(db,u,action,p){
       bl=[{id:saId("l"),itemId:"",t:"xid",svc:1,name:saStr(o1.name,300).trim()||"Sair elektron qurğulara texniki xidmət",code:saStr(o1.code,60).trim(),unit:saStr(o1.unit||"xidmət",20),qty:Math.max(0,saNum(o1.qty))||1,price:pr1,disc:0,desc:d1.slice(0,1000)}]}
     var ym=mon.split("-"),mlab=SA_MONTHS[+ym[1]-1]+" "+ym[0],cl0=bR[0].cl||{};
     var cl1=bc?{name:bc.client,voen:bc.voen,person:bc.person,tel:bc.tel,addr:bc.addr}:{name:cl0.name,voen:cl0.voen,person:cl0.person,tel:cl0.tel,addr:cl0.addr};
-    var ob=saHandle(db,u,"saveQuote",{quote:{date:p.date&&/^\d{4}-\d{2}-\d{2}$/.test(p.date)?p.date:new Date(now).toISOString().slice(0,10),valid:S.valid,status:"accepted",per:mlab,
-      subj:"Servis xidməti — "+mlab+" — "+Math.max(1,Object.keys(objs).length)+" obyekt, "+bR.length+" servis"+(bc&&bc.no?" · müqavilə № "+bc.no:""),cl:cl1,vat:true,kind:"svc",
+    var ofr=!!p.offer,rno=bR.map(function(x){return (x.src&&x.src.repno)||x.no}).filter(Boolean).join(", ");
+    var ob=saHandle(db,u,"saveQuote",{quote:{date:p.date&&/^\d{4}-\d{2}-\d{2}$/.test(p.date)?p.date:new Date(now).toISOString().slice(0,10),valid:S.valid,status:ofr?"draft":"accepted",per:ofr?"":mlab,
+      subj:ofr?"Servis hesabatı № "+rno+" əsasında"+(bc&&bc.no?" · müqavilə № "+bc.no:""):(p.subj?saStr(p.subj,300):"Servis xidməti — "+mlab+" — "+Math.max(1,Object.keys(objs).length)+" obyekt, "+bR.length+" servis"+(bc&&bc.no?" · müqavilə № "+bc.no:"")),cl:cl1,vat:true,kind:"svc",grp:p.grp&&p.grp.name?{on:1,name:saStr(p.grp.name,300)}:undefined,
       terms:{pay:bc?"Xidməti müqaviləyə uyğun":"",delivery:"",warranty:"",note:p.one&&p.one.inv?"E-qaimə № "+saStr(p.one.inv,60):""},lines:bl}});
-    var bq=ob.res.quote;bq.src={type:"bill",month:mon,recs:bR.map(function(x){return x.id}),contractId:bc?bc.id:""};bq.kind="svc";
+    var bq=ob.res.quote;bq.src={type:ofr?"offer":"bill",month:ofr?"":mon,recs:bR.map(function(x){return x.id}),contractId:bc?bc.id:""};bq.kind="svc";
     ob.ch.quotes.forEach(function(x){ch.quotes.push(x)});if(ob.ch.settings){ch.settings=ch.settings||{};for(var k7 in ob.ch.settings)ch.settings[k7]=ob.ch.settings[k7]}
-    bR.forEach(function(x){x.billedIn={id:bq.id,no:bq.no};x.updatedAt=now;ch.quotes.push(x)});
+    bR.forEach(function(x){x.billedIn={id:bq.id,no:bq.no};if(ofr)x.billedIn.offer=1;x.updatedAt=now;ch.quotes.push(x)});
     return {res:{quote:bq,summary:saSummary(bq),stock:saStock(db)},ch:ch}}
+  /* the accountant bills approved service reports with an invoice: one sale with all their devices, the invoice is bound to it */
+  case "billSvcInvoice":{need(SA_CAN.invoice(role));var bv=invById(p.id);if(!bv||bv.dir!=="out")saErr("notfound");
+    var gl=bv.lines.filter(function(l){return saNum(l.price)>0}),gs=gl.length===1&&bv.lines.every(function(l){return l===gl[0]||!saNum(l.price)})?saStr(gl[0].name||gl[0].srcName,300).trim():"";
+    var bres=saHandle(db,u,"svcBill",{recs:p.recs,date:bv.date,month:String(bv.date||"").slice(0,7),subj:"Qaimə "+bv.no+" — "+(p.recs||[]).length+" servis hesabatı",grp:gs?{name:gs}:null});
+    bres.ch.quotes.forEach(function(x){ch.quotes.push(x)});var bq2=quoteById(bres.res.quote.id);
+    var lres=bv.status==="draft"?saHandle(db,u,"postSaleInvoice",{id:bv.id,quoteId:bq2.id,mkCon:p.mkCon,conKind:p.conKind||"svc",final:true}):saHandle(db,u,"relinkSaleInvoice",{id:bv.id,quoteId:bq2.id,mode:p.mode==="add"?"add":"replace",final:true});
+    ["quotes","invoices","moves","contracts"].forEach(function(k){(lres.ch[k]||[]).forEach(function(x){ch[k].push(x)})});
+    return {res:{quote:saPubQuote(bq2,role),summary:saSummary(bq2),invoice:saPubInv(bv,role),stock:saStock(db)},ch:ch}}
   /* deleted quotes stay 30 days in "Silinənlər" and can be brought back */
   case "restoreQuote":{need(SA_CAN.admin(role));var rq2=null;db.quotes.forEach(function(x){if(x.id===p.id)rq2=x});if(!rq2)saErr("notfound");if(!rq2.del)return {res:{quote:rq2,dup:true},ch:ch};
     rq2.del=false;delete rq2.delAt;delete rq2.delBy;
-    if(rq2.src&&rq2.src.type==="bill")(rq2.src.recs||[]).forEach(function(id){var x=quoteById(id);if(x&&!x.billedIn&&!(x.bill&&x.bill.st)){x.billedIn={id:rq2.id,no:rq2.no};x.updatedAt=now;ch.quotes.push(x)}});rq2.updatedAt=now;rq2.by=u.name;rq2.hist=(rq2.hist||[]).slice(-39);rq2.hist.push({at:now,by:u.name,st:"restored"});ch.quotes.push(rq2);
+    if(rq2.src&&(rq2.src.type==="bill"||rq2.src.type==="offer"))(rq2.src.recs||[]).forEach(function(id){var x=quoteById(id);if(x&&!x.billedIn&&!(x.bill&&x.bill.st)){x.billedIn={id:rq2.id,no:rq2.no};if(rq2.src.type==="offer")x.billedIn.offer=1;x.updatedAt=now;ch.quotes.push(x)}});rq2.updatedAt=now;rq2.by=u.name;rq2.hist=(rq2.hist||[]).slice(-39);rq2.hist.push({at:now,by:u.name,st:"restored"});ch.quotes.push(rq2);
     return {res:{quote:rq2,summary:saSummary(rq2),stock:saStock(db)},ch:ch}}
   /* the manager's password for deleting accepted / issued / invoiced / paid documents (only its SHA-256 is stored) */
   case "setDelPw":{need(SA_CAN.admin(role));if(db.settings.delPw&&String(p.old||"")!==String(db.settings.delPw))saErr("badpw");
