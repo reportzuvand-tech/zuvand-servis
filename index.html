@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111201;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111301;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -1860,7 +1860,9 @@ async function sync(opt={}){
       if(!r){state.pending.delete(id);continue}
       if(state.cur&&state.cur.id===id&&(state.dirty||state.saving||(state.view==="edit"&&!opt.all&&Date.now()-(state.lastEdit||0)<60000))){SYNC_WHY[id]="Hazırda açıqdır və redaktə olunur — redaktordan çıxanda (və ya 1 dəqiqə toxunulmayanda) göndəriləcək";continue}
       try{await uploadPhotos(r);const res=await api("save",{report:r,summary:summaryOf(r),blocks:blocksOf(r),items:itemsOf(r)});
-        state.pending.delete(id);delete SYNC_WHY[id];state.remote[id]={...summaryOf(r),...(res.summary||{})};savePending();changed=true}
+        state.pending.delete(id);delete SYNC_WHY[id];state.remote[id]={...summaryOf(r),...(res.summary||{})};savePending();changed=true;
+        /* an approved report: the server added only the new signature — take its copy */
+        if(res.report&&res.report.id===id){state.reports[id]=res.report;saveLocalReports([res.report]);applyRemoteToOpen(id);toast("İmza təsdiqlənmiş hesabata əlavə olundu")}}
       catch(e){
         if(e.server&&e.data&&e.data.error==="not_owner"){const f=forkReport(r,true);state.reports[f.id]=f;state.pending.add(f.id);saveLocalReports([f]);
           if(e.data.report){state.reports[id]=e.data.report;saveLocalReports([e.data.report]);applyRemoteToOpen(id)}state.pending.delete(id);savePending();delete SYNC_WHY[id];changed=true;
@@ -1868,6 +1870,10 @@ async function sync(opt={}){
           toast("“"+(r.cl.name||"")+"” hesabatı "+(e.data.owner||"başqa işçi")+" adınadır — dəyişiklikləriniz sizin adınıza yeni hesabat kimi saxlanıldı: "+f.svc.repno,7000);
           if(state.cur&&state.cur.id===id&&state.view==="edit"){state.rep=f;setActive(0);renderEditor()}continue}
         if(e.server&&e.data&&e.data.error==="conflict"&&e.data.report){
+          /* the newer server copy wins, but a signature taken on this device is never lost: it is added to that copy and sent again */
+          const SV=e.data.report,ls=(r&&r.sig)||{},ss=SV.sig||{},T=x=>Date.parse(x&&x.at)||0,nk=Object.keys(ls).filter(k=>ls[k]&&ls[k].img&&(!ss[k]||!ss[k].img||T(ls[k])>T(ss[k])));
+          if(nk.length&&!(SV.appr&&SV.appr.at&&state.me.role!=="admin"&&state.sigTry===id)){SV.sig=SV.sig||{};nk.forEach(k=>{SV.sig[k]=ls[k]});if(r.sigSnap&&nk.some(k=>/^cl/.test(k)))SV.sigSnap=r.sigSnap;SV.updatedAt=Date.now();state.sigTry=id;
+            state.reports[id]=SV;saveLocalReports([SV]);applyRemoteToOpen(id);toast("Hesabat başqa cihazda yenilənib — imza yeni versiyaya əlavə olundu");changed=true;continue}
           state.reports[id]=e.data.report;state.pending.delete(id);saveLocalReports([e.data.report]);applyRemoteToOpen(id);
           toast("Bu hesabat başqa cihazda daha yeni dəyişdirilib — yeni versiya yükləndi")}
         else if(e.server&&e.data&&e.data.error==="deleted"){delete state.reports[id];state.pending.delete(id);RDB.del([id]).catch(()=>{});toast("Bir hesabat rəhbər tərəfindən silinib — bu cihazdan da çıxarıldı")}
@@ -1885,7 +1891,7 @@ async function sync(opt={}){
       if(gone.has(id)||prevRemote.has(id)){delete state.reports[id];drop.push(id)}}
     if(drop.length){RDB.del(drop).catch(()=>{});changed=true}
     if(L.role)applyWho(L);
-    if(L.settings){state.settings={...DEFAULT_SETTINGS,...L.settings};LS.set("ups.settings",state.settings)}
+    if(L.settings){state.settings={...DEFAULT_SETTINGS,...L.settings};LS.set("ups.settings",state.settings);try{ZSRH.apply()}catch(e){}}
     try{const CU=await api("customers");state.customers=CU.customers||[];LS.set("ups.customers",state.customers)}catch(e){}
     try{const TK=await api("tasks");const sig=JSON.stringify(state.tasks);state.tasks=TK.tasks||[];state.taskMe=TK.me||"";if(JSON.stringify(state.tasks)!==sig)changed=true;LS.set("ups.tasks",state.tasks);LS.set("ups.taskMe",state.taskMe);notifyTasks()}catch(e){}
     /* keep a full copy of every report on the device, so that opening, lists and PDFs never need the internet */
@@ -1949,7 +1955,7 @@ async function removeReport(id){
   delete state.reports[id];state.pending.delete(id);savePending();RDB.del([id]).catch(()=>{});if(!RDB.ok)saveLocalReports()}
 async function saveSettings(){
   LS.set("ups.settings",state.settings);LS.set("ups.me",state.me);
-  if(hasServer()&&state.me.role==="admin"){const{co,coaddr,cotel,notify,interval,warn,fail,vwarn,vfail,vhigh,life,dwarn,dfail,dmin}=state.settings;await api("settings",{settings:{co,coaddr,cotel,notify,interval,warn,fail,vwarn,vfail,vhigh,life,dwarn,dfail,dmin}})}}
+  if(hasServer()&&state.me.role==="admin"){const{co,coaddr,cotel,notify,interval,warn,fail,vwarn,vfail,vhigh,life,dwarn,dfail,dmin,repHead}=state.settings;await api("settings",{settings:{co,coaddr,cotel,notify,interval,warn,fail,vwarn,vfail,vhigh,life,dwarn,dfail,dmin,repHead}})}}
 /* the device copy is used at once (no waiting for the network); a newer server copy is fetched in the background */
 async function getFull(id){
   const loc=state.reports[id],rem=state.remote[id];
@@ -2590,7 +2596,7 @@ const SECTIONS={
   <div class="actions" style="margin:4px 0 12px"><button class="btn pri" id="bPdf">PDF hazırla</button>${folderBtn("rep")}<button class="btn" id="bPrint">Çap et</button><button class="btn" id="bQrLbl" title="Cihazlara yapışdırmaq üçün loqolu QR etiketlər">🏷 QR etiketlər</button><button class="btn" id="bXls">Excel (.xlsx)</button>${["inst","upd"].includes(SVC_PROF(r))?'<button class="btn pri" id="bAct">Təhvil-təslim aktı (PDF)</button><button class="btn" id="bActW">Akt (Word)</button>'+folderBtn("act"):""}
    <a class="btn" id="pdfLink" target="_blank" rel="noopener" href="${esc((state.remote[r.id]||{}).pdf||"")}" ${(state.remote[r.id]||{}).pdf?"":"hidden"} style="display:inline-flex;align-items:center;text-decoration:none">Serverdəki PDF</a>
    ${canDelete(r)?`<button class="btn danger" id="bDel">${state.remote[r.id]?"Hesabatı sil (rəhbər)":"Qaralamanı sil"}</button>`:""}
-   ${state.me.role==="admin"&&state.remote[r.id]?'<button class="btn" id="bHist">Versiyalar</button>':""}
+   ${state.me.role==="admin"&&state.remote[r.id]?'<button class="btn" id="bHist">📜 Tarixçə və versiyalar</button>':""}
    ${!canDelete(r)?`<p class="note" style="flex-basis:100%;margin:4px 0 0">Mərkəzi bazadakı hesabatı yalnız rəhbər silə bilər: Ayarlar → Açar bölməsinə rəhbər açarını (R… ilə başlayan) yazın.</p>`:""}
    <div class="seg langseg" role="group" aria-label="Hesabatın dili"><span class="note" style="align-self:center;margin-right:4px">Dil:</span>${LANGS.map(([k,l])=>`<button type="button" class="s-idle" data-lang="${k}" aria-pressed="${(state.plang||"az")===k}">${l}</button>`).join("")}</div></div>
   ${r.sample?'<div class="banner" style="margin:0 0 12px">Bu nümunədir: serverə göndərilmir.</div>':""}
@@ -2669,7 +2675,7 @@ const AFTER={
   ratingCard();bindAppr();
   document.querySelectorAll("[data-sign]").forEach(b=>b.onclick=()=>openSignPad(b.dataset.sign));
   document.querySelectorAll("[data-signdel]").forEach(b=>b.onclick=()=>{if(b.dataset.confirm!=="1"){b.dataset.confirm="1";b.textContent="Silinsin?";return}
-    const r=realOf(state.rep);if(r.sig)delete r.sig[b.dataset.signdel];markDirty();const y=window.scrollY;renderEditor();window.scrollTo(0,y)});
+    const r=realOf(state.rep);if(r.sig){delete r.sig[b.dataset.signdel];r.sigDel=r.sigDel||{};r.sigDel[b.dataset.signdel]=Date.now()};markDirty();const y=window.scrollY;renderEditor();window.scrollTo(0,y)});
   if($("#bDel")){$("#bDel").onclick=()=>{$("#delConfirm").hidden=false};$("#bDelNo").onclick=()=>{$("#delConfirm").hidden=true};
   $("#bDelYes").onclick=async()=>{const id=state.cur.id;clearTimeout(saveTimer);state.dirty=false;
     try{if(state.cur.sample){state.cur=null;state.rep=null;renderHome();return}await removeReport(id);state.cur=null;state.rep=null;toast("Hesabat silindi");renderHome()}
@@ -4137,7 +4143,8 @@ loadLocal();
 window.ZSLOOK=(function(){
   let KEY="zs.look",O={};
   const D={acc:"",accC:"",btn:"std",fx:"flat",anim:"1",card:"std",bg:"plain",bgImg:"",bgOp:"0.22",hdr:"std",fs:"n",dens:"n",logo:"",logoM:"right",logoH:"40",logoPdf:"1",
-    icons:"1",splash:"1",nav:"1",field:"0",darkAuto:"0",darkFrom:"19:00",darkTo:"07:00"};
+    icons:"1",splash:"1",nav:"1",field:"0",darkAuto:"0",darkFrom:"19:00",darkTo:"07:00",
+    ff:"std",rad:"",pw:"wide",tbl:"std",hc:"0",hov:"1",sb:"std"};
   const LSg=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
   const own=()=>LSg(KEY,{})||{},team=()=>LSg(KEY+".team",null),isAdm=()=>!!(O.isAdmin&&O.isAdmin());
   const hasOwn=()=>Object.keys(own()).length>0;
@@ -4152,7 +4159,12 @@ window.ZSLOOK=(function(){
     anim:[["1","Var"],["0","Yoxdur"]],
     card:[["std","Standart"],["shadow","Kölgəli"],["float","Havada (dərin kölgə)"],["edge","Rəngli kənar"],["outline","Qalın haşiyə"],["glass","Şüşə"]],
     bg:[["plain","Sadə"],["grad","Yumşaq qradiyent"],["dots","Nöqtəli"],["grid","Dama"],["lines","Çəp xətlər"],["img","Öz şəklim…"]],
-    hdr:[["std","Standart"],["accent","Rəngli"],["glass","Şüşə"]],
+    hdr:[["std","Standart"],["accent","Rəngli"],["grad","Rəngli qradiyent"],["dark","Tünd"],["glass","Şüşə"]],
+    ff:[["std","Standart (Noto Sans)"],["sys","Sistem şrifti"],["round","Yumru"],["serif","Klassik (serif)"],["cond","Sıx (dar)"],["mono","Texniki (mono)"]],
+    pw:[["std","Standart (1120 px)"],["wide","Geniş (1400 px)"],["full","Bütün ekran"]],
+    tbl:[["std","Standart"],["zebra","Zolaqlı sətirlər"],["grid","Xanalı (haşiyəli)"],["tight","Yığcam"],["airy","Geniş sətirlər"]],
+    hc:[["0","Normal"],["1","Yüksək (zəif görmə / günəş)"]],hov:[["1","Var"],["0","Yoxdur"]],
+    sb:[["std","Standart"],["thin","İncə"],["accent","Rəngli"]],
     fs:[["s","Kiçik"],["n","Normal"],["l","Böyük"],["xl","Çox böyük"]],
     dens:[["c","Yığcam"],["n","Normal"],["w","Geniş"]],
     logoM:[["right","Loqo solda, ad və istifadəçi sağda"],["both","Loqo + ad yan-yana (solda)"],["logo","Yalnız loqo"]],
@@ -4161,12 +4173,16 @@ window.ZSLOOK=(function(){
     field:[["0","Söndürülüb"],["1","Açıq — iri düymə, güclü kontrast"]],darkAuto:[["0","Söndürülüb"],["1","Açıq — vaxta görə"]]};
   const PRESETS=[["Klassik",{}],["Müasir",{acc:"violet",btn:"round",fx:"shadow",card:"float",bg:"grad",hdr:"std"}],["Kontrast",{acc:"slate",btn:"sharp",fx:"outline",card:"outline",bg:"plain",hdr:"accent",field:"0"}],
     ["Minimal",{acc:"slate",btn:"soft",fx:"flat",card:"std",bg:"plain",hdr:"glass",dens:"c"}],["Gecə",{acc:"teal",fx:"glow",card:"glass",bg:"dots",darkAuto:"1",darkFrom:"00:00",darkTo:"23:59"}],
-    ["Okean",{acc:"blue",btn:"soft",fx:"gloss",card:"shadow",bg:"grad",hdr:"accent"}],["Günəş",{acc:"orange",btn:"round",fx:"raised",card:"edge",bg:"lines"}],["Korporativ",{acc:"gold",btn:"std",fx:"shadow",card:"edge",bg:"plain",hdr:"accent"}]];
+    ["Okean",{acc:"blue",btn:"soft",fx:"gloss",card:"shadow",bg:"grad",hdr:"accent"}],["Günəş",{acc:"orange",btn:"round",fx:"raised",card:"edge",bg:"lines"}],["Korporativ",{acc:"gold",btn:"std",fx:"shadow",card:"edge",bg:"plain",hdr:"accent"}],
+    ["Aurora",{acc:"violet",btn:"round",fx:"glow",card:"glass",bg:"grad",hdr:"grad",ff:"round",rad:"16"}],["Nord",{acc:"custom",accC:"#4C6A92",btn:"soft",fx:"flat",card:"outline",bg:"plain",hdr:"dark",ff:"sys",tbl:"zebra"}],
+    ["Material",{acc:"indigo",btn:"std",fx:"shadow",card:"float",bg:"plain",hdr:"accent",ff:"sys",tbl:"zebra",rad:"12"}],["Təbiət",{acc:"teal",btn:"round",fx:"raised",card:"edge",bg:"dots",hdr:"grad",ff:"round"}],
+    ["Lavanda",{acc:"pink",btn:"soft",fx:"gloss",card:"shadow",bg:"grad",hdr:"glass",ff:"round",rad:"18"}],["Ofis",{acc:"slate",btn:"std",fx:"flat",card:"std",bg:"plain",hdr:"std",ff:"cond",tbl:"grid",dens:"c",pw:"full"}],
+    ["Mühəndis",{acc:"custom",accC:"#0B5CAD",btn:"sharp",fx:"outline",card:"outline",bg:"grid",hdr:"dark",ff:"mono",tbl:"grid"}]];
   function accOf(L){if(L.acc==="custom")return L.accC||"";const a=ACC.find(x=>x[0]===L.acc);return a&&a[0]?a[2]:""}
   function css(L){const A=accOf(L),c=[];
     /* PDF header colour as a plain hex: the PDF renderer (html2canvas) cannot read color-mix() → "unsupported color function" */
     const dk=(h,k)=>{const m=/^#?([0-9a-f]{6})$/i.exec(String(h).trim());if(!m)return h;const n=parseInt(m[1],16);return "#"+[n>>16,(n>>8)&255,n&255].map(v=>Math.round(v*k).toString(16).padStart(2,"0")).join("")};
-    if(A)c.push(`:root,:root[data-theme]{--accent:${A};--accent-soft:color-mix(in srgb,${A} 18%,var(--surface));--paper-head:${dk(A,0.7)}}`);
+    if(A)c.push(`:root,:root[data-theme]{--accent:${A};--accent-soft:color-mix(in srgb,${A} 18%,var(--surface))}`);
     c.push({std:"",round:".btn,.seg button,.chip{border-radius:999px!important}",soft:".btn{border-radius:14px!important}",sharp:".btn,.card,.rcard,input,select,textarea{border-radius:3px!important}"}[L.btn]||"");
     c.push({flat:"",
       shadow:".btn{box-shadow:0 2px 6px rgba(0,0,0,.12)}.btn.pri{box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 45%,transparent)}",
@@ -4185,6 +4201,24 @@ window.ZSLOOK=(function(){
       img:L.bgImg?`body::before{content:"";position:fixed;inset:0;background:url(${L.bgImg}) center/cover no-repeat;opacity:${+L.bgOp||0.22};z-index:-1;pointer-events:none}`:""}[L.bg]||"");
     c.push({std:"",accent:"header.top{background:var(--accent)!important;color:var(--accent-ink)}header.top .brand,header.top .brand small,header.top .tab{color:var(--accent-ink)!important}header.top .brand small{opacity:.85}header.top .tab[aria-selected=\"true\"]{background:var(--accent-ink)!important;color:var(--accent)!important}header.top .btn{background:color-mix(in srgb,var(--accent-ink) 14%,transparent);color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent-ink) 35%,transparent)}header.top .sync,header.top .save,header.top .sync *{color:var(--accent-ink)!important;opacity:.92}",
       glass:"header.top{background:color-mix(in srgb,var(--bg) 65%,transparent)!important;backdrop-filter:blur(12px)}"}[L.hdr]||"");
+    const HC="header.top .brand,header.top .brand small,header.top .tab{color:#fff!important}header.top .brand small{opacity:.85}header.top .tab[aria-selected=\"true\"]{background:#fff!important;color:var(--accent)!important}header.top .btn{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.35)}header.top .sync,header.top .save,header.top .sync *{color:#fff!important;opacity:.92}";
+    if(L.hdr==="grad")c.push("header.top{background:linear-gradient(120deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#000))!important;color:#fff}"+HC);
+    if(L.hdr==="dark")c.push("header.top{background:#16201E!important;color:#fff;border-bottom-color:#000!important}"+HC);
+    c.push({std:"",sys:"body,button,input,select,textarea{font-family:system-ui,-apple-system,\"Segoe UI\",Roboto,Arial,sans-serif!important}",
+      round:"body,button,input,select,textarea{font-family:ui-rounded,\"SF Pro Rounded\",\"Nunito\",\"Varela Round\",\"Segoe UI\",system-ui,sans-serif!important}",
+      serif:"body,button,input,select,textarea{font-family:Georgia,\"Cambria\",\"Times New Roman\",serif!important}",
+      cond:"body,button,input,select,textarea{font-family:\"Roboto Condensed\",\"Arial Narrow\",\"Segoe UI\",system-ui,sans-serif!important;font-stretch:condensed}",
+      mono:"body,button,input,select,textarea{font-family:ui-monospace,\"Cascadia Mono\",Consolas,\"Roboto Mono\",monospace!important;letter-spacing:-.01em}"}[L.ff]||"");
+    if(L.rad!==""&&L.rad!=null){const R=Math.max(0,Math.min(28,+L.rad||0));c.push(`:root{--r:${R}px}.btn,.card,.rcard,input,select,textarea,.maptbl,.zs-kpi,.zs-chart,.stat{border-radius:${R}px!important}.chip{border-radius:${Math.max(4,R)}px!important}`)}
+    c.push({std:"",wide:"@media (min-width:1000px){.wrap,header.top .bar,header.top .tabs{max-width:1400px!important}}",full:"@media (min-width:1000px){.wrap,header.top .bar,header.top .tabs{max-width:none!important;padding-inline:24px}}"}[L.pw]||"");
+    c.push({std:"",zebra:".maptbl tr:nth-child(even) td,.ltbl tr:nth-child(even) td,.stbl tr:nth-child(even) td{background:color-mix(in srgb,var(--ink) 4%,transparent)}",
+      grid:".maptbl td,.maptbl th,.ltbl td,.ltbl th,.stbl td,.stbl th{border:1px solid var(--line)!important}",
+      tight:".maptbl td,.maptbl th,.ltbl td,.ltbl th,.stbl td,.stbl th{padding:3px 6px!important}",
+      airy:".maptbl td,.maptbl th,.ltbl td,.ltbl th,.stbl td,.stbl th{padding:10px 12px!important}"}[L.tbl]||"");
+    if(L.hov==="1")c.push(".maptbl tr:hover td,.ltbl tr:hover td{background:color-mix(in srgb,var(--accent) 7%,transparent)}.maptbl tr.msep:hover td,.ltbl tr.msep:hover td{background:none}");
+    if(L.hc==="1")c.push(":root,:root[data-theme]{--line:#5f6b68;--muted:color-mix(in srgb,var(--ink) 82%,transparent)}body{font-weight:500}.btn{border-width:2px}a{text-decoration:underline}:focus-visible{outline:3px solid var(--accent)!important;outline-offset:2px}");
+    c.push({std:"",thin:"*{scrollbar-width:thin}::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--ink) 25%,transparent);border-radius:8px}",
+      accent:"*{scrollbar-color:var(--accent) transparent}::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--accent);border-radius:8px}"}[L.sb]||"");
     c.push({s:"body{zoom:.92}",n:"",l:"body{zoom:1.08}",xl:"body{zoom:1.18}"}[L.fs]||"");
     c.push({c:".card{padding:10px!important;gap:8px!important}.btn{min-height:36px;padding:6px 11px}.rcard{padding:8px 10px!important}",n:"",w:".card{padding:18px!important;gap:14px!important}.btn{min-height:46px;padding:11px 18px}"}[L.dens]||"");
     if(L.logo){const lm=L.logoM==="both"&&!L.lm2?"right":L.logoM,lh=Math.max(20,Math.min(100,+L.logoH||40));
@@ -4202,7 +4236,9 @@ window.ZSLOOK=(function(){
     darkTick();if(O.onApply)try{O.onApply(L)}catch(e){}}
   const pdfLogo=()=>{const L=get();return L.logo&&L.logoPdf!=="0"?L.logo:""};
   /* ---- base CSS of the extras (KPI tiles, charts, bottom bar, skeleton, splash, ok-check) ---- */
-  const BASE=`.zs-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0 12px}@media (max-width:760px){.zs-kpi b{font-size:18px}.zs-kpis{grid-template-columns:1fr 1fr}}
+  const BASE=`.maptbl{max-width:100%}.maptbl .ltbl td,.ltbl td{white-space:normal;overflow-wrap:break-word}.ltbl th{white-space:normal}.ltbl td .btn{margin:2px 0;white-space:nowrap}.ltbl td.c b{white-space:nowrap}
+.sttbl td{white-space:normal}.maptbl td .note{white-space:normal}
+.zs-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0 12px}@media (max-width:760px){.zs-kpi b{font-size:18px}.zs-kpis{grid-template-columns:1fr 1fr}}
 .zs-kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:block;width:100%}
 .zs-kpi b{display:block;font:700 24px/1.15 var(--f-num);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.zs-kpi span{color:var(--muted);font-size:12.5px}
 .zs-kpi.ok{background:var(--ok-bg);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}.zs-kpi.warn{background:var(--warn-bg);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}.zs-kpi.bad{background:var(--bad-bg);border-color:color-mix(in srgb,var(--bad) 30%,transparent)}.zs-kpi.on{outline:3px solid var(--accent);outline-offset:1px}
@@ -4218,6 +4254,7 @@ body.zs-hasnav{padding-bottom:78px}body.zs-hasnav .tabs [data-g],body.zs-hasnav 
 #zsSplash .nm{font:800 22px var(--f-disp);letter-spacing:.04em;text-transform:uppercase}#zsSplash .bar{margin:24px auto 0;width:130px;height:4px;border-radius:2px;background:rgba(255,255,255,.25);overflow:hidden}#zsSplash .bar i{display:block;height:100%;width:40%;background:#fff;animation:zsLoad 1s ease-in-out infinite}@keyframes zsLoad{0%{transform:translateX(-100%)}100%{transform:translateX(330%)}}
 #zsOk{position:fixed;left:50%;top:40%;z-index:9998;transform:translate(-50%,-50%);width:76px;height:76px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:40px;box-shadow:0 0 0 12px color-mix(in srgb,var(--ok) 18%,transparent);pointer-events:none;animation:zsPop .35s ease-out,zsFade .3s ease-in .75s forwards}
 .btn svg.zsi{width:16px;height:16px;flex:none;margin-right:6px;vertical-align:-3px}
+.lkPrev{border:1px dashed var(--line);border-radius:12px;padding:10px;margin:8px 0;background:var(--bg)}.lkPh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
 `;
   /* ---- icons on buttons (by the button's words) ---- */
   const P=d=>`<svg class="zsi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -4283,6 +4320,10 @@ body.zs-hasnav{padding-bottom:78px}body.zs-hasnav .tabs [data-g],body.zs-hasnav 
       <div class="grid2">${sel("bg","Arxa fon")}${sel("anim","Animasiyalar (keçid, ✓, hərəkət)")}</div>
       ${L.bg==="img"?`<div class="grid2"><label class="f"><span>Arxa fon şəkli</span><input type="file" id="lkBg" accept="image/*"${dis}></label><label class="f"><span>Şəklin görünmə dərəcəsi: ${Math.round((+L.bgOp||.22)*100)}%</span><input type="range" id="lkOp" min="0.05" max="0.8" step="0.05" value="${esc(L.bgOp)}"${dis}></label></div>`:""}
       <div class="grid2">${sel("fs","Yazı və elementlərin ölçüsü")}${sel("dens","Sıxlıq")}</div>
+      <div class="grid2">${sel("ff","Şrift")}${sel("pw","Səhifənin eni (geniş ekranda)")}</div>
+      <div class="grid2">${sel("tbl","Cədvəllərin görünüşü")}${sel("hov","Cədvəldə sətir üzərində işıqlanma")}</div>
+      <div class="grid2"><label class="f"><span>Künclərin yumruluğu: <b id="lkRv">${L.rad===""||L.rad==null?"standart":L.rad+" px"}</b></span><input type="range" id="lkR" min="0" max="28" step="1" value="${L.rad===""||L.rad==null?10:L.rad}"${dis}></label>${sel("hc","Kontrast")}</div>
+      <div class="grid2">${sel("sb","Sürüşdürmə zolağı")}<span></span></div>
       <div class="grid2">${sel("icons","Düymələrdə ikonlar")}${sel("nav","Telefonda aşağı menyu")}</div>
       <div class="grid2">${sel("field","Sahə rejimi (əlcəklə / günəşdə)")}${sel("splash","Açılış ekranı")}</div>
       <div class="grid2">${sel("darkAuto","Qaranlıq rejim avtomatik")}${L.darkAuto==="1"?`<div class="grid2"><label class="f"><span>🌙 başlayır</span><input type="time" data-lt="darkFrom" value="${esc(L.darkFrom)}"${dis}></label><label class="f"><span>☀ bitir</span><input type="time" data-lt="darkTo" value="${esc(L.darkTo)}"${dis}></label></div>`:"<span></span>"}</div>
@@ -4292,7 +4333,9 @@ body.zs-hasnav{padding-bottom:78px}body.zs-hasnav .tabs [data-g],body.zs-hasnav 
       ${adm&&O.teamSend?`<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:10px"><b>Bütün işçilərə</b><p class="note" style="margin:2px 0 6px">Bu görünüşü (rəng, loqo, düymələr, kartlar, funksiyalar) bütün işçilərin proqramına göndərin.${T&&T.at?" Son göndərmə: "+new Date(T.at).toLocaleString("az-AZ"):""}</p>
         <label style="display:flex;gap:8px;align-items:center;cursor:pointer;margin:0 0 8px"><input type="checkbox" id="lkAllow" style="width:16px;height:16px;min-height:0;margin:0"${LSg(KEY+".allow",false)?" checked":""}> İşçilər öz görünüşünü dəyişə bilsin</label>
         <div class="actions"><button type="button" class="btn pri" id="lkSend">📤 Hamıya göndər</button>${T?`<button type="button" class="btn" id="lkUnsend">Ümumi görünüşü ləğv et</button>`:""}</div></div>`:""}
-      <div class="actions" style="margin-top:4px"><button type="button" class="btn" id="lkReset"${dis}>Standart görünüşə qaytar</button></div></div>`;
+      <div class="lkPrev" aria-hidden="true"><div class="lkPh">Ön baxış</div><div class="card" style="margin:0"><b>Kart başlığı</b><p class="note" style="margin:2px 0 8px">Belə görünəcək: düymələr, kart, cədvəl.</p><div class="actions" style="margin:0"><button type="button" class="btn pri" tabindex="-1">Əsas düymə</button><button type="button" class="btn" tabindex="-1">Adi düymə</button><span class="chip ok">yaşıl</span><span class="chip warn">sarı</span></div>
+        <div class="maptbl" style="margin-top:8px"><table class="ltbl"><tr><th style="text-align:left">Müştəri</th><th>Tarix</th><th>Vəziyyət</th></tr><tr><td>Nümunə MMC</td><td class="c">13.11.2026</td><td class="c">Bu gün</td></tr><tr><td>Test ASC</td><td class="c">20.11.2026</td><td class="c">7 gün qalıb</td></tr></table></div></div></div>
+      <div class="actions" style="margin-top:4px"><button type="button" class="btn" id="lkRand"${dis}>🎲 Təsadüfi üslub</button><button type="button" class="btn" id="lkExp">⬇ Görünüşü fayla yaz</button><label class="btn" style="cursor:pointer${lk?";opacity:.5;pointer-events:none":""}">⬆ Fayldan yüklə<input type="file" id="lkImp" accept=".json,application/json" hidden${dis}></label><button type="button" class="btn" id="lkReset"${dis}>Standart görünüşə qaytar</button></div></div>`;
     if(old)old.outerHTML=h;else m.insertAdjacentHTML("beforeend",h);
     const g=id=>document.getElementById(id);
     const save=(L2,redraw)=>{if(!put(L2)){toast("Yadda saxlamaq alınmadı — şəkil çox böyükdür");return}apply();if(redraw)card()};
@@ -4311,6 +4354,11 @@ body.zs-hasnav{padding-bottom:78px}body.zs-hasnav .tabs [data-g],body.zs-hasnav 
     const sd=g("lkSend");if(sd)sd.onclick=()=>teamSend(sd);
     const us=g("lkUnsend");if(us)us.onclick=async()=>{us.disabled=true;try{await O.teamSend(null);localStorage.removeItem(KEY+".team");toast("Ümumi görünüş ləğv edildi — hər kəs öz görünüşünü seçir");card()}catch(e){toast("Alınmadı — internet / server");us.disabled=false}};
     const tm=g("lkTeam");if(tm)tm.onclick=()=>{localStorage.removeItem(KEY);apply();card();toast("Rəhbərin görünüşü tətbiq olundu")};
+    const rr=g("lkR");if(rr){rr.oninput=()=>{const L2=base();L2.rad=rr.value;put(L2);apply();const v=g("lkRv");if(v)v.textContent=rr.value+" px"}}
+    const rn=g("lkRand");if(rn)rn.onclick=()=>{const pk=k=>OPT[k][Math.floor(Math.random()*OPT[k].length)][0],cur=own(),A=ACC.filter(a=>a[0]&&a[0]!=="custom");
+      const L2=Object.assign({},D,{logo:cur.logo||"",logoM:cur.logoM||"both",logoPdf:cur.logoPdf||"1",fs:cur.fs||"n",pw:cur.pw||"wide"},{acc:A[Math.floor(Math.random()*A.length)][0],btn:pk("btn"),fx:pk("fx"),card:pk("card"),bg:["plain","grad","dots","grid","lines"][Math.floor(Math.random()*5)],hdr:pk("hdr"),ff:pk("ff"),tbl:pk("tbl"),rad:String(Math.floor(Math.random()*20))});save(L2,true);toast("Yeni üslub — bəyənmədinizsə yenidən basın")};
+    const ex=g("lkExp");if(ex)ex.onclick=()=>{const b=new Blob([JSON.stringify({kind:"zuvand-look",v:1,look:own()},null,1)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="ZUVAND-gorunus.json";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);toast("Görünüş fayla yazıldı — başqa kompüterdə “Fayldan yüklə” ilə açın")};
+    const im=g("lkImp");if(im)im.onchange=async()=>{const f=im.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!j||j.kind!=="zuvand-look"||typeof j.look!=="object")throw 0;const L2={};Object.keys(j.look).forEach(k=>{if(k in D||k==="accC"||k==="lm2")L2[k]=String(j.look[k])});save(L2,true);toast("Görünüş fayldan yükləndi")}catch(e){toast("Bu fayl görünüş faylı deyil")}};
     g("lkReset").onclick=()=>{put({});apply();card();if(O.resetTheme)O.resetTheme();toast("Standart görünüş qaytarıldı")}}
   function init(prefix,opts){KEY=prefix+".look";O=opts||{};apply();
     const t=document.getElementById("hTitle");if(t&&window.MutationObserver)new MutationObserver(()=>{if(get().logo&&!document.getElementById("zsLogo"))apply()}).observe(t.parentNode,{childList:true});
@@ -4400,7 +4448,7 @@ window.ZSBK=(function(){
       savePending();const T=B.tasks||[];for(let i=0;i<T.length;i++){prog(i+1,T.length,"Tapşırıqlar");try{await api("task_save",{task:T[i]});tk++}catch(e){}}
       try{await sync({all:true})}catch(e){}
       return ok+" hesabat"+(bad?" ("+bad+" alınmadı)":"")+", "+tk+" tapşırıq"+(ph?", "+ph+" şəkil":"")}});
-  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}try{ZSSEC.card()}catch(e){}try{ZSTPL.card()}catch(e){}try{ZSQRST.card()}catch(e){}try{ZSCOL.on()}catch(e){}return r};
+  const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{ZSLOOK.card((t,ms)=>toast(t,ms),x=>esc(x))}catch(e){}try{ZSHIST.delCard()}catch(e){}try{ZSRH.card({isAdmin:()=>!hasServer()||state.me.role==="admin",save:saveSettings,toast:(t,ms)=>toast(t,ms)})}catch(e){}try{renCard()}catch(e){}try{ZSBK.card()}catch(e){}try{ZSUPD.card()}catch(e){}try{ZSSEC.card()}catch(e){}try{ZSTPL.card()}catch(e){}try{ZSQRST.card()}catch(e){}try{ZSCOL.on()}catch(e){}return r};
   try{ZSUPD.init({toast:(t,ms)=>toast(t,ms),isAdmin:()=>!!state.me.boss||(!(typeof CFG!=="undefined"&&CFG.hub)&&state.me.role==="admin"),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub,gas:()=>IS_GAS,key:()=>state.me.key})}catch(e){}try{API_TIMEOUT.factory_reset=330000;API_TIMEOUT.activity=60000;API_TIMEOUT.sec_info=15000;ZSSEC.init({app:"ups",api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),hub:()=>typeof CFG!=="undefined"&&!!CFG.hub})}catch(e){}try{ZSTPL.init({redraw:()=>{try{if(state.view==="edit"&&state.rep)renderEditor();else if(state.view==="settings")renderSettings()}catch(e){}},api:(a,p)=>api(a,p),toast:(t,ms)=>toast(t,ms),logged:()=>!!state.me.key&&hasServer(),isAdmin:()=>!hasServer()||state.me.role==="admin",me:()=>state.me.name||""})}catch(e){}try{ZSED.init()}catch(e){}try{ZSSW.init()}catch(e){}try{ZSQRST.init({api:(a,p)=>api(a,p),ok:()=>!!state.me.key&&hasServer()&&!(typeof CFG!=="undefined"&&CFG.hub)&&(!!state.me.boss||state.me.role==="admin"||svCan("stats"))})}catch(e){}
   /* the "Ayarlar" button was bound to the old function at start-up */
   const hs=document.getElementById("hSettings");if(hs)hs.onclick=()=>renderSettings();
@@ -4475,7 +4523,12 @@ window.ZSBK=(function(){
    .qlov{position:fixed;inset:0;z-index:100000;background:rgba(10,20,18,.45);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto}
    .qlov .in{background:var(--card,#fff);border-radius:14px;max-width:560px;width:100%;padding:16px;display:grid;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
    .qlov label.ck{display:flex!important;gap:10px;align-items:flex-start;text-align:left;font-size:14px}.qlov label.ck input{width:20px!important;height:20px!important;flex:none;margin:2px 0 0}
-   .qlov select,.qlov input[type=number]{padding:8px;border:1px solid var(--line,#C9D3D0);border-radius:8px;font-size:15px}</style>`);
+   .qlov select,.qlov input[type=number]{padding:8px;border:1px solid var(--line,#C9D3D0);border-radius:8px;font-size:15px}
+   .qlov .qled{border:1px solid var(--line,#C9D3D0);border-radius:10px;padding:8px 10px}.qlov .qled summary{cursor:pointer}
+   .qlov .qlrow{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto auto auto;gap:4px;align-items:center;margin:4px 0}.qlov .qlrow input:not([type]){padding:7px 8px;border:1px solid var(--line,#C9D3D0);border-radius:8px;font-size:14px;min-width:0}
+   .qlov .qlrow select{padding:6px 4px;font-size:13px}.qlov .ql-b{display:flex;gap:2px;align-items:center;font-weight:800;font-size:13px}.qlov .ql-b input{width:16px;height:16px;margin:0}
+   @media (max-width:520px){.qlov .qlrow{grid-template-columns:1fr 1fr 1fr;}.qlov .qlrow input:not([type]){grid-column:1/-1}}
+   .qlov .qlpv{display:grid;gap:4px;justify-items:center;background:var(--surface2,#EEF2F1);border-radius:10px;padding:10px}.qlov .qlpv img{max-width:100%;width:340px;background:#fff;border:1px solid #ccc;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.12)}</style>`);
   const QC={};
   /* QR links open a public page on GitHub Pages (works on every phone, no Google sign-in); it reads the data from the server */
   const PUB="https://reportzuvand-tech.github.io/ups-servis-iphone/p.html";const qrUrl=(r,k,t)=>(/script\.google\.com\/macros\//.test(r.qr.base)?PUB:r.qr.base)+"?"+k+"="+t;
@@ -4501,12 +4554,18 @@ window.ZSBK=(function(){
     const pad=2.2*k,q=ZSQR.matrix(L.url,"M"),qs=Math.min(H-2*pad,W*0.48),mod=qs/(q.size+2),qx=pad,qy=(H-qs)/2;g.fillStyle="#000";
     for(let y=0;y<q.size;y++)for(let x=0;x<q.size;x++)if(q.dark(x,y))g.fillRect(Math.floor(qx+(x+1)*mod),Math.floor(qy+(y+1)*mod),Math.ceil(mod),Math.ceil(mod));
     const x0=qx+qs+1.6*k,rw=W-x0-pad;let y=pad;
-    if(logo){const lh=H*0.26,sc=Math.min(rw/logo.width,lh/logo.height);g.drawImage(logo,x0,y,logo.width*sc,logo.height*sc);y+=logo.height*sc+H*0.05}
-    else{g.fillStyle="#16362E";const s=fit(g,L.co,rw,Math.round(H*0.11),700);g.fillText(L.co,x0,y+s);y+=s*1.4}
-    const line=(t,rel,wt,col)=>{if(!t)return;g.fillStyle=col||"#15211E";const s=fit(g,t,rw,Math.round(H*rel),wt);y+=s;g.fillText(t,x0,y);y+=s*0.35};
-    line("Servis tarixçəsi",0.1,700,"#16362E");line("Telefonla skan edin",0.07,400,"#5B6B67");y+=H*0.03;
-    line(L.model,0.08,600);line(L.sn?"S/N: "+L.sn:"",0.08,700);if(L.tel&&y<H-pad-H*0.06)line(L.tel,0.065,400,"#5B6B67");
+    const hd=qlTpl().head;
+    if(hd==="logo"&&logo){const lh=H*0.26,sc=Math.min(rw/logo.width,lh/logo.height);g.drawImage(logo,x0,y,logo.width*sc,logo.height*sc);y+=logo.height*sc+H*0.05}
+    else if(hd!=="none"){g.fillStyle="#16362E";const s=fit(g,L.co,rw,Math.round(H*0.11),700);g.fillText(L.co,x0,y+s);y+=s*1.4}
+    const line=(t,rel,wt,col)=>{if(!t)return;const s0=Math.round(H*rel);if(y+s0>H-pad*0.6)return;g.fillStyle=col||"#15211E";const s=fit(g,t,rw,s0,wt);y+=s;g.fillText(t,x0,y);y+=s*0.35};
+    const T=qlTpl();T.lines.forEach(x=>{const t=qlFill(x.t,L).trim(),ph=String(x.t||"").match(/\{\w+\}/g)||[];if(!t||(ph.length&&ph.every(p=>!String(L[p.slice(1,-1)]||"").trim())))return;line(t,QL_SZ[x.sz]||0.08,x.b?700:400,QL_COL[x.c]||"#15211E");if(x.gap)y+=H*0.03});
     return c.toDataURL("image/png")}
+  /* ---- the words on the label: the manager edits, adds and removes lines (Etiketdəki yazılar) ---- */
+  const QL_SZ={xl:0.12,l:0.1,m:0.08,s:0.068,xs:0.058},QL_COL={acc:"#16362E",ink:"#15211E",grey:"#5B6B67",red:"#B42318",blue:"#0B4F9C"};
+  const QL_DEF={head:"logo",lines:[{t:"Servis tarixçəsi",sz:"l",b:1,c:"acc"},{t:"Telefonla skan edin",sz:"s",b:0,c:"grey",gap:1},{t:"{model}",sz:"m",b:1,c:"ink"},{t:"S/N: {sn}",sz:"m",b:1,c:"ink"},{t:"{tel}",sz:"s",b:0,c:"grey"}]};
+  const QL_PH=[["{model}","Cihaz / model"],["{sn}","Seriya №"],["{type}","Cihazın növü"],["{loc}","Yerləşdiyi yer"],["{client}","Müştəri"],["{obj}","Obyekt"],["{date}","Servis tarixi"],["{next}","Növbəti servis"],["{co}","Şirkət"],["{tel}","Şirkətin telefonu"],["{repno}","Hesabat №"]];
+  function qlTpl(){const v=LS.get("ups.qrlbl");if(v&&Array.isArray(v.lines))return {head:v.head||"logo",lines:v.lines.slice(0,12)};return JSON.parse(JSON.stringify(QL_DEF))}
+  function qlFill(t,L){return String(t||"").replace(/\{(\w+)\}/g,(m,k)=>L&&L[k]!=null?String(L[k]):"").replace(/\s{2,}/g," ")}
   async function blankPdf(fmt,o){const tiny=document.createElement("div");tiny.style.cssText="position:absolute;left:-9999px;width:4px;height:4px";document.body.appendChild(tiny);
     try{const pdf=await html2pdf().set({margin:0,jsPDF:{unit:"mm",format:fmt,orientation:o,compress:true}}).from(tiny).toPdf().get("pdf");for(let j=pdf.internal.getNumberOfPages();j>=1;j--)pdf.deletePage(j);return pdf}finally{tiny.remove()}}
   async function buildLabels(list,sz){const logo=await logoImg().catch(()=>null),[,,wm,hm,cols,rows]=sz,sheet=!!cols;
@@ -4524,11 +4583,42 @@ window.ZSBK=(function(){
       ${devs.map(x=>`<label class="ck"><input type="checkbox" data-qd="${x.i}" checked><span><b>${esc(TYPES[x.d.type].title)}</b> — ${esc(devName(x.d)||"")} · S/N ${esc(x.d.info.sn)}${x.d.loc?" · "+esc(x.d.loc):""}</span></label>`).join("")}
       <label class="f"><span>Ölçü</span><select id="qlSz">${SIZES.map(s=>`<option value="${s[0]}"${s[0]===last?" selected":""}>${s[1]}</option>`).join("")}</select></label>
       <label class="f"><span>Hər cihaz üçün neçə etiket</span><input type="number" id="qlN" min="1" max="20" value="1"></label>
+      <details class="qled" id="qlEd"><summary><b>✎ Etiketdəki yazılar</b> <span class="note">— dəyişdirin, əlavə edin, silin</span></summary><div id="qlEdB"></div></details>
+      <div class="qlpv"><span class="note">Ön baxış</span><img id="qlPv" alt="Etiketin ön baxışı"></div>
       <div class="actions"><button class="btn ghost" data-x>Ləğv et</button><button class="btn pri" id="qlGo">Etiketləri hazırla (PDF)</button></div></div>`;
     document.body.appendChild(ov);ov.addEventListener("click",e=>{if(e.target===ov||e.target.closest("[data-x]"))ov.remove()});
+    const S0=state.settings||{},dataOf=d=>{const sn=String(d.info.sn).trim();let nx="";try{nx=fmtDate(summaryOf(r).next||"")}catch(e){}
+      return {sn,model:[TYPES[d.type].short||"",devName(d)].filter(Boolean).join(" · "),type:TYPES[d.type].title||"",loc:d.loc||"",client:r.cl.name||"",obj:r.cl.obj||"",date:fmtDate(r.svc.date||""),next:nx,co:S0.co||"ZUVAND",tel:S0.cotel||"",repno:r.svc.repno||""}};
+    let logoP=null;logoImg().then(x=>{logoP=x;pv()}).catch(()=>{});
+    const pv=()=>{const sel=[...ov.querySelectorAll("[data-qd]")].filter(x=>x.checked).map(x=>r.devices[+x.dataset.qd]),d=sel[0]||devs[0].d,sz=SIZES.find(s=>s[0]===ov.querySelector("#qlSz").value)||SIZES[0],sn=String(d.info.sn).trim(),tk=(r.qr.d||{})[sn]||"x";
+      const im=ov.querySelector("#qlPv");try{im.src=drawLabel(Object.assign({url:qrUrl(r,"d",tk)},dataOf(d)),sz[2],sz[3],logoP,false);im.style.aspectRatio=sz[2]+"/"+sz[3]}catch(e){}};
+    const edDraw=()=>{const T=qlTpl(),B=ov.querySelector("#qlEdB");
+      B.innerHTML=`<label class="f" style="margin-top:6px"><span>Yuxarıda</span><select id="qlHd"><option value="logo"${T.head==="logo"?" selected":""}>Loqo (yoxdursa şirkətin adı)</option><option value="co"${T.head==="co"?" selected":""}>Şirkətin adı</option><option value="none"${T.head==="none"?" selected":""}>Heç nə</option></select></label>
+        ${T.lines.map((x,i)=>`<div class="qlrow"><input data-lt="${i}" value="${esc(x.t)}" placeholder="Yazı və ya {model}, {sn}…" aria-label="Sətir ${i+1}">
+          <select data-ls="${i}" aria-label="Ölçü">${[["xl","Çox iri"],["l","İri"],["m","Orta"],["s","Kiçik"],["xs","Çox kiçik"]].map(([v,t])=>`<option value="${v}"${x.sz===v?" selected":""}>${t}</option>`).join("")}</select>
+          <select data-lc="${i}" aria-label="Rəng">${[["acc","Tünd yaşıl"],["ink","Qara"],["grey","Boz"],["red","Qırmızı"],["blue","Göy"]].map(([v,t])=>`<option value="${v}"${x.c===v?" selected":""}>${t}</option>`).join("")}</select>
+          <label class="ql-b" title="Qalın"><input type="checkbox" data-lb="${i}"${x.b?" checked":""}>B</label>
+          <button type="button" class="btn sm ghost" data-lu="${i}" title="Yuxarı"${i?"":" disabled"}>↑</button><button type="button" class="btn sm ghost" data-lx="${i}" title="Sətri sil">✕</button></div>`).join("")}
+        <div class="actions" style="margin:6px 0"><button type="button" class="btn sm" id="qlAdd"${T.lines.length>=12?" disabled":""}>+ Sətir əlavə et</button><button type="button" class="btn sm ghost" id="qlDef">↺ Standart yazılar</button></div>
+        <p class="note" style="margin:0 0 4px">Sahəyə basın, sonra aşağıdakı məlumatı seçin — hər etiketdə cihazın öz məlumatı ilə dolur:</p>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">${QL_PH.map(([k,t])=>`<button type="button" class="chip" data-ph="${k}" style="cursor:pointer;border:1px solid var(--line)">${t}</button>`).join("")}</div>
+        <p class="note" style="margin:6px 0 0">Yazılar bu cihazda yadda qalır. Sığmayan sətirlər kiçildilir, yer qalmayanda göstərilmir.</p>`;
+      let foc=null;
+      const save=(T2,redraw)=>{LS.set("ups.qrlbl",T2);if(redraw)edDraw();pv()};
+      B.querySelector("#qlHd").onchange=e=>{const T2=qlTpl();T2.head=e.target.value;save(T2)};
+      B.querySelectorAll("[data-lt]").forEach(x=>{x.onfocus=()=>{foc=x};x.oninput=()=>{const T2=qlTpl();T2.lines[+x.dataset.lt].t=x.value.slice(0,80);save(T2)}});
+      B.querySelectorAll("[data-ls]").forEach(x=>x.onchange=()=>{const T2=qlTpl();T2.lines[+x.dataset.ls].sz=x.value;save(T2)});
+      B.querySelectorAll("[data-lc]").forEach(x=>x.onchange=()=>{const T2=qlTpl();T2.lines[+x.dataset.lc].c=x.value;save(T2)});
+      B.querySelectorAll("[data-lb]").forEach(x=>x.onchange=()=>{const T2=qlTpl();T2.lines[+x.dataset.lb].b=x.checked?1:0;save(T2)});
+      B.querySelectorAll("[data-lu]").forEach(x=>x.onclick=()=>{const T2=qlTpl(),i=+x.dataset.lu;[T2.lines[i-1],T2.lines[i]]=[T2.lines[i],T2.lines[i-1]];save(T2,true)});
+      B.querySelectorAll("[data-lx]").forEach(x=>x.onclick=()=>{const T2=qlTpl();T2.lines.splice(+x.dataset.lx,1);save(T2,true)});
+      B.querySelector("#qlAdd").onclick=()=>{const T2=qlTpl();T2.lines.push({t:"",sz:"s",b:0,c:"ink"});save(T2,true);const L2=B.querySelectorAll("[data-lt]");if(L2.length)L2[L2.length-1].focus()};
+      B.querySelector("#qlDef").onclick=()=>{LS.set("ups.qrlbl",null);edDraw();pv()};
+      B.querySelectorAll("[data-ph]").forEach(c=>{c.onmousedown=e=>e.preventDefault();c.onclick=()=>{const x=foc||B.querySelector("[data-lt]");if(!x)return;const a=x.selectionStart??x.value.length,b2=x.selectionEnd??a;x.value=(x.value.slice(0,a)+c.dataset.ph+x.value.slice(b2)).slice(0,80);x.focus();x.setSelectionRange(a+c.dataset.ph.length,a+c.dataset.ph.length);x.oninput()}})};
+    edDraw();pv();ov.querySelector("#qlSz").addEventListener("change",pv);ov.querySelectorAll("[data-qd]").forEach(x=>x.addEventListener("change",pv));
     ov.querySelector("#qlGo").onclick=async()=>{const b=ov.querySelector("#qlGo");const sel=[...ov.querySelectorAll("[data-qd]")].filter(x=>x.checked).map(x=>r.devices[+x.dataset.qd]);if(!sel.length){toast("Cihaz seçin");return}
       const sz=SIZES.find(s=>s[0]===ov.querySelector("#qlSz").value)||SIZES[0],n=Math.max(1,Math.min(20,+ov.querySelector("#qlN").value||1));LS.set("ups.qrsz",sz[0]);
-      const S=state.settings||{},list=[];sel.forEach(d=>{const sn=String(d.info.sn).trim(),tk=r.qr.d[sn];if(!tk)return;for(let i=0;i<n;i++)list.push({url:qrUrl(r,"d",tk),sn,model:[TYPES[d.type].short||"",devName(d)].filter(Boolean).join(" · "),co:S.co||"ZUVAND",tel:S.cotel||""})});
+      const list=[];sel.forEach(d=>{const sn=String(d.info.sn).trim(),tk=r.qr.d[sn];if(!tk)return;for(let i=0;i<n;i++)list.push(Object.assign({url:qrUrl(r,"d",tk)},dataOf(d)))});
       if(!list.length){toast("QR linki alınmadı — yenidən cəhd edin");return}
       b.disabled=true;b.textContent="Hazırlanır…";
       try{const pdf=await buildLabels(list,sz),blob=pdf.output("blob");await saveFile("QR-etiketler_"+String(r.svc.repno||r.cl.name||"cihaz").replace(/[\\/:*?"<>|]+/g," ")+".pdf",blob,cfolder(r));ov.remove()}
@@ -4614,6 +4704,116 @@ window.SAFN=(function(){
     draw();ov.addEventListener("click",e=>{if(e.target===ov)ov.remove()});document.addEventListener("keydown",function k(e){if(e.key==="Escape"){ov.remove();document.removeEventListener("keydown",k)}});
     document.body.appendChild(ov)}
   return {open,label,eff,list:()=>L.slice(),clean}})();
+</script>
+<script>/* ZUVAND — servis hesabatının başlıq rəngi: yalnız rəhbər seçir, bütün işçilərin hesabatlarına (PDF, çap) tətbiq olunur; proqramın görünüşündən asılı deyil */
+window.ZSRH=(function(){
+  const DEF="#123B35";
+  const PAL=[["#123B35","Standart (tünd yaşıl)"],["#1E5E2E","Yaşıl"],["#0B2E59","Tünd göy"],["#1D4E89","Göy"],["#0F5E6B","Firuzəyi"],["#4B2A7B","Bənövşəyi"],["#8B1E1E","Qırmızı"],["#9A3D0B","Narıncı"],["#5B3A1E","Qəhvəyi"],["#2F3B45","Qrafit"],["#111111","Qara"]];
+  const ok=c=>/^#[0-9a-f]{6}$/i.test(String(c||""));
+  const cur=()=>{const S=(typeof state!=="undefined"&&state.settings)||{};return ok(S.repHead)?S.repHead:DEF};
+  const lum=h=>{const n=parseInt(h.slice(1),16),f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)};return .2126*f(n>>16)+.7152*f((n>>8)&255)+.0722*f(n&255)};
+  function apply(){let st=document.getElementById("zsRepHead");if(!st){st=document.createElement("style");st.id="zsRepHead";document.head.appendChild(st)}
+    st.textContent=`:root,:root[data-theme]{--paper-head:${cur()}}`}
+  const prev=c=>`<div style="border:1px solid var(--line);border-radius:8px;background:#fff;color:#1B1F1E;padding:10px 12px;margin:6px 0">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid ${c};padding-bottom:4px"><b style="color:${c};text-transform:uppercase;font-size:15px">Şirkət adı</b><span style="font-size:11px">Hesabat № 2026-01</span></div>
+      <div style="text-align:center;color:${c};font-weight:700;letter-spacing:.04em;margin:10px 0 6px">UPS SERVİS HESABATI</div>
+      <div style="background:${c};color:#fff;padding:4px 8px;font-weight:700;font-size:12px">1. CİHAZ HAQQINDA MƏLUMAT</div>
+      <div style="font-size:11px;padding:4px 0;border-bottom:1px solid #B9C2BF">Marka / model · Seriya №</div>
+      <div style="color:${c};font-weight:700;font-size:11px;text-transform:uppercase;border-bottom:1px solid #B9C2BF;margin-top:6px">Ölçmələr</div></div>`;
+  function card(o){const m=document.getElementById("main");if(!m)return;const adm=o.isAdmin(),c=cur(),old=document.getElementById("rhCard");
+    const h=`<div class="card" id="rhCard" style="margin-top:12px"><h3>Hesabat başlığının rəngi</h3>
+      <p class="note" style="margin:0">Servis hesabatlarının (PDF, çap, ön baxış) başlığı, bölmə zolaqları və cədvəl başlıqları bu rəngdə olur. Proqramın görünüşü (rəngi, üslubu) dəyişəndə hesabatın rəngi dəyişmir. ${adm?"Seçdiyiniz rəng bütün işçilərin hazırladığı hesabatlara tətbiq olunur.":"Bu rəngi yalnız rəhbər dəyişir — sizin hesabatlarınız da onun seçdiyi rəngdə olur."}</p>
+      ${prev(c)}
+      ${adm?`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0">${PAL.map(([v,t])=>`<button type="button" class="btn sm" data-rh="${v}" title="${t}" style="display:inline-flex;gap:6px;align-items:center${v.toLowerCase()===c.toLowerCase()?";outline:2px solid var(--accent);outline-offset:1px":""}"><span style="width:16px;height:16px;border-radius:4px;background:${v};display:inline-block"></span>${t}</button>`).join("")}
+        <label class="btn sm" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer">Öz rəngim<input type="color" id="rhC" value="${c}" style="width:28px;height:22px;min-height:0;padding:0;border:0;background:none"></label></div>
+        <p class="note" id="rhWarn" style="margin:0;color:var(--bad)"${lum(c)>.35?"":" hidden"}>Bu rəng çox açıqdır — bölmə zolaqlarındakı ağ yazı pis oxunacaq. Tündroq rəng seçin.</p>`:""}</div>`;
+    if(old)old.outerHTML=h;else{const lk=document.getElementById("lookCard");if(lk)lk.insertAdjacentHTML("afterend",h);else m.insertAdjacentHTML("beforeend",h)}
+    if(!adm)return;
+    const set=async(v,silent)=>{if(!ok(v))return;state.settings.repHead=v;apply();try{await o.save();if(!silent)o.toast("Hesabat başlığının rəngi saxlanıldı — işçilərin cihazında növbəti sinxronda tətbiq olunur")}catch(e){o.toast("Bu cihazda saxlanıldı, serverə göndərilmədi (internet?)")}card(o)};
+    document.querySelectorAll("[data-rh]").forEach(b=>b.onclick=()=>set(b.dataset.rh));
+    const ci=document.getElementById("rhC");if(ci){ci.oninput=()=>{const w=document.getElementById("rhWarn");if(w)w.hidden=lum(ci.value)<=.35};ci.onchange=()=>set(ci.value)}}
+  try{apply()}catch(e){}
+  return {apply,card,cur,DEF}})();
+</script>
+<script>/* ZUVAND — hesabatın dəyişiklik tarixçəsi: kim, nə vaxt, nəyi dəyişib (təsdiq, imza, silmə, bərpa); silinmiş hesabatlar */
+window.ZSHIST=(function(){
+  const TS=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t};
+  const dt=ms=>{if(!ms)return "—";const d=new Date(ms),p=n=>String(n).padStart(2,"0");return p(d.getDate())+"."+p(d.getMonth()+1)+"."+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes())};
+  const SIGL=k=>k==="eng"?"Servis mühəndisi":"Müştəri nümayəndəsi";
+  const devLbl=(R,i)=>{const d=R&&R.devices&&R.devices[i-1];if(!d)return "Cihaz "+i;const n=[d.info&&d.info.brand,d.info&&d.info.model].filter(Boolean).join(" ");return "Cihaz "+i+(n?" ("+n+")":"")};
+  function lbl(k,R){const p=k.split(".");let out=[];for(let i=0;i<p.length;i++){const x=p[i];if(x==="devices"&&/^\d+$/.test(p[i+1]||"")){out.push(devLbl(R,+p[i+1]));i++;continue}
+      out.push(/^\d+$/.test(x)?"#"+x:((typeof SNAP_L!=="undefined"&&SNAP_L[x])||x))}return out.join(" › ")}
+  const flat=R=>{try{const o=flatRep(R);Object.keys(o).forEach(k=>{if(o[k]==="[şəkil]"||k==="svc.prof"||/\.(repnoAuto|tr)$/.test(k))delete o[k]});return o}catch(e){return {}}};
+  const sigOf=R=>{const S=(R&&R.sig)||{},o={};Object.keys(S).forEach(k=>{if(S[k]&&(S[k].img||S[k].at))o[k]={at:TS(S[k].at),name:S[k].name||""}});return o};
+  function events(states){const E=[];
+    states.forEach((S,i)=>{const P=i?states[i-1]:null,R=S.rep,ev={i,at:S.at,by:S.by,tags:[],diff:[],cur:!!S.cur,rev:S.rev};
+      if(!P)ev.tags.push(["new",S.oldest?"Ən köhnə saxlanılan hal":"Yaradıldı"]);
+      else{const a=!!(P.rep.appr&&P.rep.appr.at),b=!!(R.appr&&R.appr.at);if(!a&&b)ev.tags.push(["ok","✅ Təsdiqləndi"+(R.appr.by?" — "+R.appr.by:"")]);if(a&&!b)ev.tags.push(["warn","↩ Təsdiq geri alındı"]);
+        const s0=sigOf(P.rep),s1=sigOf(R);Object.keys(s1).forEach(k=>{if(!s0[k])ev.tags.push(["ok","✍ İmza əlavə olundu: "+SIGL(k)+(s1[k].name?" ("+s1[k].name+")":"")]);else if(s1[k].at>s0[k].at)ev.tags.push(["ok","✍ Yenidən imzalandı: "+SIGL(k)])});
+        Object.keys(s0).forEach(k=>{if(!s1[k])ev.tags.push(["bad","İmza silindi: "+SIGL(k)])});
+        if(/bərpa/i.test(S.by||""))ev.tags.push(["warn","♻ Köhnə versiya bərpa edildi"]);
+        const f0=flat(P.rep),f1=flat(R);new Set([...Object.keys(f0),...Object.keys(f1)]).forEach(k=>{if(f0[k]!==f1[k])ev.diff.push([k,f0[k],f1[k]])});
+        ev.diff.sort((x,y)=>x[0].localeCompare(y[0],undefined,{numeric:true}));
+        if(ev.diff.length)ev.tags.push(["",ev.diff.length+" sahə dəyişdirildi"]);if(!ev.tags.length)ev.tags.push(["","Saxlanıldı (məzmun dəyişməyib)"])}
+      E.push(ev)});return E}
+  const tagC={ok:"ok",warn:"warn",bad:"bad",new:"ok","":""};
+  function evHTML(ev,R,canRestore){const D=ev.diff;
+    return `<div class="zsh-ev${ev.cur?" cur":""}"><div class="zsh-dot"></div><div class="zsh-b"><div class="zsh-h"><b>${esc(dt(ev.at))}</b><span class="chip">👤 ${esc(ev.by||"naməlum")}</span>${ev.cur?'<span class="chip ok">indiki hal</span>':""}</div>
+      <div class="zsh-tags">${ev.tags.map(([c,t])=>`<span class="chip ${tagC[c]}">${esc(t)}</span>`).join("")}</div>
+      ${D.length?`<details><summary>Nə dəyişdirilib — ${D.length} sahə</summary><div class="zsh-tw"><table class="zsh-t"><tr><th>Sahə</th><th>Əvvəl</th><th>Sonra</th></tr>${D.slice(0,400).map(([k,a,b])=>`<tr><td>${esc(lbl(k,R))}</td><td class="o">${a==null?'<i>boş</i>':esc(a)}</td><td class="n">${b==null?'<i>silinib</i>':esc(b)}</td></tr>`).join("")}</table>${D.length>400?`<p class="note">… daha ${D.length-400} sahə</p>`:""}</div></details>`:""}
+      ${canRestore&&ev.rev?`<div class="actions" style="margin:6px 0 0"><button class="btn sm" data-rev="${esc(ev.rev)}">Bu hala bərpa et</button><button class="btn sm" data-revnew="${esc(ev.rev)}">Ayrıca hesabat kimi aç</button></div>`:""}</div></div>`}
+  const ZCSS=`.zsh-tl{position:relative;margin:8px 0 0;padding-left:22px}.zsh-tl:before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.zsh-ev{position:relative;padding:0 0 14px}.zsh-dot{position:absolute;left:-21px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:3px solid var(--accent)}.zsh-ev.cur .zsh-dot{background:var(--accent)}
+.zsh-h{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.zsh-tags{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}.zsh-tw{max-height:380px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:6px}
+.zsh-t{width:100%;border-collapse:collapse;font-size:13px}.zsh-t th,.zsh-t td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;overflow-wrap:anywhere}.zsh-t th{position:sticky;top:0;background:var(--surface2)}
+.zsh-t td.o{color:var(--bad);text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--bad) 45%,transparent)}.zsh-t td.n{color:var(--ok);font-weight:600}.zsh-del{border-left:4px solid var(--bad)!important}`;
+  const css=()=>{if(!document.getElementById("zshCss"))document.head.insertAdjacentHTML("beforeend",`<style id="zshCss">${ZCSS}</style>`)};
+  async function show(){css();const box=$("#histBox"),id=state.cur.id,cur=realOf(state.rep);box.innerHTML='<div class="card"><p class="note" style="margin:0">Tarixçə yüklənir…</p></div>';box.scrollIntoView({behavior:"smooth",block:"nearest"});
+    let h;try{h=await api("history",{id})}catch(e){box.innerHTML="";toast(e&&e.message==="forbidden"?"Bu bölmə yalnız rəhbər üçündür":"Tarixçəni yükləmək alınmadı");return}
+    const V=(h.items||[]).slice(0,30).reverse(),states=[];let n=0,old=false;
+    const prog=()=>{box.innerHTML=`<div class="card"><h3>📜 Dəyişiklik tarixçəsi</h3><p class="note" style="margin:0">Versiyalar oxunur: ${n} / ${V.length}…</p></div>`};prog();
+    for(const v of V){try{const g=await api("rev_get",{id,rev:v.rev});states.push({rep:g.report,by:v.by||g.by||g.report.by||"",at:TS(g.report.updatedAt)||TS(v.st)||TS(v.at)||TS(g.at),rev:v.rev})}catch(e){if(e&&/unknown|bad_action|forbidden/.test(e.message||"")){old=true;break}}n++;prog()}
+    if(old){box.innerHTML='<div class="card"><p class="note" style="margin:0">Server köhnə versiyadır — dəyişikliklərin tarixçəsi server yenilənəndən sonra görünəcək.</p></div>';return}
+    if(states[0]&&(h.items||[]).length>=30)states[0].oldest=true;
+    states.push({rep:cur,by:(h.cur&&h.cur.by)||cur.by||"",at:(h.cur&&TS(h.cur.at))||TS(cur.updatedAt),cur:true});
+    const E=events(states).reverse();
+    box.innerHTML=`<div class="card"><h3>📜 Dəyişiklik tarixçəsi</h3><p class="note" style="margin:0">Hesabat kim tərəfindən, nə vaxt və necə dəyişdirilib: yaradılma, düzəlişlər, təsdiq, imzalar, bərpa. Hər dəyişikliyə basın — köhnə və yeni dəyərlər göstərilir. Müştəri imzası düzəlişlər zamanı silinmir (yalnız “İmzanı sil” düyməsi ilə).</p>
+      ${h.del?`<div class="banner" style="margin:6px 0 0">🗑 Silinib: ${esc(dt(TS(h.del.at)))} · ${esc(h.del.by||"")}</div>`:""}
+      <div class="zsh-tl">${E.map(ev=>evHTML(ev,cur,true)).join("")}</div>${V.length?"":'<p class="note">Əvvəlki versiya hələ yoxdur — hesabat bir dəfə saxlanılıb.</p>'}</div>`;
+    bindRestore(box,id)}
+  function bindRestore(box,id){
+    box.querySelectorAll("[data-revnew]").forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent="açılır…";
+      try{await flush();const res=await api("restore",{id,rev:b.dataset.revnew});const old=normalize(res.report),cur=realOf(state.rep);
+        const r=normalize(clone(old));r.id=newId();r.createdAt=Date.now();r.updatedAt=Date.now();r.by=state.me.name;r.forkOf=id;delete r.appr;delete r.sub;
+        if(String(r.svc.repno||"")===String(cur.svc.repno||"")){r.svc.repno="";r.svc.repnoAuto=true;applyRepNo(r,true)}
+        state.reports[r.id]=r;state.pending.add(r.id);savePending();saveLocalReports([r]);toast("Versiya ayrıca hesabat kimi açıldı: "+(r.svc.repno||"")+" · "+fmtDate(r.svc.date));openReport(r);sync()}
+      catch(e){b.disabled=false;b.textContent="Ayrıca hesabat kimi aç";toast("Açmaq alınmadı")}});
+    box.querySelectorAll("[data-rev]").forEach(b=>b.onclick=async()=>{if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Təsdiq: bərpa et";return}b.disabled=true;b.textContent="bərpa olunur…";
+      try{await flush();const res=await api("restore",{id,rev:b.dataset.rev});const rep=normalize(res.report);
+        await api("save",{report:rep,summary:summaryOf(rep),blocks:blocksOf(rep),items:itemsOf(rep),force:true});
+        state.reports[id]=rep;state.pending.delete(id);savePending();saveLocalReports([rep]);state.rep=rep;setActive(0);toast("Versiya bərpa edildi (imzalar saxlanıldı)");sync();renderEditor()}
+      catch(e){b.disabled=false;b.textContent="Bu hala bərpa et";toast("Bərpa etmək alınmadı")}})}
+  /* Ayarlar: deleted reports (manager) — who deleted, when; history and restore */
+  async function delCard(){const m=document.getElementById("main");if(!m||!hasServer()||state.me.role!=="admin")return;css();
+    let box=document.getElementById("zshDel");if(!box){m.insertAdjacentHTML("beforeend",'<div class="card zsh-del" id="zshDel"></div>');box=document.getElementById("zshDel")}
+    const put=h=>{const o=document.getElementById("zshDel");if(!o)return null;o.outerHTML='<div class="card zsh-del" id="zshDel">'+h+'</div>';return document.getElementById("zshDel")};
+    box=put('<h3>🗑 Silinmiş hesabatlar</h3><p class="note" style="margin:0">Yüklənir…</p>');
+    let L;try{L=await api("deleted_list")}catch(e){put('<h3>🗑 Silinmiş hesabatlar</h3><p class="note" style="margin:0">'+(e&&/unknown/.test(e.message||"")?"Server köhnə versiyadır — yeniləndikdən sonra görünəcək.":"Yükləmək alınmadı (internet?)")+'</p>');return}
+    const I=(L.items||[]);
+    box=put(`<h3>🗑 Silinmiş hesabatlar · ${I.length}</h3><p class="note" style="margin:0">Kim, nə vaxt silib. “Tarixçə” — silinməzdən əvvəlki dəyişikliklər; “Bərpa et” — hesabatı son halı ilə qaytarır (imzalar da qalır).</p>
+      ${I.length?`<div class="maptbl" style="margin-top:8px"><table class="ltbl"><tr><th style="text-align:left">Hesabat</th><th>Silinib</th><th>Kim</th><th></th></tr>${I.slice(0,100).map(x=>`<tr><td>${esc(x.repno||x.id)}${x.date?" · "+esc(fmtDate(x.date)):""}<br><span class="note">${esc([x.client,x.obj].filter(Boolean).join(" — "))}</span></td><td class="c">${esc(dt(TS(x.at)))}</td><td class="c">${esc(x.by||"—")}</td>
+        <td class="c">${x.hasVer?`<button class="btn sm" data-dh="${esc(x.id)}">Tarixçə</button> <button class="btn sm" data-dr="${esc(x.id)}">Bərpa et</button>`:""}</td></tr><tr hidden data-dhb="${esc(x.id)}"><td colspan="4"></td></tr>`).join("")}</table></div>`:'<p class="note">Silinmiş hesabat yoxdur.</p>'}`);if(!box)return;
+    box.querySelectorAll("[data-dh]").forEach(b=>b.onclick=async()=>{const id=b.dataset.dh,row=box.querySelector(`[data-dhb="${CSS.escape(id)}"]`),td=row.firstElementChild;row.hidden=!row.hidden;if(row.hidden||td.dataset.done)return;td.innerHTML='<p class="note">Yüklənir…</p>';
+      try{const h=await api("history",{id}),V=(h.items||[]).slice(0,30).reverse(),S=[];for(const v of V){try{const g=await api("rev_get",{id,rev:v.rev});S.push({rep:g.report,by:v.by||g.by||"",at:TS(g.report.updatedAt)||TS(v.st)||TS(v.at),rev:v.rev})}catch(e){}}
+        if(!S.length){td.innerHTML='<p class="note">Versiya tapılmadı.</p>';return}const last=S[S.length-1].rep,E=events(S).reverse();
+        td.innerHTML=`<div class="zsh-tl"><div class="zsh-ev cur"><div class="zsh-dot" style="border-color:var(--bad);background:var(--bad)"></div><div class="zsh-b"><div class="zsh-h"><b>${esc(dt(TS(h.del&&h.del.at)))}</b><span class="chip">👤 ${esc(h.del&&h.del.by||"")}</span></div><div class="zsh-tags"><span class="chip bad">🗑 Silindi</span></div></div></div>${E.map(ev=>evHTML(ev,last,false)).join("")}</div>`;td.dataset.done="1"}
+      catch(e){td.innerHTML='<p class="note">Yükləmək alınmadı.</p>'}});
+    box.querySelectorAll("[data-dr]").forEach(b=>b.onclick=async()=>{if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Təsdiq: bərpa et";return}b.disabled=true;b.textContent="bərpa olunur…";
+      try{const id=b.dataset.dr,h=await api("history",{id}),v=(h.items||[])[0];if(!v)throw new Error("nover");const res=await api("restore",{id,rev:v.rev}),rep=normalize(res.report);
+        await api("save",{report:rep,summary:summaryOf(rep),blocks:blocksOf(rep),items:itemsOf(rep),force:true});state.reports[id]=rep;saveLocalReports([rep]);toast("Hesabat bərpa edildi: "+(rep.svc.repno||""));await sync();delCard()}
+      catch(e){b.disabled=false;b.textContent="Bərpa et";toast("Bərpa etmək alınmadı")}})}
+  return {show,delCard,events}})();
+showHistory=ZSHIST.show;
 </script>
 </body>
 </html>
