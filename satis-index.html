@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111201;window.ZS_APP="zssa";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111301;window.ZS_APP="zssa";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -3902,7 +3902,8 @@ if(!state.me.name)renderWelcome();else startApp();
 window.ZSLOOK=(function(){
   let KEY="zs.look",O={};
   const D={acc:"",accC:"",btn:"std",fx:"flat",anim:"1",card:"std",bg:"plain",bgImg:"",bgOp:"0.22",hdr:"std",fs:"n",dens:"n",logo:"",logoM:"right",logoH:"40",logoPdf:"1",
-    icons:"1",splash:"1",nav:"1",field:"0",darkAuto:"0",darkFrom:"19:00",darkTo:"07:00"};
+    icons:"1",splash:"1",nav:"1",field:"0",darkAuto:"0",darkFrom:"19:00",darkTo:"07:00",
+    ff:"std",rad:"",pw:"wide",tbl:"std",hc:"0",hov:"1",sb:"std"};
   const LSg=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
   const own=()=>LSg(KEY,{})||{},team=()=>LSg(KEY+".team",null),isAdm=()=>!!(O.isAdmin&&O.isAdmin());
   const hasOwn=()=>Object.keys(own()).length>0;
@@ -3917,7 +3918,12 @@ window.ZSLOOK=(function(){
     anim:[["1","Var"],["0","Yoxdur"]],
     card:[["std","Standart"],["shadow","Kölgəli"],["float","Havada (dərin kölgə)"],["edge","Rəngli kənar"],["outline","Qalın haşiyə"],["glass","Şüşə"]],
     bg:[["plain","Sadə"],["grad","Yumşaq qradiyent"],["dots","Nöqtəli"],["grid","Dama"],["lines","Çəp xətlər"],["img","Öz şəklim…"]],
-    hdr:[["std","Standart"],["accent","Rəngli"],["glass","Şüşə"]],
+    hdr:[["std","Standart"],["accent","Rəngli"],["grad","Rəngli qradiyent"],["dark","Tünd"],["glass","Şüşə"]],
+    ff:[["std","Standart (Noto Sans)"],["sys","Sistem şrifti"],["round","Yumru"],["serif","Klassik (serif)"],["cond","Sıx (dar)"],["mono","Texniki (mono)"]],
+    pw:[["std","Standart (1120 px)"],["wide","Geniş (1400 px)"],["full","Bütün ekran"]],
+    tbl:[["std","Standart"],["zebra","Zolaqlı sətirlər"],["grid","Xanalı (haşiyəli)"],["tight","Yığcam"],["airy","Geniş sətirlər"]],
+    hc:[["0","Normal"],["1","Yüksək (zəif görmə / günəş)"]],hov:[["1","Var"],["0","Yoxdur"]],
+    sb:[["std","Standart"],["thin","İncə"],["accent","Rəngli"]],
     fs:[["s","Kiçik"],["n","Normal"],["l","Böyük"],["xl","Çox böyük"]],
     dens:[["c","Yığcam"],["n","Normal"],["w","Geniş"]],
     logoM:[["right","Loqo solda, ad və istifadəçi sağda"],["both","Loqo + ad yan-yana (solda)"],["logo","Yalnız loqo"]],
@@ -3926,12 +3932,16 @@ window.ZSLOOK=(function(){
     field:[["0","Söndürülüb"],["1","Açıq — iri düymə, güclü kontrast"]],darkAuto:[["0","Söndürülüb"],["1","Açıq — vaxta görə"]]};
   const PRESETS=[["Klassik",{}],["Müasir",{acc:"violet",btn:"round",fx:"shadow",card:"float",bg:"grad",hdr:"std"}],["Kontrast",{acc:"slate",btn:"sharp",fx:"outline",card:"outline",bg:"plain",hdr:"accent",field:"0"}],
     ["Minimal",{acc:"slate",btn:"soft",fx:"flat",card:"std",bg:"plain",hdr:"glass",dens:"c"}],["Gecə",{acc:"teal",fx:"glow",card:"glass",bg:"dots",darkAuto:"1",darkFrom:"00:00",darkTo:"23:59"}],
-    ["Okean",{acc:"blue",btn:"soft",fx:"gloss",card:"shadow",bg:"grad",hdr:"accent"}],["Günəş",{acc:"orange",btn:"round",fx:"raised",card:"edge",bg:"lines"}],["Korporativ",{acc:"gold",btn:"std",fx:"shadow",card:"edge",bg:"plain",hdr:"accent"}]];
+    ["Okean",{acc:"blue",btn:"soft",fx:"gloss",card:"shadow",bg:"grad",hdr:"accent"}],["Günəş",{acc:"orange",btn:"round",fx:"raised",card:"edge",bg:"lines"}],["Korporativ",{acc:"gold",btn:"std",fx:"shadow",card:"edge",bg:"plain",hdr:"accent"}],
+    ["Aurora",{acc:"violet",btn:"round",fx:"glow",card:"glass",bg:"grad",hdr:"grad",ff:"round",rad:"16"}],["Nord",{acc:"custom",accC:"#4C6A92",btn:"soft",fx:"flat",card:"outline",bg:"plain",hdr:"dark",ff:"sys",tbl:"zebra"}],
+    ["Material",{acc:"indigo",btn:"std",fx:"shadow",card:"float",bg:"plain",hdr:"accent",ff:"sys",tbl:"zebra",rad:"12"}],["Təbiət",{acc:"teal",btn:"round",fx:"raised",card:"edge",bg:"dots",hdr:"grad",ff:"round"}],
+    ["Lavanda",{acc:"pink",btn:"soft",fx:"gloss",card:"shadow",bg:"grad",hdr:"glass",ff:"round",rad:"18"}],["Ofis",{acc:"slate",btn:"std",fx:"flat",card:"std",bg:"plain",hdr:"std",ff:"cond",tbl:"grid",dens:"c",pw:"full"}],
+    ["Mühəndis",{acc:"custom",accC:"#0B5CAD",btn:"sharp",fx:"outline",card:"outline",bg:"grid",hdr:"dark",ff:"mono",tbl:"grid"}]];
   function accOf(L){if(L.acc==="custom")return L.accC||"";const a=ACC.find(x=>x[0]===L.acc);return a&&a[0]?a[2]:""}
   function css(L){const A=accOf(L),c=[];
     /* PDF header colour as a plain hex: the PDF renderer (html2canvas) cannot read color-mix() → "unsupported color function" */
     const dk=(h,k)=>{const m=/^#?([0-9a-f]{6})$/i.exec(String(h).trim());if(!m)return h;const n=parseInt(m[1],16);return "#"+[n>>16,(n>>8)&255,n&255].map(v=>Math.round(v*k).toString(16).padStart(2,"0")).join("")};
-    if(A)c.push(`:root,:root[data-theme]{--accent:${A};--accent-soft:color-mix(in srgb,${A} 18%,var(--surface));--paper-head:${dk(A,0.7)}}`);
+    if(A)c.push(`:root,:root[data-theme]{--accent:${A};--accent-soft:color-mix(in srgb,${A} 18%,var(--surface))}`);
     c.push({std:"",round:".btn,.seg button,.chip{border-radius:999px!important}",soft:".btn{border-radius:14px!important}",sharp:".btn,.card,.rcard,input,select,textarea{border-radius:3px!important}"}[L.btn]||"");
     c.push({flat:"",
       shadow:".btn{box-shadow:0 2px 6px rgba(0,0,0,.12)}.btn.pri{box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 45%,transparent)}",
@@ -3950,6 +3960,24 @@ window.ZSLOOK=(function(){
       img:L.bgImg?`body::before{content:"";position:fixed;inset:0;background:url(${L.bgImg}) center/cover no-repeat;opacity:${+L.bgOp||0.22};z-index:-1;pointer-events:none}`:""}[L.bg]||"");
     c.push({std:"",accent:"header.top{background:var(--accent)!important;color:var(--accent-ink)}header.top .brand,header.top .brand small,header.top .tab{color:var(--accent-ink)!important}header.top .brand small{opacity:.85}header.top .tab[aria-selected=\"true\"]{background:var(--accent-ink)!important;color:var(--accent)!important}header.top .btn{background:color-mix(in srgb,var(--accent-ink) 14%,transparent);color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent-ink) 35%,transparent)}header.top .sync,header.top .save,header.top .sync *{color:var(--accent-ink)!important;opacity:.92}",
       glass:"header.top{background:color-mix(in srgb,var(--bg) 65%,transparent)!important;backdrop-filter:blur(12px)}"}[L.hdr]||"");
+    const HC="header.top .brand,header.top .brand small,header.top .tab{color:#fff!important}header.top .brand small{opacity:.85}header.top .tab[aria-selected=\"true\"]{background:#fff!important;color:var(--accent)!important}header.top .btn{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.35)}header.top .sync,header.top .save,header.top .sync *{color:#fff!important;opacity:.92}";
+    if(L.hdr==="grad")c.push("header.top{background:linear-gradient(120deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#000))!important;color:#fff}"+HC);
+    if(L.hdr==="dark")c.push("header.top{background:#16201E!important;color:#fff;border-bottom-color:#000!important}"+HC);
+    c.push({std:"",sys:"body,button,input,select,textarea{font-family:system-ui,-apple-system,\"Segoe UI\",Roboto,Arial,sans-serif!important}",
+      round:"body,button,input,select,textarea{font-family:ui-rounded,\"SF Pro Rounded\",\"Nunito\",\"Varela Round\",\"Segoe UI\",system-ui,sans-serif!important}",
+      serif:"body,button,input,select,textarea{font-family:Georgia,\"Cambria\",\"Times New Roman\",serif!important}",
+      cond:"body,button,input,select,textarea{font-family:\"Roboto Condensed\",\"Arial Narrow\",\"Segoe UI\",system-ui,sans-serif!important;font-stretch:condensed}",
+      mono:"body,button,input,select,textarea{font-family:ui-monospace,\"Cascadia Mono\",Consolas,\"Roboto Mono\",monospace!important;letter-spacing:-.01em}"}[L.ff]||"");
+    if(L.rad!==""&&L.rad!=null){const R=Math.max(0,Math.min(28,+L.rad||0));c.push(`:root{--r:${R}px}.btn,.card,.rcard,input,select,textarea,.maptbl,.zs-kpi,.zs-chart,.stat{border-radius:${R}px!important}.chip{border-radius:${Math.max(4,R)}px!important}`)}
+    c.push({std:"",wide:"@media (min-width:1000px){.wrap,header.top .bar,header.top .tabs{max-width:1400px!important}}",full:"@media (min-width:1000px){.wrap,header.top .bar,header.top .tabs{max-width:none!important;padding-inline:24px}}"}[L.pw]||"");
+    c.push({std:"",zebra:".maptbl tr:nth-child(even) td,.ltbl tr:nth-child(even) td,.stbl tr:nth-child(even) td{background:color-mix(in srgb,var(--ink) 4%,transparent)}",
+      grid:".maptbl td,.maptbl th,.ltbl td,.ltbl th,.stbl td,.stbl th{border:1px solid var(--line)!important}",
+      tight:".maptbl td,.maptbl th,.ltbl td,.ltbl th,.stbl td,.stbl th{padding:3px 6px!important}",
+      airy:".maptbl td,.maptbl th,.ltbl td,.ltbl th,.stbl td,.stbl th{padding:10px 12px!important}"}[L.tbl]||"");
+    if(L.hov==="1")c.push(".maptbl tr:hover td,.ltbl tr:hover td{background:color-mix(in srgb,var(--accent) 7%,transparent)}.maptbl tr.msep:hover td,.ltbl tr.msep:hover td{background:none}");
+    if(L.hc==="1")c.push(":root,:root[data-theme]{--line:#5f6b68;--muted:color-mix(in srgb,var(--ink) 82%,transparent)}body{font-weight:500}.btn{border-width:2px}a{text-decoration:underline}:focus-visible{outline:3px solid var(--accent)!important;outline-offset:2px}");
+    c.push({std:"",thin:"*{scrollbar-width:thin}::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--ink) 25%,transparent);border-radius:8px}",
+      accent:"*{scrollbar-color:var(--accent) transparent}::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--accent);border-radius:8px}"}[L.sb]||"");
     c.push({s:"body{zoom:.92}",n:"",l:"body{zoom:1.08}",xl:"body{zoom:1.18}"}[L.fs]||"");
     c.push({c:".card{padding:10px!important;gap:8px!important}.btn{min-height:36px;padding:6px 11px}.rcard{padding:8px 10px!important}",n:"",w:".card{padding:18px!important;gap:14px!important}.btn{min-height:46px;padding:11px 18px}"}[L.dens]||"");
     if(L.logo){const lm=L.logoM==="both"&&!L.lm2?"right":L.logoM,lh=Math.max(20,Math.min(100,+L.logoH||40));
@@ -3967,7 +3995,9 @@ window.ZSLOOK=(function(){
     darkTick();if(O.onApply)try{O.onApply(L)}catch(e){}}
   const pdfLogo=()=>{const L=get();return L.logo&&L.logoPdf!=="0"?L.logo:""};
   /* ---- base CSS of the extras (KPI tiles, charts, bottom bar, skeleton, splash, ok-check) ---- */
-  const BASE=`.zs-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0 12px}@media (max-width:760px){.zs-kpi b{font-size:18px}.zs-kpis{grid-template-columns:1fr 1fr}}
+  const BASE=`.maptbl{max-width:100%}.maptbl .ltbl td,.ltbl td{white-space:normal;overflow-wrap:break-word}.ltbl th{white-space:normal}.ltbl td .btn{margin:2px 0;white-space:nowrap}.ltbl td.c b{white-space:nowrap}
+.sttbl td{white-space:normal}.maptbl td .note{white-space:normal}
+.zs-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0 12px}@media (max-width:760px){.zs-kpi b{font-size:18px}.zs-kpis{grid-template-columns:1fr 1fr}}
 .zs-kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:block;width:100%}
 .zs-kpi b{display:block;font:700 24px/1.15 var(--f-num);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.zs-kpi span{color:var(--muted);font-size:12.5px}
 .zs-kpi.ok{background:var(--ok-bg);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}.zs-kpi.warn{background:var(--warn-bg);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}.zs-kpi.bad{background:var(--bad-bg);border-color:color-mix(in srgb,var(--bad) 30%,transparent)}.zs-kpi.on{outline:3px solid var(--accent);outline-offset:1px}
@@ -3983,6 +4013,7 @@ body.zs-hasnav{padding-bottom:78px}body.zs-hasnav .tabs [data-g],body.zs-hasnav 
 #zsSplash .nm{font:800 22px var(--f-disp);letter-spacing:.04em;text-transform:uppercase}#zsSplash .bar{margin:24px auto 0;width:130px;height:4px;border-radius:2px;background:rgba(255,255,255,.25);overflow:hidden}#zsSplash .bar i{display:block;height:100%;width:40%;background:#fff;animation:zsLoad 1s ease-in-out infinite}@keyframes zsLoad{0%{transform:translateX(-100%)}100%{transform:translateX(330%)}}
 #zsOk{position:fixed;left:50%;top:40%;z-index:9998;transform:translate(-50%,-50%);width:76px;height:76px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:40px;box-shadow:0 0 0 12px color-mix(in srgb,var(--ok) 18%,transparent);pointer-events:none;animation:zsPop .35s ease-out,zsFade .3s ease-in .75s forwards}
 .btn svg.zsi{width:16px;height:16px;flex:none;margin-right:6px;vertical-align:-3px}
+.lkPrev{border:1px dashed var(--line);border-radius:12px;padding:10px;margin:8px 0;background:var(--bg)}.lkPh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
 `;
   /* ---- icons on buttons (by the button's words) ---- */
   const P=d=>`<svg class="zsi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -4048,6 +4079,10 @@ body.zs-hasnav{padding-bottom:78px}body.zs-hasnav .tabs [data-g],body.zs-hasnav 
       <div class="grid2">${sel("bg","Arxa fon")}${sel("anim","Animasiyalar (keçid, ✓, hərəkət)")}</div>
       ${L.bg==="img"?`<div class="grid2"><label class="f"><span>Arxa fon şəkli</span><input type="file" id="lkBg" accept="image/*"${dis}></label><label class="f"><span>Şəklin görünmə dərəcəsi: ${Math.round((+L.bgOp||.22)*100)}%</span><input type="range" id="lkOp" min="0.05" max="0.8" step="0.05" value="${esc(L.bgOp)}"${dis}></label></div>`:""}
       <div class="grid2">${sel("fs","Yazı və elementlərin ölçüsü")}${sel("dens","Sıxlıq")}</div>
+      <div class="grid2">${sel("ff","Şrift")}${sel("pw","Səhifənin eni (geniş ekranda)")}</div>
+      <div class="grid2">${sel("tbl","Cədvəllərin görünüşü")}${sel("hov","Cədvəldə sətir üzərində işıqlanma")}</div>
+      <div class="grid2"><label class="f"><span>Künclərin yumruluğu: <b id="lkRv">${L.rad===""||L.rad==null?"standart":L.rad+" px"}</b></span><input type="range" id="lkR" min="0" max="28" step="1" value="${L.rad===""||L.rad==null?10:L.rad}"${dis}></label>${sel("hc","Kontrast")}</div>
+      <div class="grid2">${sel("sb","Sürüşdürmə zolağı")}<span></span></div>
       <div class="grid2">${sel("icons","Düymələrdə ikonlar")}${sel("nav","Telefonda aşağı menyu")}</div>
       <div class="grid2">${sel("field","Sahə rejimi (əlcəklə / günəşdə)")}${sel("splash","Açılış ekranı")}</div>
       <div class="grid2">${sel("darkAuto","Qaranlıq rejim avtomatik")}${L.darkAuto==="1"?`<div class="grid2"><label class="f"><span>🌙 başlayır</span><input type="time" data-lt="darkFrom" value="${esc(L.darkFrom)}"${dis}></label><label class="f"><span>☀ bitir</span><input type="time" data-lt="darkTo" value="${esc(L.darkTo)}"${dis}></label></div>`:"<span></span>"}</div>
@@ -4057,7 +4092,9 @@ body.zs-hasnav{padding-bottom:78px}body.zs-hasnav .tabs [data-g],body.zs-hasnav 
       ${adm&&O.teamSend?`<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:10px"><b>Bütün işçilərə</b><p class="note" style="margin:2px 0 6px">Bu görünüşü (rəng, loqo, düymələr, kartlar, funksiyalar) bütün işçilərin proqramına göndərin.${T&&T.at?" Son göndərmə: "+new Date(T.at).toLocaleString("az-AZ"):""}</p>
         <label style="display:flex;gap:8px;align-items:center;cursor:pointer;margin:0 0 8px"><input type="checkbox" id="lkAllow" style="width:16px;height:16px;min-height:0;margin:0"${LSg(KEY+".allow",false)?" checked":""}> İşçilər öz görünüşünü dəyişə bilsin</label>
         <div class="actions"><button type="button" class="btn pri" id="lkSend">📤 Hamıya göndər</button>${T?`<button type="button" class="btn" id="lkUnsend">Ümumi görünüşü ləğv et</button>`:""}</div></div>`:""}
-      <div class="actions" style="margin-top:4px"><button type="button" class="btn" id="lkReset"${dis}>Standart görünüşə qaytar</button></div></div>`;
+      <div class="lkPrev" aria-hidden="true"><div class="lkPh">Ön baxış</div><div class="card" style="margin:0"><b>Kart başlığı</b><p class="note" style="margin:2px 0 8px">Belə görünəcək: düymələr, kart, cədvəl.</p><div class="actions" style="margin:0"><button type="button" class="btn pri" tabindex="-1">Əsas düymə</button><button type="button" class="btn" tabindex="-1">Adi düymə</button><span class="chip ok">yaşıl</span><span class="chip warn">sarı</span></div>
+        <div class="maptbl" style="margin-top:8px"><table class="ltbl"><tr><th style="text-align:left">Müştəri</th><th>Tarix</th><th>Vəziyyət</th></tr><tr><td>Nümunə MMC</td><td class="c">13.11.2026</td><td class="c">Bu gün</td></tr><tr><td>Test ASC</td><td class="c">20.11.2026</td><td class="c">7 gün qalıb</td></tr></table></div></div></div>
+      <div class="actions" style="margin-top:4px"><button type="button" class="btn" id="lkRand"${dis}>🎲 Təsadüfi üslub</button><button type="button" class="btn" id="lkExp">⬇ Görünüşü fayla yaz</button><label class="btn" style="cursor:pointer${lk?";opacity:.5;pointer-events:none":""}">⬆ Fayldan yüklə<input type="file" id="lkImp" accept=".json,application/json" hidden${dis}></label><button type="button" class="btn" id="lkReset"${dis}>Standart görünüşə qaytar</button></div></div>`;
     if(old)old.outerHTML=h;else m.insertAdjacentHTML("beforeend",h);
     const g=id=>document.getElementById(id);
     const save=(L2,redraw)=>{if(!put(L2)){toast("Yadda saxlamaq alınmadı — şəkil çox böyükdür");return}apply();if(redraw)card()};
@@ -4076,6 +4113,11 @@ body.zs-hasnav{padding-bottom:78px}body.zs-hasnav .tabs [data-g],body.zs-hasnav 
     const sd=g("lkSend");if(sd)sd.onclick=()=>teamSend(sd);
     const us=g("lkUnsend");if(us)us.onclick=async()=>{us.disabled=true;try{await O.teamSend(null);localStorage.removeItem(KEY+".team");toast("Ümumi görünüş ləğv edildi — hər kəs öz görünüşünü seçir");card()}catch(e){toast("Alınmadı — internet / server");us.disabled=false}};
     const tm=g("lkTeam");if(tm)tm.onclick=()=>{localStorage.removeItem(KEY);apply();card();toast("Rəhbərin görünüşü tətbiq olundu")};
+    const rr=g("lkR");if(rr){rr.oninput=()=>{const L2=base();L2.rad=rr.value;put(L2);apply();const v=g("lkRv");if(v)v.textContent=rr.value+" px"}}
+    const rn=g("lkRand");if(rn)rn.onclick=()=>{const pk=k=>OPT[k][Math.floor(Math.random()*OPT[k].length)][0],cur=own(),A=ACC.filter(a=>a[0]&&a[0]!=="custom");
+      const L2=Object.assign({},D,{logo:cur.logo||"",logoM:cur.logoM||"both",logoPdf:cur.logoPdf||"1",fs:cur.fs||"n",pw:cur.pw||"wide"},{acc:A[Math.floor(Math.random()*A.length)][0],btn:pk("btn"),fx:pk("fx"),card:pk("card"),bg:["plain","grad","dots","grid","lines"][Math.floor(Math.random()*5)],hdr:pk("hdr"),ff:pk("ff"),tbl:pk("tbl"),rad:String(Math.floor(Math.random()*20))});save(L2,true);toast("Yeni üslub — bəyənmədinizsə yenidən basın")};
+    const ex=g("lkExp");if(ex)ex.onclick=()=>{const b=new Blob([JSON.stringify({kind:"zuvand-look",v:1,look:own()},null,1)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="ZUVAND-gorunus.json";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);toast("Görünüş fayla yazıldı — başqa kompüterdə “Fayldan yüklə” ilə açın")};
+    const im=g("lkImp");if(im)im.onchange=async()=>{const f=im.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!j||j.kind!=="zuvand-look"||typeof j.look!=="object")throw 0;const L2={};Object.keys(j.look).forEach(k=>{if(k in D||k==="accC"||k==="lm2")L2[k]=String(j.look[k])});save(L2,true);toast("Görünüş fayldan yükləndi")}catch(e){toast("Bu fayl görünüş faylı deyil")}};
     g("lkReset").onclick=()=>{put({});apply();card();if(O.resetTheme)O.resetTheme();toast("Standart görünüş qaytarıldı")}}
   function init(prefix,opts){KEY=prefix+".look";O=opts||{};apply();
     const t=document.getElementById("hTitle");if(t&&window.MutationObserver)new MutationObserver(()=>{if(get().logo&&!document.getElementById("zsLogo"))apply()}).observe(t.parentNode,{childList:true});
