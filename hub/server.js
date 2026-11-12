@@ -120,11 +120,21 @@ const needAdmin = u => { if (u.role !== "admin") err("forbidden") };
 const needBoss = u => { if (!u.boss) err("forbidden") };
 const needServis = u => { if (u.role !== "admin" && !u.perms.includes("servis")) err("forbidden") };
 const approvedReports = () => [...reports.values()].map(r => r.report).filter(r => r.appr && r.appr.at);
-const SETTING_KEYS = ["co", "coaddr", "cotel", "notify", "interval", "warn", "fail", "vwarn", "vfail", "vhigh", "life"];
+const SETTING_KEYS = ["co", "coaddr", "cotel", "notify", "interval", "warn", "fail", "vwarn", "vfail", "vhigh", "life", "dwarn", "dfail", "dmin", "repHead"];
 
 function snsOf(r) { const c = x => String(x == null ? "" : x).replace(/[|\r\n]+/g, " ").trim(); return ((r && r.devices) || []).filter(d => d && d.type !== "pq" && d.info && c(d.info.sn)).map(d => [c(d.info.sn), c(d.type), c(d.info.brand), c(d.info.model), c(d.info.kva), c(d.loc)].join(" | ")).join("\n") }
 function summaryOf(rec) { return Object.assign({}, rec.summary || {}, { sns: (rec.summary && rec.summary.sns) || snsOf(rec.report), payer: (rec.summary && rec.summary.payer) || String((rec.report.cl && rec.report.cl.payer) || "").trim(), id: rec.report.id, updatedAt: rec.report.updatedAt || 0, pdf: rec.pdf || "", creator: rec.creator || "", appr: rec.report.appr && rec.report.appr.at ? (rec.report.appr.by || "✓") : "", sub: rec.report.sub && rec.report.sub.at ? (rec.report.sub.by || "✓") : "" }) }
 function versionsDir(id) { return P("versions", id) }
+/* a customer's (or engineer's) signature is never lost by a later save: it goes only when the signature is deleted on purpose (sigDel) */
+function keepSig(old, r) {
+  const os = (old && old.sig) || {}, del = (r && r.sigDel) || {}; let n = 0;
+  Object.keys(os).forEach(k => { const o = os[k]; if (!o || !o.img) return; const x = r.sig && r.sig[k]; if (x && x.img) return;
+    if ((+del[k] || 0) >= (Date.parse(o.at) || 0)) return; r.sig = r.sig || {}; r.sig[k] = o; n++ });
+  if (n && !r.sigSnap && old.sigSnap) r.sigSnap = old.sigSnap; return n;
+}
+/* signatures in r that the stored report lacks (or has older) */
+function newSigs(old, r) { const os = (old && old.sig) || {}, ns = (r && r.sig) || {}; return Object.keys(ns).filter(k => ns[k] && ns[k].img && (!os[k] || !os[k].img || (Date.parse(ns[k].at) || 0) > (Date.parse(os[k].at) || 0))) }
+const stripData = o => JSON.parse(JSON.stringify(o, (k, v) => typeof v === "string" && /^data:/.test(v) ? "[şəkil]" : v));
 function keepVersion(rec) {
   const dir = versionsDir(rec.report.id); fs.mkdirSync(dir, { recursive: true });
   writeJSON(path.join(dir, (rec.savedAt || now()) + ".json"), { report: rec.report, by: rec.savedBy || "", at: rec.savedAt || now() });
@@ -368,13 +378,19 @@ const ACTIONS = {
     if (cur && !force && (cur.report.updatedAt || 0) > (r.updatedAt || 0)) err("conflict", { report: cur.report });
     /* approval belongs to the manager: a worker can neither change an approved report nor approve one */
     if (!admin) {
-      if (cur && cur.report.appr && cur.report.appr.at) err("conflict", { report: cur.report });
+      if (cur && cur.report.appr && cur.report.appr.at) {
+        /* an approved report stays as approved — only a new signature (e.g. the customer's, taken later) is added to it */
+        const ns = newSigs(cur.report, r);
+        if (ns.length) { keepVersion(cur); const R = cur.report; R.sig = R.sig || {}; ns.forEach(k => { R.sig[k] = r.sig[k] }); if (r.sigSnap && ns.some(k => /^cl/.test(k))) R.sigSnap = r.sigSnap; R.updatedAt = now();
+          const rec2 = Object.assign({}, cur, { report: R, savedAt: now(), savedBy: u.name }); saveReport(rec2); log(u, "sign", R.id + " " + (R.cl && R.cl.name || "")); return { summary: summaryOf(rec2), report: R } }
+        err("conflict", { report: cur.report });
+      }
       /* one worker's report is not changed by another worker (only the manager); the app saves the changes as the worker's own new report */
       const owner = cur ? String(cur.creator || cur.report.creator || "").trim() : "";
       if (owner && lc(owner).replace(/\s+/g, " ") !== lc(u.name).replace(/\s+/g, " ")) err("not_owner", { report: cur.report, owner });
       if (r.appr) delete r.appr;
     }
-    if (cur) keepVersion(cur);
+    if (cur) { keepSig(cur.report, r); keepVersion(cur) }
     const rec = { report: r, summary: b.summary || {}, items: Array.isArray(b.items) ? b.items.slice(0, 2000) : [], blocks: Array.isArray(b.blocks) ? b.blocks.slice(0, 4000) : (cur && cur.blocks) || [], pdf: cur ? cur.pdf : "", savedAt: now(), savedBy: u.name, creator: cur ? cur.creator : (r.creator || u.name) };
     saveReport(rec); log(u, "save", r.id + " " + (r.cl.name || ""));
     try { learnCustomer(r) } catch (e) { log(u, "learn-error", e.message) }
@@ -408,7 +424,20 @@ const ACTIONS = {
   history: (u, b) => {
     needAdmin(u); const id = safeId(b.id); if (!id) err("bad_id"); const dir = versionsDir(id); let items = [];
     try { items = fs.readdirSync(dir).filter(f => f.endsWith(".json")).sort().reverse().map(f => { const v = readJSON(path.join(dir, f), {}); return { rev: f.replace(/\.json$/, ""), at: v.at, by: v.by } }) } catch (e) { }
-    return { items };
+    const rec = reports.get(id);
+    return { items, cur: rec ? { at: rec.savedAt || rec.report.updatedAt || 0, by: rec.savedBy || rec.report.by || "" } : null, del: deleted[id] || null };
+  },
+  rev_get: (u, b) => {
+    needAdmin(u); const id = safeId(b.id), rev = safeId(b.rev); if (!id || !rev) err("bad_id");
+    const v = readJSON(path.join(versionsDir(id), rev + ".json"), null); if (!v || !v.report) err("notfound");
+    return { report: stripData(v.report), by: v.by || "", at: v.at || 0 };
+  },
+  deleted_list: (u) => {
+    needAdmin(u); const items = [];
+    Object.keys(deleted).forEach(id => { const d = deleted[id] || {}; let last = null;
+      try { const fs1 = fs.readdirSync(versionsDir(id)).filter(f => f.endsWith(".json")).sort(); if (fs1.length) last = readJSON(path.join(versionsDir(id), fs1[fs1.length - 1]), null) } catch (e) { }
+      const r = last && last.report; items.push({ id, at: d.at || 0, by: d.by || "", repno: r && r.svc ? r.svc.repno || "" : "", date: r && r.svc ? r.svc.date || "" : "", client: r && r.cl ? r.cl.name || "" : "", obj: r && r.cl ? r.cl.obj || "" : "", hasVer: !!last }) });
+    items.sort((a, b) => b.at - a.at); return { items: items.slice(0, 300) };
   },
   restore: (u, b) => {
     needAdmin(u); const id = safeId(b.id), rev = safeId(b.rev); if (!id || !rev) err("bad_id");
@@ -438,7 +467,7 @@ const ACTIONS = {
     log(u, "pdf", rel.join("/")); return { url: abs };
   },
 
-  settings: (u, b) => { needAdmin(u); const s = b.settings || {}; SETTING_KEYS.forEach(k => { if (s[k] !== undefined) meta.settings[k] = s[k] }); saveMeta(); return { settings: meta.settings } },
+  settings: (u, b) => { needAdmin(u); const s = b.settings || {}; SETTING_KEYS.forEach(k => { if (s[k] !== undefined && !(k === "repHead" && !/^#[0-9a-fA-F]{6}$/.test(String(s[k])))) meta.settings[k] = s[k] }); saveMeta(); return { settings: meta.settings } },
 
   translate: async (u, b) => {
     const texts = (Array.isArray(b.texts) ? b.texts : []).slice(0, 80).map(String), to = /^[a-z]{2}$/.test(b.to) ? b.to : "en";
