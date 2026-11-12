@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111301;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111302;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -4777,9 +4777,10 @@ window.ZSHIST=(function(){
     if(states[0]&&(h.items||[]).length>=30)states[0].oldest=true;
     states.push({rep:cur,by:(h.cur&&h.cur.by)||cur.by||"",at:(h.cur&&TS(h.cur.at))||TS(cur.updatedAt),cur:true});
     const E=events(states).reverse();
-    box.innerHTML=`<div class="card"><h3>📜 Dəyişiklik tarixçəsi</h3><p class="note" style="margin:0">Hesabat kim tərəfindən, nə vaxt və necə dəyişdirilib: yaradılma, düzəlişlər, təsdiq, imzalar, bərpa. Hər dəyişikliyə basın — köhnə və yeni dəyərlər göstərilir. Müştəri imzası düzəlişlər zamanı silinmir (yalnız “İmzanı sil” düyməsi ilə).</p>
+    box.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:0">📜 Dəyişiklik tarixçəsi</h3><button class="btn sm" data-hx>✕ Bağla</button></div><p class="note" style="margin:0">Hesabat kim tərəfindən, nə vaxt və necə dəyişdirilib: yaradılma, düzəlişlər, təsdiq, imzalar, bərpa. Hər dəyişikliyə basın — köhnə və yeni dəyərlər göstərilir. Müştəri imzası düzəlişlər zamanı silinmir (yalnız “İmzanı sil” düyməsi ilə).</p>
       ${h.del?`<div class="banner" style="margin:6px 0 0">🗑 Silinib: ${esc(dt(TS(h.del.at)))} · ${esc(h.del.by||"")}</div>`:""}
-      <div class="zsh-tl">${E.map(ev=>evHTML(ev,cur,true)).join("")}</div>${V.length?"":'<p class="note">Əvvəlki versiya hələ yoxdur — hesabat bir dəfə saxlanılıb.</p>'}</div>`;
+      <div class="zsh-tl">${E.map(ev=>evHTML(ev,cur,true)).join("")}</div>${V.length?"":'<p class="note">Əvvəlki versiya hələ yoxdur — hesabat bir dəfə saxlanılıb.</p>'}<div class="actions"><button class="btn sm" data-hx>▴ Tarixçəni bağla</button></div></div>`;
+    box.querySelectorAll("[data-hx]").forEach(x=>x.onclick=()=>{box.innerHTML="";const hb=document.getElementById("bHist");if(hb)hb.scrollIntoView({block:"center",behavior:"smooth"})});
     bindRestore(box,id)}
   function bindRestore(box,id){
     box.querySelectorAll("[data-revnew]").forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent="açılır…";
@@ -4801,12 +4802,14 @@ window.ZSHIST=(function(){
     let L;try{L=await api("deleted_list")}catch(e){put('<h3>🗑 Silinmiş hesabatlar</h3><p class="note" style="margin:0">'+(e&&/unknown/.test(e.message||"")?"Server köhnə versiyadır — yeniləndikdən sonra görünəcək.":"Yükləmək alınmadı (internet?)")+'</p>');return}
     const I=(L.items||[]);
     box=put(`<h3>🗑 Silinmiş hesabatlar · ${I.length}</h3><p class="note" style="margin:0">Kim, nə vaxt silib. “Tarixçə” — silinməzdən əvvəlki dəyişikliklər; “Bərpa et” — hesabatı son halı ilə qaytarır (imzalar da qalır).</p>
-      ${I.length?`<div class="maptbl" style="margin-top:8px"><table class="ltbl"><tr><th style="text-align:left">Hesabat</th><th>Silinib</th><th>Kim</th><th></th></tr>${I.slice(0,100).map(x=>`<tr><td>${esc(x.repno||x.id)}${x.date?" · "+esc(fmtDate(x.date)):""}<br><span class="note">${esc([x.client,x.obj].filter(Boolean).join(" — "))}</span></td><td class="c">${esc(dt(TS(x.at)))}</td><td class="c">${esc(x.by||"—")}</td>
-        <td class="c">${x.hasVer?`<button class="btn sm" data-dh="${esc(x.id)}">Tarixçə</button> <button class="btn sm" data-dr="${esc(x.id)}">Bərpa et</button>`:""}</td></tr><tr hidden data-dhb="${esc(x.id)}"><td colspan="4"></td></tr>`).join("")}</table></div>`:'<p class="note">Silinmiş hesabat yoxdur.</p>'}`);if(!box)return;
-    box.querySelectorAll("[data-dh]").forEach(b=>b.onclick=async()=>{const id=b.dataset.dh,row=box.querySelector(`[data-dhb="${CSS.escape(id)}"]`),td=row.firstElementChild;row.hidden=!row.hidden;if(row.hidden||td.dataset.done)return;td.innerHTML='<p class="note">Yüklənir…</p>';
+      ${I.length?`<div class="maptbl" style="margin-top:8px"><table class="ltbl"><tr><th style="text-align:left">Hesabat</th><th>Silinib</th><th>Kim</th><th></th></tr>${I.slice(0,100).map(x=>`<tr><td data-dcell="${esc(x.id)}">${x.repno||x.client?`<b>${esc(x.repno||"Nömrəsiz")}</b>${x.date?" · "+esc(fmtDate(x.date)):""}<br><span class="note">${esc([x.client,x.obj].filter(Boolean).join(" — "))}</span>`:`<span class="note">Məlumat tapılmadı — “Tarixçə”ni açın</span><br><span class="note" style="font-size:11px">${esc(x.id)}</span>`}</td><td class="c">${esc(dt(TS(x.at)))}${x.atApprox?'<br><span class="note">təxminən</span>':""}</td><td class="c">${esc(x.by||"—")}${x.byApprox&&x.by?'<br><span class="note">son dəyişən</span>':""}</td>
+        <td class="c">${x.hasVer?`<button class="btn sm" data-dh="${esc(x.id)}">Tarixçə ▾</button> <button class="btn sm" data-dr="${esc(x.id)}">Bərpa et</button>`:""}</td></tr><tr hidden data-dhb="${esc(x.id)}"><td colspan="4"></td></tr>`).join("")}</table></div>`:'<p class="note">Silinmiş hesabat yoxdur.</p>'}`);if(!box)return;
+    box.querySelectorAll("[data-dh]").forEach(b=>b.onclick=async()=>{const id=b.dataset.dh,row=box.querySelector(`[data-dhb="${CSS.escape(id)}"]`),td=row.firstElementChild;row.hidden=!row.hidden;b.textContent=row.hidden?"Tarixçə ▾":"Bağla ▴";b.classList.toggle("pri",!row.hidden);if(row.hidden){b.closest("tr").scrollIntoView({block:"nearest",behavior:"smooth"});return}if(td.dataset.done)return;td.innerHTML='<p class="note">Yüklənir…</p>';
       try{const h=await api("history",{id}),V=(h.items||[]).slice(0,30).reverse(),S=[];for(const v of V){try{const g=await api("rev_get",{id,rev:v.rev});S.push({rep:g.report,by:v.by||g.by||"",at:TS(g.report.updatedAt)||TS(v.st)||TS(v.at),rev:v.rev})}catch(e){}}
-        if(!S.length){td.innerHTML='<p class="note">Versiya tapılmadı.</p>';return}const last=S[S.length-1].rep,E=events(S).reverse();
-        td.innerHTML=`<div class="zsh-tl"><div class="zsh-ev cur"><div class="zsh-dot" style="border-color:var(--bad);background:var(--bad)"></div><div class="zsh-b"><div class="zsh-h"><b>${esc(dt(TS(h.del&&h.del.at)))}</b><span class="chip">👤 ${esc(h.del&&h.del.by||"")}</span></div><div class="zsh-tags"><span class="chip bad">🗑 Silindi</span></div></div></div>${E.map(ev=>evHTML(ev,last,false)).join("")}</div>`;td.dataset.done="1"}
+        if(!S.length){td.innerHTML='<p class="note">Versiya tapılmadı.</p>';return}const last=S[S.length-1].rep,E=events(S).reverse(),X=I.find(y=>y.id===id)||{};
+        const cell=box.querySelector(`[data-dcell="${CSS.escape(id)}"]`);if(cell&&last&&last.svc)cell.innerHTML=`<b>${esc(last.svc.repno||"Nömrəsiz")}</b>${last.svc.date?" · "+esc(fmtDate(last.svc.date)):""}<br><span class="note">${esc([last.cl&&last.cl.name,last.cl&&last.cl.obj].filter(Boolean).join(" — "))}</span>`;
+        td.innerHTML=`<div class="zsh-tl"><div class="zsh-ev cur"><div class="zsh-dot" style="border-color:var(--bad);background:var(--bad)"></div><div class="zsh-b"><div class="zsh-h"><b>${esc(dt(TS(h.del&&h.del.at)||TS(X.at)))}</b>${(h.del&&h.del.by)||X.by?`<span class="chip">👤 ${esc((h.del&&h.del.by)||X.by)}</span>`:""}</div><div class="zsh-tags"><span class="chip bad">🗑 Silindi</span></div></div></div>${E.map(ev=>evHTML(ev,last,false)).join("")}</div><div class="actions" style="margin:4px 0 6px"><button class="btn sm" data-dhx="${esc(id)}">▴ Tarixçəni bağla</button></div>`;td.dataset.done="1";
+        td.querySelector("[data-dhx]").onclick=()=>b.click()}
       catch(e){td.innerHTML='<p class="note">Yükləmək alınmadı.</p>'}});
     box.querySelectorAll("[data-dr]").forEach(b=>b.onclick=async()=>{if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Təsdiq: bərpa et";return}b.disabled=true;b.textContent="bərpa olunur…";
       try{const id=b.dataset.dr,h=await api("history",{id}),v=(h.items||[])[0];if(!v)throw new Error("nover");const res=await api("restore",{id,rev:v.rev}),rep=normalize(res.report);
