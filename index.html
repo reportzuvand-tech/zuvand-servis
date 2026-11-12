@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111105;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111201;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -3747,9 +3747,9 @@ async function workersCard(){const box=$("#wkBox");if(!box)return;
     box.innerHTML=`<h3>İşçilər və şəxsi açarlar</h3><p class="note" style="margin:0">Hər işçiyə (rəhbər də daxil) ayrıca açar verin. İşçi tətbiqdə <b>Ayarlar → Açar</b> sahəsinə öz açarını yazır — adı avtomatik gəlir və hesabatlarda dəqiq görünür. İşdən çıxanı <b>Blokla</b> — digərlərinə toxunulmur.</p>
     ${W.length?`<div class="maptbl"><table class="ltbl"><tr><th style="text-align:left">Ad</th><th>Rol</th><th style="text-align:left">Açar</th><th style="text-align:left">E-poçt (tapşırıq bildirişi)</th><th>Vəziyyət</th><th></th></tr>${W.map(w=>`<tr${w.active===false?' style="opacity:.55"':""}><td><input data-wname="${esc(w.id)}" value="${esc(w.name)}" style="min-height:34px;padding:5px 8px;min-width:140px" aria-label="Ad"></td><td class="c">${w.role==="admin"?"Rəhbər":"İşçi"}</td><td><code class="num" style="user-select:all">${esc(w.key)}</code></td><td><input data-wmail="${esc(w.id)}" value="${esc(w.email||"")}" placeholder="istəyə görə" style="min-height:34px;padding:5px 8px;min-width:150px"></td><td class="c">${w.active===false?'<span class="chip bad">bloklanıb</span>':'<span class="chip ok">aktiv</span>'}</td>
       <td class="c" style="white-space:nowrap"><button class="btn sm" data-wcopy="${esc(w.key)}">Kopyala</button> <button class="btn sm" data-wact="${esc(w.id)}">${w.active===false?"Aktiv et":"Blokla"}</button> <button class="btn sm" data-wkey="${esc(w.id)}">Yeni açar</button></td></tr>`).join("")}</table></div>`:""}
-    ${W.length?`<h3 style="margin-top:14px">Kim nəyi görür (modullar)</h3><p class="note" style="margin:0">İşarələyin — dəyişiklik dərhal saxlanılır, işçinin cihazında növbəti sinxronda tətbiq olunur. Rəhbər hər şeyi görür.</p>
-    <div class="maptbl"><table class="ltbl"><tr><th style="text-align:left">Ad</th><th style="text-align:left">Vəzifə</th>${MODS.map(([k,l])=>`<th>${l}</th>`).join("")}</tr>${W.map(w=>`<tr${w.active===false?' style="opacity:.55"':""}><td>${esc(w.name)}</td>
-      <td>${w.role==="admin"?"Rəhbər":`<select data-wpos="${esc(w.id)}" style="min-height:34px;padding:4px 6px"><option value="">—</option>${POS.map(p=>`<option value="${esc(p.id)}"${w.pos===p.id?" selected":""}>${esc(p.name)}</option>`).join("")}</select>`}</td>${MODS.map(([k])=>`<td class="c">${w.role==="admin"?"✓":`<input type="checkbox" style="width:auto;min-height:0" data-wperm="${esc(w.id)}" data-m="${k}"${(w.perms||["servis"]).includes(k)?" checked":""}>`}</td>`).join("")}</tr>`).join("")}</table></div>`:""}
+    ${W.length?`<h3 style="margin-top:14px">Kim nəyi görür (modullar)</h3><p class="note" style="margin:0">İşarələyin — dəyişiklik dərhal saxlanılır, işçinin cihazında növbəti sinxronda tətbiq olunur. Rəhbər hər şeyi görür. <b>⚙</b> düyməsi ilə Satış və Anbarda hər funksiyanı (maya dəyərini görmək, təklifi silmək, qaimə təsdiqi və s.) işçiyə ayrıca aktiv və ya deaktiv edin.</p>
+    <div class="maptbl"><table class="ltbl"><tr><th style="text-align:left">Ad</th><th style="text-align:left">Vəzifə</th>${MODS.map(([k,l])=>`<th>${l}</th>`).join("")}<th>Satış və Anbar funksiyaları</th></tr>${W.map(w=>`<tr${w.active===false?' style="opacity:.55"':""}><td>${esc(w.name)}</td>
+      <td>${w.role==="admin"?"Rəhbər":`<select data-wpos="${esc(w.id)}" style="min-height:34px;padding:4px 6px"><option value="">—</option>${POS.map(p=>`<option value="${esc(p.id)}"${w.pos===p.id?" selected":""}>${esc(p.name)}</option>`).join("")}</select>`}</td>${MODS.map(([k])=>`<td class="c">${w.role==="admin"?"✓":`<input type="checkbox" style="width:auto;min-height:0" data-wperm="${esc(w.id)}" data-m="${k}"${(w.perms||["servis"]).includes(k)?" checked":""}>`}</td>`).join("")}<td class="c">${w.role==="admin"?"hamısı":`<button class="btn sm" data-wfn="${esc(w.id)}" title="Hər funksiyanı ayrıca aktiv / deaktiv et">${SAFN.label(w.fn)}</button>`}</td></tr>`).join("")}</table></div>`:""}
     <h3 style="margin-top:14px">Vəzifələr</h3><p class="note" style="margin:0">Vəzifə — bölmələrin hazır dəstidir. İşçiyə vəzifə seçəndə onun bölmələri avtomatik işarələnir (sonra ayrıca dəyişmək olar). Vəzifənin bölmələrini dəyişəndə həmin vəzifədəki bütün işçilər yenilənir.</p>
     <div class="maptbl"><table class="ltbl"><tr><th style="text-align:left">Vəzifə</th>${MODS.map(([k,l])=>`<th>${l}</th>`).join("")}<th></th></tr>${POS.map((p,i)=>`<tr><td><input data-pname="${i}" value="${esc(p.name)}" style="min-height:34px;padding:5px 8px;min-width:150px"></td>${MODS.map(([k])=>`<td class="c"><input type="checkbox" style="width:auto;min-height:0" data-pperm="${i}" data-m="${k}"${p.perms.includes(k)?" checked":""}></td>`).join("")}<td class="c"><button class="btn sm danger" data-pdel="${i}" title="Vəzifəni sil">✕</button></td></tr>`).join("")}</table></div>
     <div class="actions"><input id="posNew" placeholder="Yeni vəzifənin adı, məs. Satış meneceri" style="max-width:280px"><button class="btn" id="posAdd">+ Vəzifə əlavə et</button></div>
@@ -3766,6 +3766,9 @@ async function workersCard(){const box=$("#wkBox");if(!box)return;
     const W2=W;box.querySelectorAll("[data-wperm]").forEach(c=>c.onchange=async()=>{const w=W2.find(x=>x.id===c.dataset.wperm);if(!w)return;
       const perms=[...box.querySelectorAll(`[data-wperm="${CSS.escape(w.id)}"]:checked`)].map(x=>x.dataset.m);c.disabled=true;
       try{draw(await api("worker_save",{w:{id:w.id,perms}}));toast(w.name+": "+(perms.map(m=>(MODS.find(x=>x[0]===m)||[])[1]).join(", ")||"heç bir modul"))}catch(e){c.checked=!c.checked;c.disabled=false;toast("Alınmadı")}});
+    box.querySelectorAll("[data-wfn]").forEach(b=>b.onclick=()=>{const w=W2.find(x=>x.id===b.dataset.wfn);if(!w)return;
+      SAFN.open({name:w.name,mods:w.perms||[],fn:w.fn,onSave:async fn=>{try{const res=await api("worker_save",{w:{id:w.id,fn}});const nw=(res.workers||[]).find(x=>x.id===w.id);
+        if(fn.length&&!(nw&&Array.isArray(nw.fn)))toast("Ofis serverindəki hub köhnədir — əvvəlcə hub-ı yeniləyin");else toast(w.name+": funksiyalar saxlanıldı — işçi növbəti sinxronda görəcək");draw(res)}catch(e){toast("Alınmadı");throw e}}})});
     box.querySelectorAll("[data-wcopy]").forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.wcopy);toast("Açar kopyalandı")}catch(e){toast("Açarı seçib əl ilə kopyalayın")}});
     box.querySelectorAll("[data-wact]").forEach(b=>b.onclick=async()=>{const w=W2.find(x=>x.id===b.dataset.wact);if(!w)return;
       if(w.active!==false&&b.dataset.confirm!=="1"){b.dataset.confirm="1";b.textContent="Bloklansın?";return}
@@ -4572,6 +4575,45 @@ window.ZSBK=(function(){
     try{return await _ap.apply(this,arguments)}finally{document.documentElement.style.overflow="";document.body.style.overflow=""}}}
   window.zsPdfScale=MOB?1.3:1.7;
 }catch(e){console.log("pdfguard",e)}})();
+</script>
+<script>/* ZUVAND — Satış və Anbar: işçiyə hər funksiyanı ayrıca aktiv / deaktiv etmək */
+window.SAFN=(function(){
+  /*TABLE*/const L=[  ["quote","Təklif yaratmaq və öz təklifini dəyişmək","Satış",["satis","muhasibat"]],  ["editAnyQuote","Başqasının təklifini dəyişmək, ƏDV dərəcəsi","Satış",["muhasibat"]],  ["linePrice","Təklifdə satış qiymətini əl ilə dəyişmək","Satış",["muhasibat"]],  ["unlimitedDisc","Limitsiz endirim (ayarlardakı həddən çox)","Satış",["muhasibat"]],  ["reopenQuote","Tamamlanmış təklifi dəyişmək / geri açmaq","Satış",[]],  ["delQuote","Təklifi silmək və bərpa etmək","Satış",[]],  ["seeContracts","Müqavilələri və müştəriləri görmək","Satış",["satis","muhasibat"]],  ["stats","Statistika","Satış",["muhasibat"]],  ["linkMap","Əlaqələr sxemi","Satış",[]],  ["editItem","Mal kartını əlavə etmək / dəyişmək, kateqoriya","Anbar",["anbar","muhasibat"]],  ["delItem","Malı kataloqdan silmək","Anbar",[]],  ["seeMoves","Anbar hərəkətlərini və qaimələri görmək","Anbar",["anbar","muhasibat"]],  ["moveStock","Mədaxil, məxaric, inventar düzəlişi","Anbar",["anbar"]],  ["receive","Alış qaiməsi üzrə malı anbarda qəbul etmək","Anbar",["anbar"]],  ["ship","Satış qaiməsi üzrə malı təhvil vermək, birbaşa təchizat","Anbar",["anbar"]],  ["delMove","Anbar hərəkətini silmək","Anbar",[]],  ["seeCost","Gəliş qiymətini (maya) və mənfəəti görmək","Mühasibat",["muhasibat"]],  ["setPrice","Qiymət yazmaq, hesab-faktura və ödəniş qeydi","Mühasibat",["muhasibat"]],  ["importItems","Kataloqu Excel-dən idxal etmək","Mühasibat",["muhasibat"]],  ["invoice","Qaimələri daxil etmək, təsdiqləmək, satış qaiməsi","Mühasibat",["muhasibat"]],  ["delInvoice","Təsdiqlənmiş qaiməni silmək (şifrə ilə)","Mühasibat",[]],  ["contract","Xidməti müqavilələr, servis hesabatlarının idxalı","Mühasibat",["muhasibat"]],  ["svcBill","Servis hesabatlarından təklif / hesab hazırlamaq","Mühasibat",["muhasibat"]],  ["renameClient","Müştəri adını bütün sənədlərdə dəyişmək","Mühasibat",[]],  ["expense","Ofis xərcləri, maaşlar, vergilər","Xərclər",["xerc"]],  ["delExpense","Xərci silmək","Xərclər",[]]];/*TABLE-END*/
+  const GR=["Satış","Anbar","Mühasibat","Xərclər"],ML={satis:"Satış",anbar:"Anbar",muhasibat:"Mühasibat",xerc:"Xərclər"};
+  const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const css=()=>{if(document.getElementById("safnCss"))return;document.head.insertAdjacentHTML("beforeend",`<style id="safnCss">
+.safnOv{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:12px}
+.safnBox{background:var(--surface,#fff);color:var(--ink,#111);border-radius:14px;max-width:620px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.safnHd{padding:14px 16px 8px;border-bottom:1px solid var(--line,#ddd)}.safnHd h3{margin:0 0 4px}.safnHd p{margin:0;font-size:13px;color:var(--muted,#666)}
+.safnBd{overflow:auto;padding:4px 16px 8px}.safnBd h4{margin:12px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#666)}
+.safnR{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line,#ddd);cursor:pointer}
+.safnR input{width:20px!important;height:20px;min-height:0!important;flex:none;margin:0}
+.safnR .t{flex:1;min-width:0}.safnR .t b{font-weight:500;display:block}.safnR .t small{color:var(--muted,#666);font-size:12px}
+.safnR .ch{font-size:11px;padding:2px 7px;border-radius:9px;background:var(--warn,#c80);color:#fff;white-space:nowrap}
+.safnR .ch.off{background:var(--bad,#c33)}.safnR .ch.on{background:var(--ok,#2a7)}
+.safnFt{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--line,#ddd)}.safnFt .sp{flex:1}
+.safnFt button{min-height:38px;padding:6px 14px;border-radius:9px;border:1px solid var(--line,#ccc);background:var(--surface2,#f4f4f4);color:inherit;font:inherit;cursor:pointer}
+.safnFt button.pri{background:var(--accent,#176);border-color:var(--accent,#176);color:#fff}</style>`)};
+  const def=(f,mods)=>f[3].some(m=>mods.includes(m));
+  const clean=fn=>(Array.isArray(fn)?fn:String(fn||"").split(/[\s,;]+/)).filter(t=>/^[+-]\w+$/.test(t)&&L.some(f=>f[0]===t.slice(1)));
+  /* short text for the table cell: how many functions differ from the modules */
+  function label(fn){const n=clean(fn).length;return n?"⚙ "+n+" fərdi":"⚙ Standart"}
+  /* effective list (for a quick look): which functions this worker has */
+  function eff(mods,fn){const o={};fn=clean(fn);L.forEach(f=>{const t=fn.find(x=>x.slice(1)===f[0]);o[f[0]]=t?t[0]==="+":def(f,mods)});return o}
+  function open(o){css();const mods=(o.mods||[]).slice();let fn=clean(o.fn);
+    const ov=document.createElement("div");ov.className="safnOv";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");
+    const draw=()=>{const E=eff(mods,fn);
+      ov.innerHTML=`<div class="safnBox"><div class="safnHd"><h3>Funksiyalar — ${esc(o.name||"")}</h3><p>Bölmələr: <b>${esc(mods.filter(m=>ML[m]).map(m=>ML[m]).join(", ")||"heç biri")}</b>. Bölmələrə görə standart işarələnib — istədiyiniz funksiyanı ayrıca aktiv və ya deaktiv edin. Fərqli olanlar “fərdi” kimi göstərilir.</p></div>
+      <div class="safnBd">${GR.map(g=>{const F=L.filter(f=>f[2]===g);if(!F.length)return "";return `<h4>${esc(g)}</h4>`+F.map(f=>{const d=def(f,mods),c=fn.some(x=>x.slice(1)===f[0]);
+        return `<label class="safnR"><input type="checkbox" data-fk="${f[0]}"${E[f[0]]?" checked":""}><span class="t"><b>${esc(f[1])}</b><small>standart: ${f[3].length?(d?"var":"yoxdur")+" ("+f[3].map(m=>ML[m]).join(" / ")+")":"yalnız rəhbər"}</small></span>${c?`<span class="ch ${E[f[0]]?"on":"off"}">fərdi: ${E[f[0]]?"aktiv":"deaktiv"}</span>`:""}</label>`}).join("")}).join("")}</div>
+      <div class="safnFt"><button data-a="reset"${fn.length?"":" disabled"}>↺ Hamısı standart</button><span class="sp"></span><button data-a="close">Bağla</button><button class="pri" data-a="save">Yadda saxla</button></div></div>`;
+      ov.querySelectorAll("[data-fk]").forEach(c=>c.onchange=()=>{const f=L.find(x=>x[0]===c.dataset.fk),d=def(f,mods);fn=fn.filter(x=>x.slice(1)!==f[0]);if(c.checked!==d)fn.push((c.checked?"+":"-")+f[0]);const y=ov.querySelector(".safnBd").scrollTop;draw();ov.querySelector(".safnBd").scrollTop=y});
+      ov.querySelector('[data-a="reset"]').onclick=()=>{fn=[];draw()};
+      ov.querySelector('[data-a="close"]').onclick=()=>ov.remove();
+      ov.querySelector('[data-a="save"]').onclick=async e=>{e.target.disabled=true;try{await o.onSave(fn.slice());ov.remove()}catch(err){e.target.disabled=false}}};
+    draw();ov.addEventListener("click",e=>{if(e.target===ov)ov.remove()});document.addEventListener("keydown",function k(e){if(e.key==="Escape"){ov.remove();document.removeEventListener("keydown",k)}});
+    document.body.appendChild(ov)}
+  return {open,label,eff,list:()=>L.slice(),clean}})();
 </script>
 </body>
 </html>
