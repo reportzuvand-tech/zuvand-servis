@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111302;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111303;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -1750,7 +1750,7 @@ function saveLocalReports(list){if(!RDB.ok){if(!LS.set("ups.reports",Object.valu
 const savePending=()=>LS.set("ups.pending",[...state.pending]);
 const hasServer=()=>IS_GAS||!!(state.me.url&&state.me.key);
 
-const API_TIMEOUT={ping:12000,list:20000,tasks:15000,get:20000,parts:20000,ratings:15000,save:45000,photo:60000,pdf:90000};
+const API_TIMEOUT={deleted_list:45000,history:40000,rev_get:30000,ping:12000,list:20000,tasks:15000,get:20000,parts:20000,ratings:15000,save:45000,photo:60000,pdf:90000};
 /* hub address as typed by a person ("192.168.1.10:8787") → full API address */
 function hubUrl(u){u=String(u||"").trim();if(!u)return "";if(!/^https?:\/\//i.test(u))u="http://"+u;if(!/script\.google\.com/.test(u)&&!/\/api\/?$/.test(u))u=u.replace(/\/+$/,"")+"/api";return u}
 async function api(action,payload={}){
@@ -4795,15 +4795,16 @@ window.ZSHIST=(function(){
         state.reports[id]=rep;state.pending.delete(id);savePending();saveLocalReports([rep]);state.rep=rep;setActive(0);toast("Versiya bərpa edildi (imzalar saxlanıldı)");sync();renderEditor()}
       catch(e){b.disabled=false;b.textContent="Bu hala bərpa et";toast("Bərpa etmək alınmadı")}})}
   /* Ayarlar: deleted reports (manager) — who deleted, when; history and restore */
-  async function delCard(){const m=document.getElementById("main");if(!m||!hasServer()||state.me.role!=="admin")return;css();
+  async function delCard(round){round=round||0;const m=document.getElementById("main");if(!m||!hasServer()||state.me.role!=="admin")return;css();
     let box=document.getElementById("zshDel");if(!box){m.insertAdjacentHTML("beforeend",'<div class="card zsh-del" id="zshDel"></div>');box=document.getElementById("zshDel")}
     const put=h=>{const o=document.getElementById("zshDel");if(!o)return null;o.outerHTML='<div class="card zsh-del" id="zshDel">'+h+'</div>';return document.getElementById("zshDel")};
     box=put('<h3>🗑 Silinmiş hesabatlar</h3><p class="note" style="margin:0">Yüklənir…</p>');
-    let L;try{L=await api("deleted_list")}catch(e){put('<h3>🗑 Silinmiş hesabatlar</h3><p class="note" style="margin:0">'+(e&&/unknown/.test(e.message||"")?"Server köhnə versiyadır — yeniləndikdən sonra görünəcək.":"Yükləmək alınmadı (internet?)")+'</p>');return}
+    let L;try{L=await api("deleted_list")}catch(e){const msg=String(e&&e.message||e||"");put('<h3>🗑 Silinmiş hesabatlar</h3><p class="note" style="margin:0">'+(/unknown/.test(msg)?"Server köhnə versiyadır — yeniləndikdən sonra görünəcək.":"Yükləmək alınmadı: "+esc(msg.slice(0,160))+'</p><div class="actions"><button class="btn sm" id="zshDelRe">Yenidən cəhd et</button></div>'));const rb=document.getElementById("zshDelRe");if(rb)rb.onclick=()=>delCard();return}
     const I=(L.items||[]);
-    box=put(`<h3>🗑 Silinmiş hesabatlar · ${I.length}</h3><p class="note" style="margin:0">Kim, nə vaxt silib. “Tarixçə” — silinməzdən əvvəlki dəyişikliklər; “Bərpa et” — hesabatı son halı ilə qaytarır (imzalar da qalır).</p>
+    box=put(`<h3>🗑 Silinmiş hesabatlar · ${I.length}</h3>${L.more>0?`<p class="note" style="margin:0 0 4px;color:var(--warn)">⏳ Köhnə silinmiş hesabatların məlumatı toplanır — ${L.more} qalıb, siyahı özü yenilənir…</p>`:""}<p class="note" style="margin:0">Kim, nə vaxt silib. “Tarixçə” — silinməzdən əvvəlki dəyişikliklər; “Bərpa et” — hesabatı son halı ilə qaytarır (imzalar da qalır).</p>
       ${I.length?`<div class="maptbl" style="margin-top:8px"><table class="ltbl"><tr><th style="text-align:left">Hesabat</th><th>Silinib</th><th>Kim</th><th></th></tr>${I.slice(0,100).map(x=>`<tr><td data-dcell="${esc(x.id)}">${x.repno||x.client?`<b>${esc(x.repno||"Nömrəsiz")}</b>${x.date?" · "+esc(fmtDate(x.date)):""}<br><span class="note">${esc([x.client,x.obj].filter(Boolean).join(" — "))}</span>`:`<span class="note">Məlumat tapılmadı — “Tarixçə”ni açın</span><br><span class="note" style="font-size:11px">${esc(x.id)}</span>`}</td><td class="c">${esc(dt(TS(x.at)))}${x.atApprox?'<br><span class="note">təxminən</span>':""}</td><td class="c">${esc(x.by||"—")}${x.byApprox&&x.by?'<br><span class="note">son dəyişən</span>':""}</td>
         <td class="c">${x.hasVer?`<button class="btn sm" data-dh="${esc(x.id)}">Tarixçə ▾</button> <button class="btn sm" data-dr="${esc(x.id)}">Bərpa et</button>`:""}</td></tr><tr hidden data-dhb="${esc(x.id)}"><td colspan="4"></td></tr>`).join("")}</table></div>`:'<p class="note">Silinmiş hesabat yoxdur.</p>'}`);if(!box)return;
+    if(L.more>0&&round<12)setTimeout(()=>{if(document.getElementById("zshDel")&&!document.querySelector('#zshDel tr[data-dhb]:not([hidden])'))delCard(round+1)},800);
     box.querySelectorAll("[data-dh]").forEach(b=>b.onclick=async()=>{const id=b.dataset.dh,row=box.querySelector(`[data-dhb="${CSS.escape(id)}"]`),td=row.firstElementChild;row.hidden=!row.hidden;b.textContent=row.hidden?"Tarixçə ▾":"Bağla ▴";b.classList.toggle("pri",!row.hidden);if(row.hidden){b.closest("tr").scrollIntoView({block:"nearest",behavior:"smooth"});return}if(td.dataset.done)return;td.innerHTML='<p class="note">Yüklənir…</p>';
       try{const h=await api("history",{id}),V=(h.items||[]).slice(0,30).reverse(),S=[];for(const v of V){try{const g=await api("rev_get",{id,rev:v.rev});S.push({rep:g.report,by:v.by||g.by||"",at:TS(g.report.updatedAt)||TS(v.st)||TS(v.at),rev:v.rev})}catch(e){}}
         if(!S.length){td.innerHTML='<p class="note">Versiya tapılmadı.</p>';return}const last=S[S.length-1].rep,E=events(S).reverse(),X=I.find(y=>y.id===id)||{};
