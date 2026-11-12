@@ -10,27 +10,48 @@ var SA_ROLE_ALIASES={"işçi":"isci","isci":"isci","satış":"isci","anbardar":"
    role = "admin" (rəhbər, everything) or "p:satis,anbar,…"; the old role names still work. */
 var SA_MODS={servis:"Servis hesabatları",tesdiq:"Təsdiq və tapşırıqlar",satis:"Satış (təkliflər)",anbar:"Anbar",muhasibat:"Mühasibat",xerc:"Xərclər və maaşlar"};
 function saPerms(r){r=String(r||"");var o={};if(r==="admin"){for(var k in SA_MODS)o[k]=1;o.admin=1;return o}
-  if(r.indexOf("p:")===0){r.slice(2).split(",").forEach(function(x){x=x.trim();if(SA_MODS[x])o[x]=1});return o}
+  if(r.indexOf("p:")===0){r.slice(2).split(",").forEach(function(x){x=x.trim();if(SA_MODS[x])o[x]=1;else if(/^[+-]\w+$/.test(x)&&SA_FN_DEF[x.slice(1)]){o.fn=o.fn||{};o.fn[x.slice(1)]=x.charAt(0)==="+"}});return o}
   if(r==="isci")o.satis=1;else if(r==="anbardar")o.anbar=1;else if(r==="muhasib"){o.muhasibat=1;o.satis=1;o.xerc=1}return o}
 function saHas(r){var P=saPerms(r);for(var i=1;i<arguments.length;i++)if(P[arguments[i]])return true;return !!P.admin}
-var SA_CAN={
-  seeCost:function(r){return saHas(r,"muhasibat")},           /* gəliş qiyməti, mənfəət */
-  editItem:function(r){return saHas(r,"anbar","muhasibat")},
-  setPrice:function(r){return saHas(r,"muhasibat")},          /* gəliş + satış qiyməti, hesab-ödəniş */
-  moveStock:function(r){return saHas(r,"anbar")},             /* mədaxil / məxaric / düzəliş */
-  seeMoves:function(r){return saHas(r,"anbar","muhasibat")},
-  quote:function(r){return saHas(r,"satis","muhasibat")},
-  invoice:function(r){return saHas(r,"muhasibat")},           /* qaiməni daxil edib təsdiqləmək */
-  receive:function(r){return saHas(r,"anbar")},               /* qaimə üzrə malı anbarda qəbul etmək */
-  contract:function(r){return saHas(r,"muhasibat")},          /* xidməti müqavilələr */
-  seeContracts:function(r){return saHas(r,"satis","muhasibat")},
-  editAnyQuote:function(r){return saHas(r,"muhasibat")},
-  linePrice:function(r){return saHas(r,"muhasibat")},
-  unlimitedDisc:function(r){return saHas(r,"muhasibat")},
-  expense:function(r){return saHas(r,"xerc")},               /* ofis xərcləri, maaşlar, vergilər */
-  admin:function(r){return saPerms(r).admin===1}
-};
-function saRoleLabel(r){r=String(r||"");if(SA_ROLES[r])return SA_ROLES[r];var P=saPerms(r);return Object.keys(SA_MODS).filter(function(k){return P[k]}).map(function(k){return SA_MODS[k]}).join(", ")||"—"}
+/* ZUVAND Servis: every function the manager can switch on or off for one worker.
+   [key, name, group, modules that give it by default (empty = only the manager)].
+   A worker's own choice is kept as "+key" (on) / "-key" (off) next to the modules: "p:satis,+seeCost,-quote". */
+var SA_FN=[
+  ["quote","Təklif yaratmaq və öz təklifini dəyişmək","Satış",["satis","muhasibat"]],
+  ["editAnyQuote","Başqasının təklifini dəyişmək, ƏDV dərəcəsi","Satış",["muhasibat"]],
+  ["linePrice","Təklifdə satış qiymətini əl ilə dəyişmək","Satış",["muhasibat"]],
+  ["unlimitedDisc","Limitsiz endirim (ayarlardakı həddən çox)","Satış",["muhasibat"]],
+  ["reopenQuote","Tamamlanmış təklifi dəyişmək / geri açmaq","Satış",[]],
+  ["delQuote","Təklifi silmək və bərpa etmək","Satış",[]],
+  ["seeContracts","Müqavilələri və müştəriləri görmək","Satış",["satis","muhasibat"]],
+  ["stats","Statistika","Satış",["muhasibat"]],
+  ["linkMap","Əlaqələr sxemi","Satış",[]],
+  ["editItem","Mal kartını əlavə etmək / dəyişmək, kateqoriya","Anbar",["anbar","muhasibat"]],
+  ["delItem","Malı kataloqdan silmək","Anbar",[]],
+  ["seeMoves","Anbar hərəkətlərini və qaimələri görmək","Anbar",["anbar","muhasibat"]],
+  ["moveStock","Mədaxil, məxaric, inventar düzəlişi","Anbar",["anbar"]],
+  ["receive","Alış qaiməsi üzrə malı anbarda qəbul etmək","Anbar",["anbar"]],
+  ["ship","Satış qaiməsi üzrə malı təhvil vermək, birbaşa təchizat","Anbar",["anbar"]],
+  ["delMove","Anbar hərəkətini silmək","Anbar",[]],
+  ["seeCost","Gəliş qiymətini (maya) və mənfəəti görmək","Mühasibat",["muhasibat"]],
+  ["setPrice","Qiymət yazmaq, hesab-faktura və ödəniş qeydi","Mühasibat",["muhasibat"]],
+  ["importItems","Kataloqu Excel-dən idxal etmək","Mühasibat",["muhasibat"]],
+  ["invoice","Qaimələri daxil etmək, təsdiqləmək, satış qaiməsi","Mühasibat",["muhasibat"]],
+  ["delInvoice","Təsdiqlənmiş qaiməni silmək (şifrə ilə)","Mühasibat",[]],
+  ["contract","Xidməti müqavilələr, servis hesabatlarının idxalı","Mühasibat",["muhasibat"]],
+  ["svcBill","Servis hesabatlarından təklif / hesab hazırlamaq","Mühasibat",["muhasibat"]],
+  ["renameClient","Müştəri adını bütün sənədlərdə dəyişmək","Mühasibat",[]],
+  ["expense","Ofis xərcləri, maaşlar, vergilər","Xərclər",["xerc"]],
+  ["delExpense","Xərci silmək","Xərclər",[]]
+];
+var SA_FN_DEF={};SA_FN.forEach(function(f){SA_FN_DEF[f[0]]=f});
+/* default of one function for these modules (without the worker's own choice) */
+function saFnDefault(P,k){var f=SA_FN_DEF[k];if(!f)return false;if(P.admin)return true;for(var i=0;i<f[3].length;i++)if(P[f[3][i]])return true;return false}
+function saFn(r,k){var P=saPerms(r);if(P.admin)return true;if(P.fn&&P.fn.hasOwnProperty(k))return P.fn[k];return saFnDefault(P,k)}
+
+var SA_CAN={admin:function(r){return saPerms(r).admin===1}};
+SA_FN.forEach(function(f){SA_CAN[f[0]]=function(r){return saFn(r,f[0])}});
+function saRoleLabel(r){r=String(r||"");if(SA_ROLES[r])return SA_ROLES[r];var P=saPerms(r);return Object.keys(SA_MODS).filter(function(k){return P[k]}).map(function(k){return SA_MODS[k]}).join(", ")+(P.fn?" · fərdi funksiyalar: "+Object.keys(P.fn).length:"")||"—"}
 var SA_STATUS={draft:"Qaralama",sent:"Göndərildi",accepted:"Qəbul edildi",rejected:"İmtina",done:"Təhvil verildi"};
 var SA_KIND={in:"Mədaxil",out:"Məxaric",adj:"Düzəliş"};
 /* company expenses (mühasibat): office, salaries, taxes, other */
@@ -185,7 +206,8 @@ function saHandle(db,u,action,p){
     var items=db.items.filter(function(i){return i.active!==false||SA_CAN.editItem(role)}).map(function(i){return saPubItem(i,role)});
     var quotes=db.quotes.filter(function(q){return !q.del}).map(saSummary);
     var res={role:role,name:u.name,settings:S,items:items,stock:saStock(db),quotes:quotes,ts:now,conKinds:1,srv:3,hasDelPw:!!db.settings.delPw};
-    if(SA_CAN.admin(role)){res.delPw=String(db.settings.delPw||"");var since=now-30*86400000;res.deleted=db.quotes.filter(function(q){return q.del&&saNum(q.delAt||q.updatedAt)>since}).map(saSummary)}
+    if(SA_CAN.delQuote(role)||SA_CAN.delInvoice(role))res.delPw=String(db.settings.delPw||"");
+    if(SA_CAN.delQuote(role)){var since=now-30*86400000;res.deleted=db.quotes.filter(function(q){return q.del&&saNum(q.delAt||q.updatedAt)>since}).map(saSummary)}
     if(SA_CAN.seeContracts(role))res.contracts=db.contracts.filter(function(c){return !c.del});
     if(SA_CAN.expense(role))res.expenses=db.expenses.filter(function(x){return !x.del});
     if(p.full&&SA_CAN.seeMoves(role)){
@@ -203,7 +225,7 @@ function saHandle(db,u,action,p){
     need(SA_CAN.quote(role));var inQ=p.quote||{};var old=inQ.id?quoteById(inQ.id):null;
     if(old){
       if(old.author!==u.name&&!SA_CAN.editAnyQuote(role))saErr("forbidden");
-      if(old.status==="done"&&!SA_CAN.admin(role))saErr("locked");
+      if(old.status==="done"&&!SA_CAN.reopenQuote(role))saErr("locked");
       if(saNum(p.baseAt)&&saNum(old.updatedAt)>saNum(p.baseAt))saErr("conflict",{quote:old})}
     var q={id:old?old.id:(inQ.id||saId("q")),no:old?old.no:"",author:old?old.author:u.name,created:old?old.created:now,
       date:saStr(inQ.date,10),valid:Math.max(1,Math.round(saNum(inQ.valid))||S.valid),status:SA_STATUS[inQ.status]?inQ.status:"draft",
@@ -247,7 +269,7 @@ function saHandle(db,u,action,p){
   case "setBill":{need(SA_CAN.setPrice(role));var bq=quoteById(p.id);if(!bq||bq.del)saErr("notfound");var st=["","inv","paid"].indexOf(p.st)>=0?p.st:"";
     if(st){var ob=bq.bill||{};bq.bill={st:st,doc:saStr(p.doc!==undefined?p.doc:ob.doc,80),by:u.name,at:now};if(ob.invs){bq.bill.invs=ob.invs;bq.bill.inv=ob.inv;bq.bill.sum=ob.sum}}else delete bq.bill;bq.updatedAt=now;bq.by=u.name;
     bq.hist=(bq.hist||[]).slice(-39);bq.hist.push({at:now,by:u.name,bill:st||"undo",doc:st?bq.bill.doc:""});ch.quotes.push(bq);return {res:{quote:saPubQuote(bq,role)},ch:ch}}
-  case "delQuote":{need(SA_CAN.admin(role));var dq=quoteById(p.id);if(!dq)saErr("notfound");
+  case "delQuote":{need(SA_CAN.delQuote(role));var dq=quoteById(p.id);if(!dq)saErr("notfound");
     if(saProtected(db,dq)){if(!db.settings.delPw)saErr("nopw");if(String(p.pwh||"")!==String(db.settings.delPw))saErr("badpw")}
     dq.del=true;dq.delAt=now;dq.delBy=u.name;
     db.quotes.forEach(function(x){if(x!==dq&&x.billedIn&&x.billedIn.id===dq.id){delete x.billedIn;x.updatedAt=now;x.hist=(x.hist||[]).slice(-39);x.hist.push({at:now,by:u.name,bill:"undo",doc:dq.no||""});ch.quotes.push(x)}});
@@ -262,7 +284,7 @@ function saHandle(db,u,action,p){
   case "backup":{need(SA_CAN.admin(role));var cpy=function(a){return JSON.parse(JSON.stringify(a||[]))};
     return {res:{db:{items:cpy(db.items),moves:cpy(db.moves),quotes:cpy(db.quotes),invoices:cpy(db.invoices),contracts:cpy(db.contracts),expenses:cpy(db.expenses),settings:JSON.parse(JSON.stringify(db.settings||{}))}},ch:ch}}
   /* one bill a month for a client / intermediary: the approved service visits of that month (each object with its own period) */
-  case "svcBill":{need(SA_CAN.setPrice(role)||SA_CAN.contract(role));var bR=[];
+  case "svcBill":{need(SA_CAN.svcBill(role));var bR=[];
     (p.recs||[]).slice(0,300).forEach(function(id){var x=quoteById(id);if(x&&x.src&&x.src.type==="service"&&!x.billedIn&&!(x.bill&&x.bill.st)&&x.status!=="rejected"&&bR.indexOf(x)<0)bR.push(x)});
     if(!bR.length)saErr("nothing");var mon=/^\d{4}-\d{2}$/.test(String(p.month||""))?String(p.month):String(bR[0].date||"").slice(0,7);
     var bc=null;db.contracts.forEach(function(c){if(!c.del&&c.id===bR[0].src.contractId)bc=c});
@@ -295,7 +317,7 @@ function saHandle(db,u,action,p){
     ["quotes","invoices","moves","contracts"].forEach(function(k){(lres.ch[k]||[]).forEach(function(x){ch[k].push(x)})});
     return {res:{quote:saPubQuote(bq2,role),summary:saSummary(bq2),invoice:saPubInv(bv,role),stock:saStock(db)},ch:ch}}
   /* deleted quotes stay 30 days in "Silinənlər" and can be brought back */
-  case "restoreQuote":{need(SA_CAN.admin(role));var rq2=null;db.quotes.forEach(function(x){if(x.id===p.id)rq2=x});if(!rq2)saErr("notfound");if(!rq2.del)return {res:{quote:rq2,dup:true},ch:ch};
+  case "restoreQuote":{need(SA_CAN.delQuote(role));var rq2=null;db.quotes.forEach(function(x){if(x.id===p.id)rq2=x});if(!rq2)saErr("notfound");if(!rq2.del)return {res:{quote:rq2,dup:true},ch:ch};
     rq2.del=false;delete rq2.delAt;delete rq2.delBy;
     if(rq2.src&&(rq2.src.type==="bill"||rq2.src.type==="offer"))(rq2.src.recs||[]).forEach(function(id){var x=quoteById(id);if(x&&!x.billedIn&&!(x.bill&&x.bill.st)){x.billedIn={id:rq2.id,no:rq2.no};if(rq2.src.type==="offer")x.billedIn.offer=1;x.updatedAt=now;ch.quotes.push(x)}});rq2.updatedAt=now;rq2.by=u.name;rq2.hist=(rq2.hist||[]).slice(-39);rq2.hist.push({at:now,by:u.name,st:"restored"});ch.quotes.push(rq2);
     return {res:{quote:rq2,summary:saSummary(rq2),stock:saStock(db)},ch:ch}}
@@ -322,7 +344,7 @@ function saHandle(db,u,action,p){
 
   /* ZUVAND Servis: the manager removes goods from the catalog and the warehouse; a remaining balance is written off first so the movement history stays complete */
   case "delItems":{
-    need(SA_CAN.admin(role));var ids=(p.ids||[]).slice(0,5000).map(String),stD=saStock(db),gone=0,today=new Date(now).toISOString().slice(0,10);
+    need(SA_CAN.delItem(role));var ids=(p.ids||[]).slice(0,5000).map(String),stD=saStock(db),gone=0,today=new Date(now).toISOString().slice(0,10);
     ids.forEach(function(id){var it=itemById(id);if(!it)return;var q=stD[id]?saR2(stD[id].q):0;
       if(q&&!it.svc){var m={id:saId("m"),date:today,kind:"adj",itemId:it.id,code:it.code,name:it.name,qty:-q,cost:saNum(it.cost),doc:"Mal silindi",party:"",quoteId:"",quoteNo:"",note:"Mal kataloqdan silindi — qalıq silindi",by:u.name,at:now};db.moves.push(m);ch.moves.push(m)}
       db.items=db.items.filter(function(x){return x.id!==id});gone++});
@@ -336,7 +358,7 @@ function saHandle(db,u,action,p){
     return {res:{n:nCat,items:outIt},ch:ch}}
 
   case "importItems":{
-    need(SA_CAN.setPrice(role));var added=0,updated=0,skipped=0,rows=(p.items||[]).slice(0,5000),cnt={},map=[];
+    need(SA_CAN.importItems(role));var added=0,updated=0,skipped=0,rows=(p.items||[]).slice(0,5000),cnt={},map=[];
     rows.forEach(function(a){var c=saStr(a.code,60).trim().toLowerCase();if(c)cnt[c]=(cnt[c]||0)+1});
     /* a row updates the catalog item with the same code and name; the code alone is enough only when it is used once on both sides */
     var findIt=function(code,name){var lc=code.toLowerCase(),nn=saNormName(name),same=db.items.filter(function(x){return String(x.code).toLowerCase()===lc});
@@ -398,7 +420,7 @@ function saHandle(db,u,action,p){
     var itc=itemById(mv.itemId);if(itc&&latest&&latest.id===mv.id){itc.cost=mv.cost;itc.updatedAt=now;itc.by=u.name;ch.items.push(itc)}
     return {res:{move:mv},ch:ch}}
 
-  case "delMove":{need(SA_CAN.admin(role));var dm=null;db.moves.forEach(function(m){if(m.id===p.id&&!m.del)dm=m});if(!dm)saErr("notfound");
+  case "delMove":{need(SA_CAN.delMove(role));var dm=null;db.moves.forEach(function(m){if(m.id===p.id&&!m.del)dm=m});if(!dm)saErr("notfound");
     var st3=saStock(db);if(dm.kind!=="out"&&st3[dm.itemId]&&st3[dm.itemId].q-saNum(dm.qty)<-1e-9)saErr("nostock",{name:dm.name,have:st3[dm.itemId].q});
     dm.del=true;ch.moves.push(dm);
     if(dm.expId)db.expenses.forEach(function(x){if(x.id!==dm.expId||x.del)return;var lm=db.moves.filter(function(m){return m.expId===x.id&&!m.del});
@@ -487,7 +509,7 @@ function saHandle(db,u,action,p){
       tq.updatedAt=now;tq.by=u.name;ch.quotes.push(tq)}
     var q0=quoteById(links[0]);rv.quoteIds=links;rv.quoteId=links[0]||"";rv.quoteNo=q0?q0.no:"";rv.quoteNos=links.map(function(id){var x=quoteById(id);return x?x.no:""});rv.updatedAt=now;rv.by=u.name;ch.invoices.push(rv);
     return {res:{invoice:saPubInv(rv,role),stock:saStock(db)},ch:ch}}
-  case "shipInvoice":{need(SA_CAN.moveStock(role));var shv=invById(p.id);if(!shv||shv.dir!=="out")saErr("notfound");if(shv.status==="received")return {res:{dup:true,stock:saStock(db)},ch:ch};if(shv.status!=="approved")saErr("notapproved");
+  case "shipInvoice":{need(SA_CAN.ship(role));var shv=invById(p.id);if(!shv||shv.dir!=="out")saErr("notfound");if(shv.status==="received")return {res:{dup:true,stock:saStock(db)},ch:ch};if(shv.status!=="approved")saErr("notapproved");
     var sq=shv.quoteId?quoteById(shv.quoteId):null,give={},st4=saStock(db),need4={},op4=/^[\w-]{4,60}$/.test(String(p.opId||""))?String(p.opId):saId("o"),k4=0,d4=saStr(p.date,10)||new Date(now).toISOString().slice(0,10);
     (p.lines||[]).forEach(function(l){give[l.id]=Math.max(0,saR2(saNum(l.qty)))});
     shv.lines.forEach(function(l){if(!saNum(l.ship))return;var q4=give[l.id]!==undefined?Math.min(give[l.id],saNum(l.ship)):saNum(l.ship);l.give=q4;need4[l.itemId]=(need4[l.itemId]||0)+q4});
@@ -499,7 +521,7 @@ function saHandle(db,u,action,p){
     if(sq&&sq.status==="accepted"){var r5=saRemaining(db,sq),l5=0;Object.keys(r5).forEach(function(id){l5+=r5[id].left});if(l5<=1e-9){sq.status="done";sq.hist=(sq.hist||[]).slice(-39);sq.hist.push({at:now,by:u.name,st:"done"});sq.updatedAt=now;ch.quotes.push(sq)}}
     return {res:{invoice:saPubInv(shv,role),stock:saStock(db)},ch:ch}}
   /* goods that were not in stock went from the supplier straight to the client: receipt + issue together (stock unchanged, cost recorded) */
-  case "directSupply":{need(SA_CAN.moveStock(role));var dq3=quoteById(p.quoteId);if(!dq3)saErr("notfound");var rm3=saRemaining(db,dq3),op5=/^[\w-]{4,60}$/.test(String(p.opId||""))?String(p.opId):saId("o");
+  case "directSupply":{need(SA_CAN.ship(role));var dq3=quoteById(p.quoteId);if(!dq3)saErr("notfound");var rm3=saRemaining(db,dq3),op5=/^[\w-]{4,60}$/.test(String(p.opId||""))?String(p.opId):saId("o");
     if(op5&&db.moves.some(function(m){return m.id===op5+"_i0"}))return {res:{dup:true,stock:saStock(db)},ch:ch};
     var d5=saStr(p.date,10)||new Date(now).toISOString().slice(0,10),k5=0,sup5=saStr(p.supplier,200).trim(),doc5=saStr(p.doc,80);
     (p.lines||[]).forEach(function(l){var it=itemById(l.itemId),q5=saR2(saNum(l.qty));if(!it||it.svc||q5<=0)return;if(!rm3[it.id]||q5>rm3[it.id].left+1e-9)saErr("overquote",{name:it.name,left:rm3[it.id]?rm3[it.id].left:0});
@@ -546,9 +568,9 @@ function saHandle(db,u,action,p){
     return {res:{invoice:saPubInv(ov,role),cancelled:cancelled,stock:saStock(db)},ch:ch}}
 
   /* an invoice already received / posted: the manager deletes it with the deletion password; its stock moves are cancelled and the linked sale is put back */
-  case "delInvoice":{need(SA_CAN.invoice(role)||SA_CAN.admin(role));var dv=invById(p.id);if(!dv)saErr("notfound");
+  case "delInvoice":{need(SA_CAN.invoice(role)||SA_CAN.delInvoice(role));var dv=invById(p.id);if(!dv)saErr("notfound");
     var posted=dv.status==="received"||(dv.dir==="out"&&dv.status!=="draft");
-    if(posted){need(SA_CAN.admin(role));if(!db.settings.delPw)saErr("nopw");if(String(p.pwh||"")!==String(db.settings.delPw))saErr("badpw");
+    if(posted){need(SA_CAN.delInvoice(role));if(!db.settings.delPw)saErr("nopw");if(String(p.pwh||"")!==String(db.settings.delPw))saErr("badpw");
       db.moves.forEach(function(m){if(m.invoiceId===dv.id&&!m.del){m.del=true;m.delBy=u.name;m.delAt=now;m.note=(m.note?m.note+" · ":"")+"qaimə silindi";ch.moves.push(m)}});
       if(dv.dir==="out"&&dv.quoteId){var lq=quoteById(dv.quoteId);if(lq){lq.hist=(lq.hist||[]).slice(-39);
         if(lq.fromInv===dv.id){lq.del=true;lq.delAt=now;lq.delBy=u.name;lq.hist.push({at:now,by:u.name,st:"deleted"})}
@@ -594,7 +616,7 @@ function saHandle(db,u,action,p){
     if(nsn&&saRowCap(row)===1&&(!sn0||fk[sn0])){row.sn=nsn;lc.hist=(lc.hist||[]).slice(-49);lc.hist.push({at:now,by:u.name,what:"cihaz öyrənildi: "+row.name+" → SN "+nsn});lc.updatedAt=now;lc.by=u.name;ch.contracts.push(lc)}
     return {res:{contract:lc},ch:ch}}
   /* the manager corrects a customer's name everywhere (sales, invoices, contracts, warehouse moves); the old spelling stays as an alias of the contract */
-  case "renameClient":{need(SA_CAN.admin(role));var rf=saStr(p.from,200).trim(),rt=saStr(p.to,200).trim(),rdry=!!p.dry;if(!rf||!rt)saErr("bad_name");
+  case "renameClient":{need(SA_CAN.renameClient(role));var rf=saStr(p.from,200).trim(),rt=saStr(p.to,200).trim(),rdry=!!p.dry;if(!rf||!rt)saErr("bad_name");
     var core=function(x){return saNormName(x).replace(/\b(mmc|asc|qsc|ojsc|llc|ltd|mehdud mesuliyyetli cemiyyeti|aciq sehmdar cemiyyeti|qapali sehmdar cemiyyeti)\b/g," ").replace(/\s+/g," ").trim()},nf=core(rf);if(!nf)saErr("bad_name");
     var hit=function(x){return !!String(x||"").trim()&&core(x)===nf&&String(x).trim()!==rt},cnt={quotes:0,invoices:0,contracts:0,moves:0},names={},seen=function(x){names[String(x).trim()]=(names[String(x).trim()]||0)+1};
     db.quotes.forEach(function(q){var c=0;if(q.cl&&hit(q.cl.name)){c=1;seen(q.cl.name);if(!rdry)q.cl.name=rt}if(q.src&&hit(q.src.site)){c=1;if(!rdry)q.src.site=rt}
@@ -630,7 +652,7 @@ function saHandle(db,u,action,p){
     var x=xe||{id:(xa.id&&/^[\w-]{4,60}$/.test(xa.id))?xa.id:saId("x"),created:now,author:u.name};
     x.date=xd;x.cat=saStr(xa.cat,80).trim()||"Digər";x.amount=amt;x.payee=saStr(xa.payee,200).trim();x.per=saStr(xa.per,7);x.method=saStr(xa.method,30);x.doc=saStr(xa.doc,80);x.note=saStr(xa.note,500);
     x.updatedAt=now;x.by=u.name;if(!xe)db.expenses.push(x);ch.expenses.push(x);return {res:{expense:x},ch:ch}}
-  case "delExpense":{need(SA_CAN.admin(role));var dx=null;db.expenses.forEach(function(x){if(x.id===p.id)dx=x});if(!dx)saErr("notfound");dx.del=true;dx.updatedAt=now;dx.by=u.name;ch.expenses.push(dx);return {res:{},ch:ch}}
+  case "delExpense":{need(SA_CAN.delExpense(role));var dx=null;db.expenses.forEach(function(x){if(x.id===p.id)dx=x});if(!dx)saErr("notfound");dx.del=true;dx.updatedAt=now;dx.by=u.name;ch.expenses.push(dx);return {res:{},ch:ch}}
   case "delContract":{need(SA_CAN.contract(role));var dc=null;db.contracts.forEach(function(c){if(c.id===p.id)dc=c});if(!dc)saErr("notfound");dc.del=true;dc.updatedAt=now;ch.contracts.push(dc);return {res:{},ch:ch}}
 
   /* service journal reports → a sale per visit (accepted, so its parts wait for the warehouse to issue them) */
@@ -727,4 +749,4 @@ function saHandle(db,u,action,p){
 function saApply(db,ch){db.invoices=db.invoices||[];db.contracts=db.contracts||[];db.expenses=db.expenses||[];["items","moves","quotes","invoices","contracts","expenses"].forEach(function(k){(ch[k]||[]).forEach(function(r){var f=false;for(var i=0;i<db[k].length;i++)if(db[k][i].id===r.id){db[k][i]=r;f=true}if(!f)db[k].push(r)})});
   if(ch.settings)for(var k in ch.settings)db.settings[k]=ch.settings[k];return db}
 
-module.exports={saHandle:saHandle,saApply:saApply,saSettings:saSettings,saStock:saStock,SA_CAN:SA_CAN,saPerms:saPerms,saNormName:saNormName,saPayInfo:saPayInfo,saObjPer:saObjPer};
+module.exports={SA_FN:SA_FN,saFn:saFn,saHandle:saHandle,saApply:saApply,saSettings:saSettings,saStock:saStock,SA_CAN:SA_CAN,saPerms:saPerms,saNormName:saNormName,saPayInfo:saPayInfo,saObjPer:saObjPer};

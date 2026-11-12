@@ -82,4 +82,5 @@ function api(u, body, ctx) {
   return res;
 }
 function payInfo() { return SA.saPayInfo(db) }
-module.exports = { load, api, importReports, run, payInfo, db: () => db };
+const fnKeys = () => (SA.SA_FN || []).map(f => f[0]);
+module.exports = { load, api, importReports, run, payInfo, fnKeys, db: () => db };

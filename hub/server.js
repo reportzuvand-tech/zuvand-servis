@@ -101,6 +101,8 @@ function backup() {
 class ApiErr extends Error { constructor(code, extra) { super(code); this.code = code; this.extra = extra } }
 const err = (c, x) => { throw new ApiErr(c, x) };
 
+/* a worker's own on/off choices for single functions of Satış və Anbar ("+seeCost", "-quote"), on top of the modules */
+const fnOf = x => { const o = []; (Array.isArray(x) ? x : []).forEach(t => { t = String(t); if (/^[+-][A-Za-z]{2,30}$/.test(t) && SAM.fnKeys().includes(t.slice(1)) && !o.some(y => y.slice(1) === t.slice(1))) o.push(t) }); return o };
 const permsOf = x => x.role === "admin" ? MODS.slice() : (Array.isArray(x.perms) ? x.perms.filter(m => MODS.includes(m)) : ["servis"]);
 function auth(key) {
   key = String(key || "").trim(); if (!key) err("auth");
@@ -108,7 +110,7 @@ function auth(key) {
   if (u) {
     if (u.active === false) err("auth"); const perms = permsOf(u), boss = u.role === "admin";
     /* in the service screen the service head (tesdiq) works like the manager: approves, gives tasks, deletes */
-    return { id: u.id, name: u.name, role: boss || perms.includes("tesdiq") ? "admin" : "worker", boss, perms, personal: true, saRole: boss ? "admin" : "p:" + perms.join(",") };
+    return { id: u.id, name: u.name, role: boss || perms.includes("tesdiq") ? "admin" : "worker", boss, perms, personal: true, saRole: boss ? "admin" : "p:" + perms.concat(fnOf(u.fn)).join(",") };
   }
   if (key === meta.sharedKey && !meta.sharedOff) return { id: "", name: "", role: "worker", boss: false, perms: ["servis"], personal: false, saRole: "p:servis" };
   err("auth");
@@ -517,6 +519,7 @@ const ACTIONS = {
       if (w.role !== undefined) x.role = w.role === "admin" ? "admin" : "worker";
       if (w.active !== undefined) x.active = w.active !== false;
       if (perms) x.perms = perms;
+      if (w.fn !== undefined) x.fn = fnOf(w.fn);
       if (w.pos !== undefined) { const p = positions().find(y => y.id === w.pos); x.pos = p ? p.id : ""; if (p && w.applyPos) x.perms = p.perms.slice() }
       /* never lock out the last active manager */
       if (!users.some(y => y.role === "admin" && y.active !== false)) { x.active = true; x.role = "admin" }
