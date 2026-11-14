@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111401;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111402;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -4127,7 +4127,7 @@ $("#hTheme").onclick=()=>{const cur=LS.get("ups_theme")||"auto",i=THEMES.findInd
 window.addEventListener("resize",fitPaper);
 if(IS_APP){try{const AP=(Capacitor.Plugins&&Capacitor.Plugins.App)||Capacitor.registerPlugin("App");
   AP.addListener("resume",()=>scheduleSync(300));
-  AP.addListener("backButton",async()=>{if(state.sigOpen){state.sigOpen();return}if(["edit","settings","lists","plan","staff","tasks"].includes(state.view)){await flush();state.cur=null;state.rep=null;renderHome();sync()}else AP.exitApp()})}catch(e){}}
+  AP.addListener("backButton",async()=>{if(state.sigOpen){state.sigOpen();return}if(window.ZSNAV&&ZSNAV.nav.st.length&&await ZSNAV.back())return;if(["edit","settings","lists","plan","staff","tasks"].includes(state.view)){await flush();state.cur=null;state.rep=null;renderHome();sync()}else AP.exitApp()})}catch(e){}}
 loadLocal();
 (async()=>{await loadReportsDB();if(!state.me.name)renderWelcome();else{renderHome();if(autoSync())sync();else updateSyncBadge();autoBackup()}})();
 </script>
@@ -4922,6 +4922,31 @@ window.ZSMOV=(function(){
     const _so=summaryOf;summaryOf=function(r){try{apply(r)}catch(e){}return _so.apply(this,arguments)}}
   return {TYPE,init,apply,signer,routePaper,devPaper,concl,stages}})();
 try{ZSMOV.init()}catch(e){console.log("zsmov init",e)}
+</script>
+<script>/* ZUVAND — “geri” düyməsi əvvəlki bölməyə qaytarır (başa yox): servis proqramı */
+window.ZSNAV=(function(){
+  const N={st:[],cur:null,busy:false};
+  const FN={home:"renderHome",settings:"renderSettings",customers:"renderCustomers",staff:"renderStaff",tasks:"renderTasks",plan:"renderPlan",lists:"renderLists",debts:"renderDebts",stats:"renderUpsStats"};
+  const keyOf=()=>{const v=state.view;if(!v||v==="welcome")return null;return {v,id:v==="edit"&&state.rep?state.rep.id:""}};
+  const same=(a,b)=>a&&b&&a.v===b.v&&a.id===b.id;
+  function note(){if(N.busy)return;const k=keyOf();if(!k)return;
+    if(k.v==="home"){N.st=[];N.cur=k;return}
+    if(N.cur&&!same(N.cur,k)){N.st.push(N.cur);if(N.st.length>30)N.st.shift();try{history.pushState({zsn:1},"")}catch(e){}}N.cur=k;hook()}
+  async function show(k){if(k.v==="edit"){const r=state.reports&&state.reports[k.id];if(r){openReport(r);return true}return false}
+    const f=window[FN[k.v]];if(typeof f!=="function")return false;f();return true}
+  async function back(){if(!N.st.length)return false;N.busy=true;let ok=false;
+    try{const was=state.view;if(was==="edit"){try{await flush()}catch(e){}state.cur=null;state.rep=null}
+      while(N.st.length&&!ok){const k=N.st.pop();if(same(k,N.cur))continue;ok=await show(k)}
+      if(was==="edit")try{sync()}catch(e){}}catch(e){console.log("zsnav",e)}finally{N.busy=false}
+    if(ok){N.cur=keyOf();hook()}return ok}
+  /* the header’s back button first goes one step back, then (when nothing is left) does what it did before */
+  function hook(){const b=document.getElementById("hBack");if(!b||b.hidden||b._zsn===b.onclick)return;const old=b.onclick;
+    const f=async e=>{if(N.st.length&&await back())return;if(old)return old.call(b,e);renderHome()};b._zsn=f;b.onclick=f}
+  function wrap(name){const f=window[name];if(typeof f!=="function"||f._zsn)return;const w=function(){const o=f.apply(this,arguments);try{note()}catch(e){}return o};w._zsn=1;window[name]=w}
+  function init(){["renderHome","renderSettings","renderCustomers","renderStaff","renderTasks","renderPlan","renderLists","renderDebts","renderUpsStats","openReport","renderEditor"].forEach(wrap);
+    window.addEventListener("popstate",()=>{if(N.st.length)back()})}
+  return {init,back,nav:N}})();
+try{ZSNAV.init()}catch(e){console.log("zsnav init",e)}
 </script>
 </body>
 </html>
