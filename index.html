@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111402;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111501;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -1750,7 +1750,7 @@ function saveLocalReports(list){if(!RDB.ok){if(!LS.set("ups.reports",Object.valu
 const savePending=()=>LS.set("ups.pending",[...state.pending]);
 const hasServer=()=>IS_GAS||!!(state.me.url&&state.me.key);
 
-const API_TIMEOUT={deleted_list:45000,history:40000,rev_get:30000,ping:12000,list:20000,tasks:15000,get:20000,parts:20000,ratings:15000,save:45000,photo:60000,pdf:90000};
+const API_TIMEOUT={loc_day:45000,loc_last:20000,loc_push:30000,deleted_list:45000,history:40000,rev_get:30000,ping:12000,list:20000,tasks:15000,get:20000,parts:20000,ratings:15000,save:45000,photo:60000,pdf:90000};
 /* hub address as typed by a person ("192.168.1.10:8787") → full API address */
 function hubUrl(u){u=String(u||"").trim();if(!u)return "";if(!/^https?:\/\//i.test(u))u="http://"+u;if(!/script\.google\.com/.test(u)&&!/\/api\/?$/.test(u))u=u.replace(/\/+$/,"")+"/api";return u}
 async function api(action,payload={}){
@@ -4063,7 +4063,7 @@ async function taskForm(t,back){state.view="tasks";let W=[];try{W=((await api("w
 /* ================= elektron imza: müştəri və servis mühəndisi ekranda imzalayır ================= */
 const fmtDT=iso=>{const d=new Date(iso||"");if(isNaN(d))return "";const p=x=>String(x).padStart(2,"0");return p(d.getDate())+"."+p(d.getMonth()+1)+"."+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes())};
 /* the customer's signature: what the report looked like at signing is kept; later changes (e.g. finished in the office) are listed for the manager only, never in the PDF */
-const SNAP_SKIP={sig:1,sigSnap:1,photos:1,updatedAt:1,by:1,appr:1,sub:1,hist:1,createdAt:1,taskId:1,log:1,logs:1,tr:1,_tr:1};
+const SNAP_SKIP={geo:1,sig:1,sigSnap:1,photos:1,updatedAt:1,by:1,appr:1,sub:1,hist:1,createdAt:1,taskId:1,log:1,logs:1,tr:1,_tr:1};
 function flatRep(o,pre,out){out=out||{};if(Object.keys(out).length>6000||o==null)return out;
   if(typeof o!=="object"){const v=String(o);if(v!==""&&v!=="false")out[pre]=v.length>300?v.slice(0,300)+"…":v;return out}
   if(Array.isArray(o))o.forEach((x,i)=>flatRep(x,pre+"."+(i+1),out));else for(const k in o){if(SNAP_SKIP[k]||/^data:/.test(String(o[k])))continue;flatRep(o[k],pre?pre+"."+k:k,out)}return out}
@@ -4947,6 +4947,132 @@ window.ZSNAV=(function(){
     window.addEventListener("popstate",()=>{if(N.st.length)back()})}
   return {init,back,nav:N}})();
 try{ZSNAV.init()}catch(e){console.log("zsnav init",e)}
+</script>
+<script>/* ZUVAND — işçilərin yeri: şirkət telefonu iş yerini vaxtaşırı rəhbərə göndərir (proqram bağlı olanda da — Android), rəhbər xəritədə son yeri və günlük marşrutu görür, hesabatda işin harada aparıldığı qeyd olunur */
+window.ZSLOC=(function(){
+  const KQ="ups.locq",KOK="ups.locok",KCFG="ups.loccfg";
+  const lsg=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},lss=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+  let cfg=lsg(KCFG,null),last=null,lastQ=0,watchId=null,bgId=null,timer=null,started=false,busy=false,cfgAt=0,mode="";
+  const isNative=()=>{try{return !!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())}catch(e){return false}};
+  const BG=()=>{try{if(!isNative())return null;const P=Capacitor.Plugins||{};return P.BackgroundGeolocation||(Capacitor.registerPlugin?Capacitor.registerPlugin("BackgroundGeolocation"):null)}catch(e){return null}};
+  const srv=()=>{try{return typeof hasServer==="function"&&hasServer()}catch(e){return false}};
+  const meName=()=>(state.me&&state.me.name)||"";
+  let bt=null;try{navigator.getBattery&&navigator.getBattery().then(b=>{bt=b}).catch(()=>{})}catch(e){}
+  const btPct=()=>bt&&isFinite(bt.level)?Math.round(bt.level*100):undefined;
+
+  /* ---------- the phone sends ---------- */
+  function onPos(p){if(!p||!isFinite(p.la)||!isFinite(p.lo))return;last=p;const ev=((cfg&&cfg.every)||3)*60000;if(Date.now()-lastQ>=ev-5000)queue(mode)}
+  function queue(s,r){if(!last)return;const q=lsg(KQ,[]);q.push({t:Date.now(),la:+last.la.toFixed(6),lo:+last.lo.toFixed(6),a:last.a!=null?Math.round(last.a):undefined,s:s||"",r:r||undefined,bt:btPct()});while(q.length>3000)q.shift();lss(KQ,q);if(!r)lastQ=Date.now();flush()}
+  async function flush(){if(busy||!srv())return;const q=lsg(KQ,[]);if(!q.length)return;busy=true;
+    try{const part=q.slice(0,300),r=await api("loc_push",{pts:part});const q2=lsg(KQ,[]);lss(KQ,q2.slice(part.length));
+      if(r&&r.off){cfg=Object.assign({},cfg||{},{me:false});lss(KCFG,cfg);stop()}else if(q2.length>part.length)setTimeout(flush,1500)}
+    catch(e){/* no internet — kept on the phone, sent later */}finally{busy=false}}
+  function consent(){return new Promise(res=>{const ov=document.createElement("div");ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");
+    ov.style.cssText="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.5);display:grid;place-items:center;padding:16px";
+    ov.innerHTML=`<div style="background:var(--surface,#fff);color:var(--ink,#111);border-radius:14px;max-width:460px;padding:18px 18px 14px;box-shadow:0 10px 40px rgba(0,0,0,.3)"><h3 style="margin:0 0 8px">📍 Yerin izlənməsi</h3>
+      <p style="margin:0 0 8px">Bu telefon şirkət telefonudur. ZUVAND Servis proqramı iş yerinizi (GPS) hər ${(cfg&&cfg.every)||3} dəqiqədən bir rəhbərə göndərir — proqram bağlı olanda da. Servis hesabatı açılanda və imzalananda yer hesabata yazılır.</p>
+      <p class="note" style="margin:0 0 12px">Rəhbər izləməni proqramdan söndürə bilər. Telefon “Yerə icazə” soruşanda <b>“Həmişə”</b> və ya <b>“Proqram istifadə olunarkən”</b> seçin; bildiriş zolağında “yer izlənir” yazısı görünəcək.</p>
+      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" data-lx="0">Sonra</button><button class="btn pri" data-lx="1" id="locOk">Razıyam</button></div></div>`;
+    ov.querySelectorAll("[data-lx]").forEach(b=>b.onclick=()=>{ov.remove();res(b.dataset.lx==="1")});document.body.appendChild(ov)})}
+  function fg(){if(!navigator.geolocation||watchId!==null)return;mode=mode||"fg";
+    try{watchId=navigator.geolocation.watchPosition(p=>onPos({la:p.coords.latitude,lo:p.coords.longitude,a:p.coords.accuracy,t:p.timestamp}),()=>{},{enableHighAccuracy:true,maximumAge:60000,timeout:120000})}catch(e){}}
+  let asking=null;
+  async function start(){if(started||!cfg||!cfg.me)return;if(!lsg(KOK,0)){if(!asking)asking=consent().finally(()=>{setTimeout(()=>{asking=null},0)});const ok=await asking;if(!ok)return;lss(KOK,1)}if(started)return;started=true;
+    const bg=BG();
+    if(bg&&bg.addWatcher){try{mode="bg";bgId=await bg.addWatcher({backgroundTitle:"ZUVAND Servis — yer izlənir",backgroundMessage:"İş yeri rəhbərə göndərilir",requestPermissions:true,stale:false,distanceFilter:20},
+        (loc,err)=>{if(err){if(err.code==="NOT_AUTHORIZED"){toast("Yerə icazə verilməyib — telefonun ayarlarında ZUVAND Servis üçün “Yer: Həmişə” seçin",8000);try{bg.openSettings()}catch(e){}}return}
+          if(loc)onPos({la:loc.latitude,lo:loc.longitude,a:loc.accuracy,t:loc.time||Date.now()})})}catch(e){mode="fg";fg()}}
+    else{mode="fg";fg()}
+    timer=setInterval(tick,60000);setTimeout(tick,4000);
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden){flush();if(mode==="fg"&&watchId===null)fg()}})}
+  function stop(){started=false;try{if(watchId!==null)navigator.geolocation.clearWatch(watchId)}catch(e){}watchId=null;
+    try{const bg=BG();if(bg&&bgId)bg.removeWatcher({id:bgId})}catch(e){}bgId=null;clearInterval(timer);timer=null}
+  function tick(){if(!started)return;const ev=((cfg&&cfg.every)||3)*60000;if(last&&Date.now()-lastQ>=ev-5000)queue(mode);else flush();try{geoRep()}catch(e){}
+    if(Date.now()-cfgAt>30*60000)loadCfg()}
+  async function loadCfg(){if(!srv())return;cfgAt=Date.now();try{const r=await api("loc_cfg",{});cfg=r.cfg||null;lss(KCFG,cfg)}catch(e){}
+    if(cfg&&cfg.me)start();else if(started)stop()}
+  function init(){if(!srv()||!(state.me&&state.me.personal))return;if(cfg&&cfg.me&&!started)start();if(!cfgAt)loadCfg()}
+
+  /* ---------- the report remembers where the work was done ---------- */
+  const fresh=()=>last&&Date.now()-(last.t||0)<10*60000?last:null;
+  function geoRep(){const r=state.rep;if(!started||!r||state.view!=="edit"||!fresh())return;try{if(typeof lockedRep==="function"&&lockedRep(r))return}catch(e){}
+    const me=meName(),G=r.geo=Array.isArray(r.geo)?r.geo:[],L=fresh(),add=k=>{G.push({k,t:Date.now(),la:+L.la.toFixed(6),lo:+L.lo.toFixed(6),a:L.a!=null?Math.round(L.a):undefined,by:me});queue("rep",r.id);return 1};let n=0;
+    if(!G.some(g=>g.k==="open"&&g.by===me))n+=add("open");
+    Object.keys(r.sig||{}).forEach(k=>{const s=r.sig[k];if(!s||!s.img||!s.at)return;const at=Date.parse(s.at)||0;if(!G.some(g=>g.k==="sig:"+k&&g.t>=at-60000))n+=add("sig:"+k)});
+    if(n){try{markDirty()}catch(e){}try{geoCard()}catch(e){}}}
+  const GL={open:"Hesabat açılıb",cl:"Müştəri imzası",eng:"Mühəndis imzası"};
+  const mapLink=g=>`https://www.google.com/maps?q=${g.la},${g.lo}`;
+  const fdt=t=>{const d=new Date(t);return d.toLocaleDateString("az-AZ",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("az-AZ",{hour:"2-digit",minute:"2-digit"})};
+  function geoCard(){const o=document.getElementById("geoCard");if(o)o.remove();const r=state.rep;if(state.view!=="edit"||!r||!Array.isArray(r.geo)||!r.geo.length)return;const m=document.getElementById("main");if(!m)return;
+    m.insertAdjacentHTML("afterbegin",`<div class="card" id="geoCard" style="padding:8px 12px"><b>📍 İşin yeri</b> ${r.geo.slice(-6).map(g=>`<span class="note" style="display:inline-block;margin-right:10px">${esc(GL[g.k]||GL[String(g.k).replace("sig:","")]||String(g.k).replace("sig:","imza: "))} · ${fdt(g.t)}${g.by?" · "+esc(g.by):""} · <a href="${mapLink(g)}" target="_blank" rel="noopener">xəritədə</a>${g.a?" (±"+g.a+" m)":""}</span>`).join("")}</div>`)}
+
+  /* ---------- the manager sees ---------- */
+  let LF=null;
+  function leaflet(){if(window.L&&window.L.map)return Promise.resolve(window.L);if(LF)return LF;
+    LF=new Promise((res,rej)=>{const c=document.createElement("link");c.rel="stylesheet";c.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.appendChild(c);
+      const s=document.createElement("script");s.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";s.onload=()=>res(window.L);s.onerror=()=>{LF=null;rej(new Error("map"))};document.head.appendChild(s)});return LF}
+  const ago=t=>{const m=Math.round((Date.now()-t)/60000);return m<1?"indicə":m<60?m+" dəq əvvəl":m<1440?Math.floor(m/60)+" saat "+(m%60)+" dəq əvvəl":Math.floor(m/1440)+" gün əvvəl"};
+  const dist=(a,b)=>{const R=6371000,r=x=>x*Math.PI/180,dl=r(b.la-a.la),dn=r(b.lo-a.lo),h=Math.sin(dl/2)**2+Math.cos(r(a.la))*Math.cos(r(b.la))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+  function stops(P){const out=[];let i=0;while(i<P.length){let j=i;while(j+1<P.length&&dist(P[i],P[j+1])<150)j++;const d=P[j].t-P[i].t;if(d>=10*60000)out.push({la:P[i].la,lo:P[i].lo,from:P[i].t,to:P[j].t,n:j-i+1});i=j+1}return out}
+  const today=()=>{const d=new Date(Date.now()+4*3600000);return d.toISOString().slice(0,10)};
+  const S={map:null,layer:null,data:null,wid:"",date:"",timer:null};
+  const COL=["#0B7A4B","#2563A8","#C2410C","#7A4FB5","#B5761F","#0F5E6B","#8B1E1E","#4B2A7B"];
+  async function staffCard(){if(state.view!=="staff"||!srv())return;try{if(typeof svCan==="function"&&!svCan("staff"))return}catch(e){}
+    const m=document.getElementById("main");if(!m||document.getElementById("locCard"))return;const adm=state.me&&state.me.role==="admin";
+    const h2=m.querySelector("h2.sec");const html=`<div class="card" id="locCard"><h3 style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 6px">📍 İşçilərin yeri <span class="note" id="locUpd" style="font-weight:400"></span><span style="flex:1"></span><button class="btn sm" id="locRef">Yenilə</button></h3>
+      <div id="locMap" style="height:380px;border-radius:10px;border:1px solid var(--line);background:var(--surface2,#eef)"></div>
+      <div id="locList" style="margin-top:8px"></div><div id="locRoute"></div>${adm?`<details id="locSet" style="margin-top:8px"><summary style="cursor:pointer;font-weight:700">⚙ İzləmə ayarları</summary><div id="locSetBox" style="padding:8px 0"></div></details>`:""}</div>`;
+    if(h2)h2.insertAdjacentHTML("afterend",html);else m.insertAdjacentHTML("afterbegin",html);
+    document.getElementById("locRef").onclick=()=>loadLast(true);
+    try{await leaflet();if(!document.getElementById("locMap"))return;const L=window.L;S.map=L.map("locMap",{zoomControl:true}).setView([40.4093,49.8671],11);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(S.map);S.layer=L.layerGroup().addTo(S.map)}
+    catch(e){const mp=document.getElementById("locMap");if(mp){mp.style.height="auto";mp.innerHTML='<p class="note" style="padding:10px;margin:0">Xəritə yüklənmədi (internet?). Yerlər aşağıda siyahı kimi göstərilir.</p>'}}
+    await loadLast(true);clearInterval(S.timer);S.timer=setInterval(()=>{if(state.view!=="staff"||!document.getElementById("locCard")){clearInterval(S.timer);return}if(!S.wid)loadLast(false)},60000)}
+  async function loadLast(fit){let r;try{r=await api("loc_last",{})}catch(e){const l=document.getElementById("locList");if(l)l.innerHTML=`<p class="note">Yerlər alınmadı: ${esc(e&&e.data&&e.data.error||e.message||"")}</p>`;return}
+    S.data=r;const u=document.getElementById("locUpd");if(u)u.textContent="· yeniləndi "+new Date().toLocaleTimeString("az-AZ",{hour:"2-digit",minute:"2-digit"});drawLast(fit);setBox()}
+  function drawLast(fit){const r=S.data;if(!r)return;const W=r.workers||[],L=r.last||[],off=(r.cfg&&r.cfg.off)||[],byW={};L.forEach(x=>byW[x.w]=x);
+    const rows=W.map((w,i)=>({w,p:byW[w.id],c:COL[i%COL.length]})).sort((a,b)=>((b.p&&b.p.t)||0)-((a.p&&a.p.t)||0));
+    if(S.map&&window.L&&!S.wid){S.layer.clearLayers();const B=[];rows.forEach(x=>{if(!x.p)return;const old=Date.now()-x.p.t>30*60000;
+        const mk=window.L.circleMarker([x.p.la,x.p.lo],{radius:9,color:"#fff",weight:2,fillColor:old?"#9AA3A0":x.c,fillOpacity:.95}).addTo(S.layer);
+        mk.bindTooltip(esc(x.w.name),{permanent:true,direction:"top",offset:[0,-8]});mk.bindPopup(`<b>${esc(x.w.name)}</b><br>${ago(x.p.t)}${x.p.a?"<br>dəqiqlik ±"+Math.round(x.p.a)+" m":""}${x.p.bt!=null?"<br>batareya "+x.p.bt+"%":""}`);B.push([x.p.la,x.p.lo])});
+      if(fit&&B.length)S.map.fitBounds(B,{padding:[40,40],maxZoom:15})}
+    const l=document.getElementById("locList");if(!l)return;const on=!r.cfg||r.cfg.on;
+    l.innerHTML=(on?"":`<p class="note" style="color:var(--bad)">İzləmə söndürülüb — telefonlar yer göndərmir.</p>`)+`<div style="display:grid;gap:4px">${rows.map(x=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:5px 0">
+        <span style="width:12px;height:12px;border-radius:50%;background:${x.p&&Date.now()-x.p.t<30*60000?x.c:"#9AA3A0"};flex:none"></span><b style="min-width:120px">${esc(x.w.name)}</b>
+        <span class="note" style="flex:1">${off.includes(x.w.id)?"izlənmir":x.p?ago(x.p.t)+(x.p.a?" · ±"+Math.round(x.p.a)+" m":"")+(x.p.bt!=null?" · 🔋"+x.p.bt+"%":""):"hələ yer göndərməyib"}</span>
+        ${x.p?`<button class="btn sm" data-lsh="${esc(x.w.id)}">Xəritədə</button>`:""}<button class="btn sm" data-lrt="${esc(x.w.id)}">Marşrut</button></div>`).join("")}</div>`;
+    l.querySelectorAll("[data-lsh]").forEach(b=>b.onclick=()=>{const p=byW[b.dataset.lsh];if(S.wid){S.wid="";drawLast(false)}if(S.map&&p){S.map.setView([p.la,p.lo],16);document.getElementById("locMap").scrollIntoView({behavior:"smooth",block:"center"})}else if(p)window.open(mapLink(p),"_blank")});
+    l.querySelectorAll("[data-lrt]").forEach(b=>b.onclick=()=>route(b.dataset.lrt,S.date||today()))}
+  async function route(wid,date){S.wid=wid;S.date=date;const w=((S.data&&S.data.workers)||[]).find(x=>x.id===wid)||{name:""},box=document.getElementById("locRoute");if(!box)return;
+    box.innerHTML=`<div style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:8px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>Marşrut — ${esc(w.name)}</b><input type="date" id="locDate" value="${esc(date)}" style="width:auto;min-height:0"><button class="btn sm" id="locPrev">‹ Əvvəlki gün</button><button class="btn sm" id="locNext">Növbəti gün ›</button><span style="flex:1"></span><button class="btn sm ghost" id="locX">Bağla — hamının son yeri</button></div><div id="locRInfo" class="note" style="margin-top:6px">Yüklənir…</div></div>`;
+    const sh=d=>{const x=new Date(date+"T12:00:00Z");x.setUTCDate(x.getUTCDate()+d);route(wid,x.toISOString().slice(0,10))};
+    document.getElementById("locDate").onchange=e=>route(wid,e.target.value||today());document.getElementById("locPrev").onclick=()=>sh(-1);document.getElementById("locNext").onclick=()=>sh(1);
+    document.getElementById("locX").onclick=()=>{S.wid="";box.innerHTML="";drawLast(true)};
+    let P=[];try{P=((await api("loc_day",{wid,date})).pts||[]).filter(p=>!(p.a>500))}catch(e){document.getElementById("locRInfo").textContent="Marşrut alınmadı";return}
+    if(S.wid!==wid||S.date!==date)return;const info=document.getElementById("locRInfo");
+    if(!P.length){info.textContent="Bu gün üçün yer qeydi yoxdur.";if(S.layer)S.layer.clearLayers();return}
+    let km=0;for(let i=1;i<P.length;i++){const d=dist(P[i-1],P[i]);if(d<20000)km+=d}const ST=stops(P),tm=t=>new Date(t).toLocaleTimeString("az-AZ",{hour:"2-digit",minute:"2-digit"}),du=ms=>{const m=Math.round(ms/60000);return m>=60?Math.floor(m/60)+" saat "+(m%60)+" dəq":m+" dəq"};
+    info.innerHTML=`${P.length} nöqtə · ${tm(P[0].t)}–${tm(P[P.length-1].t)} · təxminən ${(km/1000).toFixed(1)} km · ${ST.length} dayanacaq${ST.length?`<ol style="margin:6px 0 0;padding-left:20px">${ST.map(s=>`<li>${tm(s.from)}–${tm(s.to)} (${du(s.to-s.from)}) · <a href="${mapLink(s)}" target="_blank" rel="noopener">xəritədə</a></li>`).join("")}</ol>`:""}${P.some(p=>p.s==="rep")?`<div>🧾 hesabat qeydləri: ${P.filter(p=>p.s==="rep").map(p=>tm(p.t)).join(", ")}</div>`:""}`;
+    if(S.map&&window.L){const L=window.L;S.layer.clearLayers();const ll=P.map(p=>[p.la,p.lo]);L.polyline(ll,{color:"#2563A8",weight:4,opacity:.8}).addTo(S.layer);
+      L.circleMarker(ll[0],{radius:7,color:"#fff",weight:2,fillColor:"#0B7A4B",fillOpacity:1}).bindTooltip("Başlanğıc "+tm(P[0].t)).addTo(S.layer);
+      L.circleMarker(ll[ll.length-1],{radius:8,color:"#fff",weight:2,fillColor:"#C2410C",fillOpacity:1}).bindTooltip("Son "+tm(P[P.length-1].t),{permanent:true}).addTo(S.layer);
+      ST.forEach((s,i)=>L.marker([s.la,s.lo]).bindPopup(`<b>${i+1}. dayanacaq</b><br>${tm(s.from)}–${tm(s.to)} (${du(s.to-s.from)})`).addTo(S.layer));
+      P.filter(p=>p.s==="rep").forEach(p=>L.circleMarker([p.la,p.lo],{radius:6,color:"#7A4FB5",weight:3,fillOpacity:0}).bindTooltip("Hesabat "+tm(p.t)).addTo(S.layer));
+      S.map.fitBounds(ll,{padding:[30,30],maxZoom:16})}}
+  function setBox(){const b=document.getElementById("locSetBox");if(!b||!S.data)return;const c=S.data.cfg||{on:true,every:3,off:[]},W=S.data.workers||[];
+    b.innerHTML=`<label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="locOn" style="width:20px;height:20px;min-height:0"${c.on?" checked":""}> <b>İzləmə açıqdır</b> <span class="note">(söndürəndə heç bir telefon yer göndərmir)</span></label>
+      <label class="f" style="max-width:260px;margin-top:6px"><span>Hər neçə dəqiqədən bir</span><select id="locEv">${[1,3,5,10,15].map(n=>`<option value="${n}"${+c.every===n?" selected":""}>${n} dəqiqə</option>`).join("")}</select></label>
+      <div class="note" style="margin:6px 0 2px">Kimlər izlənir:</div>${W.map(w=>`<label style="display:flex;gap:8px;align-items:center;cursor:pointer;margin:2px 0"><input type="checkbox" data-lw="${esc(w.id)}" style="width:18px;height:18px;min-height:0"${(c.off||[]).includes(w.id)?"":" checked"}> ${esc(w.name)}</label>`).join("")}
+      <p class="note" style="margin:6px 0 0">Dəyişiklik telefonlara ən gec 30 dəqiqəyə çatır (proqram açılanda dərhal). iPhone-da yer yalnız proqram açıq olanda göndərilir.</p>`;
+    const save=async()=>{const n={on:document.getElementById("locOn").checked,every:+document.getElementById("locEv").value,off:[...b.querySelectorAll("[data-lw]")].filter(x=>!x.checked).map(x=>x.dataset.lw)};
+      try{const r=await api("loc_set",{cfg:n});S.data.cfg=r.cfg;toast("İzləmə ayarları saxlanıldı");drawLast(false)}catch(e){toast("Saxlanmadı: "+(e&&e.data&&e.data.error||e.message||""))}};
+    b.querySelectorAll("input,select").forEach(x=>x.onchange=save)}
+
+  function wrap(name,after){const f=window[name];if(typeof f!=="function"||f._zl)return;const w=function(){const o=f.apply(this,arguments);Promise.resolve(o).then(()=>{try{after()}catch(e){console.log("zsloc",e)}});return o};w._zl=1;
+    for(const k in f)try{w[k]=f[k]}catch(e){}window[name]=w}
+  function boot(){wrap("renderStaff",staffCard);wrap("renderEditor",()=>{geoCard()});wrap("openReport",()=>setTimeout(()=>{try{geoRep()}catch(e){}},1500));wrap("renderHome",init);setTimeout(init,3000)}
+  return {boot,init,start,stop,flush,cfg:()=>cfg,stops,dist,_q:()=>lsg(KQ,[]),_pos:p=>onPos(p),_geoRep:geoRep}})();
+try{ZSLOC.boot()}catch(e){console.log("zsloc boot",e)}
 </script>
 </body>
 </html>
