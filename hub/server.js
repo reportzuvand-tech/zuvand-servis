@@ -613,6 +613,41 @@ function saApi(body, req) {
     log(null, "sa-error", (body && body.action) + ": " + (e && e.stack || e)); return { ok: false, error: "server" };
   }
 }
+/* ---------------- where the workers are (company phones; the manager switches it on / off) ---------------- */
+const LOC_EVERY = [1, 3, 5, 10, 15];
+const locCfg = () => { const c = meta.loc || {}; return { on: c.on !== false, every: LOC_EVERY.includes(+c.every) ? +c.every : 3, off: Array.isArray(c.off) ? c.off : [] } };
+let locLast = null;
+const locLastGet = () => { if (!locLast) locLast = readJSON(P("loc", "last.json"), {}); return locLast };
+let locSaveT = null;
+const locLastSave = () => { clearTimeout(locSaveT); locSaveT = setTimeout(() => { try { fs.mkdirSync(P("loc"), { recursive: true }); writeJSON(P("loc", "last.json"), locLast || {}) } catch (e) { } }, 3000) };
+const num = (x, a, b) => { const v = +x; return isFinite(v) && v >= a && v <= b ? v : null };
+const LOC_ACT = {
+  loc_cfg: (u) => { const c = locCfg(); return { cfg: { on: c.on, every: c.every, me: !!(c.on && u.personal && u.id && !u.boss && !c.off.includes(u.id)) } } },
+  loc_push: (u, b) => {
+    if (!u.personal || !u.id) err("forbidden"); const c = locCfg(); if (!c.on || u.boss || c.off.includes(u.id)) return { n: 0, off: true };
+    const pts = (Array.isArray(b.pts) ? b.pts : []).slice(-500).map(x => ({ t: num(x && x.t, 1.5e12, now() + 600000), la: num(x && x.la, -90, 90), lo: num(x && x.lo, -180, 180), a: num(x && x.a, 0, 1e6), s: String((x && x.s) || "").replace(/[^a-z]/g, "").slice(0, 6), r: String((x && x.r) || "").replace(/[^\w-]/g, "").slice(0, 60), bt: num(x && x.bt, 0, 100) })).filter(x => x.t && x.la !== null && x.lo !== null);
+    if (!pts.length) return { n: 0 };
+    fs.mkdirSync(P("loc"), { recursive: true }); const byM = {};
+    pts.forEach(x => { const m = new Date(x.t + 4 * 3600000).toISOString().slice(0, 7); (byM[m] = byM[m] || []).push(JSON.stringify(Object.assign({ w: u.id, n: u.name }, x))) });
+    Object.keys(byM).forEach(m => fs.appendFileSync(P("loc", m + ".jsonl"), byM[m].join("\n") + "\n"));
+    const L = locLastGet(), last = pts.reduce((a, x) => x.t > a.t ? x : a, pts[0]);
+    if (!L[u.id] || L[u.id].t < last.t) { L[u.id] = Object.assign({ w: u.id, n: u.name }, last); locLastSave() }
+    return { n: pts.length };
+  },
+  loc_last: (u) => { needAdmin(u); const L = locLastGet(), c = locCfg(); return { last: Object.values(L), cfg: c, workers: users.filter(w => w.active !== false && w.role !== "admin").map(w => ({ id: w.id, name: w.name, role: w.role })) } },
+  loc_day: (u, b) => {
+    needAdmin(u); const d = String(b.date || ""); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) err("bad_date"); const wid = String(b.wid || ""); let txt = "";
+    try { txt = fs.readFileSync(P("loc", d.slice(0, 7) + ".jsonl"), "utf8") } catch (e) { }
+    const out = []; txt.split("\n").forEach(l => { if (!l) return; try { const x = JSON.parse(l); if (x.w === wid && new Date(x.t + 4 * 3600000).toISOString().slice(0, 10) === d) out.push(x) } catch (e) { } });
+    out.sort((a, b) => a.t - b.t); return { pts: out.slice(0, 5000) };
+  },
+  loc_set: (u, b) => {
+    needAdmin(u); const c = b.cfg || {}, o = locCfg();
+    meta.loc = { on: c.on === undefined ? o.on : !!c.on, every: LOC_EVERY.includes(+c.every) ? +c.every : o.every, off: Array.isArray(c.off) ? c.off.filter(id => users.some(w => w.id === id)).slice(0, 500) : o.off };
+    saveMeta(); log(u, "loc-cfg", (meta.loc.on ? "on " : "off ") + meta.loc.every + " dəq"); return { cfg: locCfg() };
+  },
+};
+Object.assign(ACTIONS, LOC_ACT);
 const LOG_ACTS = { restore: "restore", settings: "settings", worker_newkey: "worker-newkey", shared_off: "shared-off", pay_cfg: "pay-cfg" };
 /* açar səhvi: eyni ünvandan 15 dəqiqədə 12 səhv cəhd → 15 dəqiqə blok */
 const authFails = new Map();
