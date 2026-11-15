@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111502;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111503;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -5018,8 +5018,8 @@ window.ZSLOC=(function(){
   const S={map:null,layer:null,data:null,wid:"",date:"",timer:null};
   const COL=["#0B7A4B","#2563A8","#C2410C","#7A4FB5","#B5761F","#0F5E6B","#8B1E1E","#4B2A7B"];
   /* map tiles: CARTO (no key, works from the app / Windows / Google pages); Esri when CARTO is unreachable — openstreetmap.org refuses apps */
-  const TILES=[["https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{subdomains:"abcd",maxZoom:19,attribution:"© OpenStreetMap © CARTO"}],
-    ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"© Esri"}]];
+  const TILES=[["https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"© Esri, HERE, Garmin, © OpenStreetMap"}],
+    ["https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{subdomains:"abcd",maxZoom:19,attribution:"© OpenStreetMap © CARTO"}]];
   function tiles(L,i){const T=TILES[i];if(!T)return;let bad=0,ok=0;const t=L.tileLayer(T[0],T[1]).addTo(S.map);
     t.on("tileload",()=>{ok++});t.on("tileerror",()=>{if(++bad>=4&&!ok){S.map.removeLayer(t);tiles(L,i+1)}})}
   const KOPEN="ups.locopen",isOpen=()=>{const v=lsg(KOPEN,1);return v!==0};

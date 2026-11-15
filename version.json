@@ -1,1 +1,1 @@
-{"v": 2026111502, "notes": "Servis: işçilərin yeri — xəritə Windows-da da açılır (CARTO/Esri xəritəsi), bölmə açılıb-yığılır", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}
+{"v": 2026111503, "notes": "Servis: işçilərin yeri — xəritə Esri xəritəsinə keçirildi", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}
