@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111503;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111504;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -292,7 +292,7 @@ body.zsEd #ps h1:hover,body.zsEd #ps h4:hover,body.zsEd #ps h5:hover,body.zsEd #
         try{d.querySelector(".msg").textContent="Saxlanılır…";await ok(v);d.remove()}catch(e){d.querySelector(".msg").textContent="Alınmadı: "+((e&&e.message)||e)}}};
     draw();document.body.appendChild(d);d.onclick=e=>{if(e.target===d)d.remove()}}
   /* ---- template changes ---- */
-  async function commit(fn,msg){const T=cl(ZSTPL.raw()||{});fn(T);await ZSTPL.saveT(T);if(msg&&typeof toast==="function")toast(msg)}
+  async function commit(fn,msg){const T=cl(ZSTPL.raw()||{});fn(T);try{await ZSTPL.saveT(T)}catch(e){if(typeof toast==="function")toast("Şablon serverdə saxlanılmadı: "+((e&&e.message)||e)+" — internet / icazəni yoxlayın",9000);return}if(msg&&typeof toast==="function")toast(msg+" — saxlanıldı")}
   const RN=()=>window.ZS_RN||{};
   const rev=()=>{const o={},R=RN();for(const k in R)o[R[k]]=k;return o};
   const keyOf=txt=>{txt=String(txt||"").replace(/\s+/g," ").trim().replace(/^\d+(\.\d+)*\.\s+/,"").replace(/\s*\(\d+\)$/,"");return rev()[txt]||txt};
@@ -405,8 +405,22 @@ body.zsEd #ps h1:hover,body.zsEd #ps h4:hover,body.zsEd #ps h5:hover,body.zsEd #
     const r=freshReport(state.settings,TYPES[tp]?tp:"ups");r.id=ID;r.sample=true;r.svc.type=st||"Planlı servis";r.svc.repno="NÜMUNƏ";r.cl.name="Şablon: "+(TYPES[tp]?TYPES[tp].title:"")+" · "+r.svc.type;
     ED={tp:r.devices[0].type,st:r.svc.type,back,bt};state.reports[ID]=r;openReport(r);if(tab&&tabsFor().some(x=>x[0]===tab)){state.tab=tab;renderEditor()}}
   function rebuild(){if(!ED)return;const tab=state.tab,y=window.scrollY;start(ED.tp,ED.st,tab);setTimeout(()=>window.scrollTo(0,y),0)}
+  /* the report the editor was opened from takes the new lists (values are kept by name; a renamed item keeps its place) — approved / sent / others' reports stay as they are */
+  const eq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  function remap(oldL,newL,vals,mk){const used=new Set();return newL.map((x,i)=>{let j=oldL.indexOf(x);if(j<0&&i<oldL.length&&!newL.includes(oldL[i]))j=i;if(j>=0&&!used.has(j)&&vals[j]!=null){used.add(j);return vals[j]}return mk(x,i)})}
+  function restamp(r){if(!r||r.sample)return false;try{if(lockedRep(r)||apprOf(r)||r.sub)return false}catch(e){return false}let ch=false;
+    (r.devices||[]).forEach(d=>{const T=TYPES[d.type];if(!T)return;
+      if(d.lbl&&Array.isArray(d.lbl.m)){const L=d.lbl;
+        if(!eq(L.m,T.meas)||!eq(L.c||[],T.chk)||!eq(L.w||[],T.works)){const om=L.m.map(m=>m[0]);
+          d.meas=remap(om,T.meas.map(m=>m[0]),d.meas||[],(x,i)=>{const m=T.meas[i];return {v:["","",""],min:m[2]==null?"":String(m[2]),max:m[3]==null?"":String(m[3])}});
+          T.meas.forEach((m,i)=>{const j=om.indexOf(m[0]),o=L.m[j],v=d.meas[i];if(!o||!v)return;if(String(v.min)===String(o[2]??""))v.min=m[2]==null?"":String(m[2]);if(String(v.max)===String(o[3]??""))v.max=m[3]==null?"":String(m[3])});
+          d.chk=remap(L.c||[],T.chk,d.chk||[],()=>({s:"",n:""}));d.works=remap(L.w||[],T.works,d.works||[],()=>"");
+          L.m=cl(T.meas);L.c=T.chk.slice();L.w=T.works.slice();if(T.custom)Object.assign(L,{t:T.title,s:T.short,b:T.hasBat?1:0,i:cl(T.info)});ch=true}}
+      const X=d.x;if(X&&X._l)for(const k in X._l){const nl=(ZSTPL.svcList&&ZSTPL.svcList(k,d.type))||XL_MAP()[k];if(!Array.isArray(nl)||eq(nl,X._l[k]))continue;
+        const V=getP(X,k);if(Array.isArray(V))setP(X,k,remap(X._l[k],nl,V,()=>undefined));X._l[k]=nl.slice();ch=true}});
+    if(ch){r.updatedAt=Date.now();try{state.pending.add(r.id);savePending();saveLocalReports([r])}catch(e){}}return ch}
   async function exit(){const back=ED&&ED.back,bt=ED&&ED.bt;ED=null;document.body.classList.remove("zsEd");try{await removeReport(ID)}catch(e){delete state.reports[ID]}
-    if(back&&state.reports[back]){openReport(state.reports[back]);if(bt&&tabsFor().some(x=>x[0]===bt)){state.tab=bt;renderEditor()}}else{state.cur=null;state.rep=null;renderSettings()}}
+    if(back&&state.reports[back]){const ch=restamp(state.reports[back]);openReport(state.reports[back]);if(ch){try{sync()}catch(e){}if(typeof toast==="function")toast("Şablondakı dəyişikliklər bu hesabata da tətbiq olundu")}if(bt&&tabsFor().some(x=>x[0]===bt)){state.tab=bt;renderEditor()}}else{state.cur=null;state.rep=null;renderSettings()}}
   function hdr(){const bar=document.querySelector("header.top .bar");if(!bar)return;let b=document.getElementById("hTplEd");
     if(!b){b=document.createElement("button");b.className="btn sm";b.id="hTplEd";b.type="button";const th=document.getElementById("hTheme");if(th)th.before(b);else bar.appendChild(b);
       b.onclick=()=>{if(on()){exit();return}const r=cur();if(!r)return;start(CUR_TYPE,r.svc.type,state.tab)};
@@ -470,6 +484,29 @@ window.ZSTPL=(function(){
     bms:{"upd.kinds":["Akkumulyator","Sensor modulu","Ölçü kabeli","İdarəetmə bloku","Rabitə modulu","Digər"],"upd.cp":["Part № uyğundur","Sensorların qoşulması və nömrələnməsi","Rabitə yoxlandı","Ölçmələr göstərilir","Alarm funksiyaları"]},
     pfc:{"upd.kinds":["Kondensator","Kontaktor","Reaktiv güc tənzimləyicisi","Drossel","Qoruyucu","Ventilyator","Digər"],
       "upd.cp":["Part № uyğundur","Kondensatorların tutumu ölçüldü","Kontaktorların işləməsi","Tənzimləyicinin parametrləri","Pillələrin qoşulması","Güc əmsalı (cos φ) yük altında"]}};
+  /* installation / commissioning and relocation lists of each device type (a UPS list does not fit an ATS panel or a generator) */
+  const MOV_NB1=["Yük təhlükəsiz söndürüldü / alternativ qidalanmaya keçirildi (müştəri ilə razılaşdırılıb)","Giriş və çıxış avtomatları açıldı, gərginlik yoxdur (yoxlanıldı)","Kabellər markalandı və söküldü","Avadanlıq bərkidildiyi yerdən söküldü","Qablaşdırma və bərkidilmə (daşınma üçün)","Daşınma zamanı zədə yoxdur (çatdırılanda yoxlanıldı)"];
+  const MOV_NB2=["Yeni yerdə quraşdırma və bərkidilmə, ventilyasiya məsafəsi","Giriş / çıxış kabelləri qoşuldu, bərkidildi (sıxılma momenti)","Torpaqlama (PE) qoşulması","Faza ardıcıllığı","İzolyasiya müqaviməti yoxlanıldı","İşə salma (normal rejim)","Yük altında yoxlama","Ekran, alarm və jurnal yoxlandı"];
+  const INST_BY_DEV={
+    panel:{"inst.chk":["Korpus / şkaf — ölçü və IP dərəcəsi layihəyə uyğundur","Şkafın montajı və bərkidilməsi (döşəmə / divar)","Şin sistemi (L1–L3, N, PE) — kəsik, izolyasiya və bərkidilmə","Giriş avtomatları / açarları (şəbəkə və generator) — nominal və tip","ATS keçid elementi (motorlu açar / kontaktorlar) — nominal","Mexaniki və elektrik blokirovka (interlock)","ATS kontrolleri — quraşdırma və qoşulma","Gərginlik / faza nəzarət releləri","Çıxış avtomatları — nominal və markalanma","İdarəetmə dövrəsinin qoruyucuları / avtomatları","Ölçü cihazları və cərəyan transformatorları","Siqnal lampaları və idarəetmə düymələri (Avto / Əl / Test)","Generatorun start siqnalı (quru kontakt) qoşulması","Kabel girişləri, ucluqlar (lug) və sıxılma momenti","Kabel kanalları və markalanma","Torpaqlama (PE) qoşulması","Faza ardıcıllığı (şəbəkə və generator eyni)","İzolyasiya müqaviməti ölçüldü (meqommetr)","Elektrik sxemi və sənədlər şkafın içindədir"],
+      "inst.test":["İdarəetmə dövrəsinin enerjiləndirilməsi","Şəbəkədən işləmə (normal rejim)","Şəbəkə kəsilməsi → generatora start siqnalı","Generatora keçid (təyin edilmiş gecikmə ilə)","Şəbəkə bərpası → şəbəkəyə geri keçid (gecikmə ilə)","Generatorun soyuma və dayanma siqnalı","Faza itkisi, aşağı / yüksək gərginlik qorumaları","Əl (manual) rejimində keçid","Blokirovka — iki mənbə eyni anda qoşulmur","Yük altında keçid testi","Siqnalizasiya, göstəricilər və ekran","Termovizor ilə qızma yoxlaması (yük altında)"]},
+    gen:{"inst.chk":["Yerləşmə, ventilyasiya və hava axını","Bünövrə / vibrasiya dayaqları","İşlənmiş qaz çıxışı (egzoz) və onun izolyasiyası","Yanacaq çəni, boruları və sızma yoxlaması","Yağ və soyuducu mayenin səviyyəsi","Start akkumulyatorunun qoşulması və şarjı","Güc kabelləri — kəsik və bərkidilmə","Çıxış avtomatı","Torpaqlama (PE) qoşulması","Faza ardıcıllığı","ATS / uzaqdan start siqnalının qoşulması","Qızdırıcı (blok qızdırıcısı) qoşulması","Kapot / səs izolyasiyası"],
+      "inst.test":["Əl ilə start","Yüksüz iş — gərginlik və tezlik","Yük altında iş","ATS üzərindən avtomatik start və dayanma","Qəza dayanması (Emergency stop)","Qorumalar (yağ təzyiqi, temperatur, sürət)","Soyuma və dayanma","Kontrollerin ekranı və hadisə jurnalı"]},
+    avr:{"inst.chk":["Avadanlığın yerləşməsi və ventilyasiya (boş məsafə)","Giriş kabeli — kəsik və bərkidilmə","Çıxış kabeli — kəsik və bərkidilmə","Giriş avtomatı (nominal, tip)","Çıxış / bypass açarı","Torpaqlama (PE) qoşulması","Faza ardıcıllığı","Servo motor və karbon fırçaların vəziyyəti","Kabel kanalları və markalanma"],
+      "inst.test":["İşə salma (normal rejim)","Çıxış gərginliyinin tənzimlənməsi (giriş dəyişəndə)","Bypass rejiminə keçid və geri","Qoruma funksiyaları (yüksək / aşağı gərginlik, faza itkisi)","Yük altında yoxlama","Ekran, alarm və göstəricilər"]},
+    svr:{"inst.chk":["Avadanlığın yerləşməsi və ventilyasiya (boş məsafə)","Giriş kabeli — kəsik və bərkidilmə","Çıxış kabeli — kəsik və bərkidilmə","Giriş avtomatı (nominal, tip)","Çıxış / bypass açarı","Torpaqlama (PE) qoşulması","Faza ardıcıllığı","Kabel kanalları və markalanma"],
+      "inst.test":["İşə salma (normal rejim)","Çıxış gərginliyinin dəqiqliyi (giriş dəyişəndə)","Bypass rejiminə keçid və geri","Qoruma funksiyaları (yüksək / aşağı gərginlik, faza itkisi)","Yük altında yoxlama","Ekran, alarm və göstəricilər"]},
+    rect:{"inst.chk":["Avadanlığın yerləşməsi və ventilyasiya","AC giriş kabeli və avtomatı","DC çıxış kabeli — kəsik və polyarlıq","Akkumulyatorların qoşulması və polyarlıq","Akkumulyator qoruyucusu / açarı","DC paylayıcı avtomatlar","Torpaqlama (PE) qoşulması","Siqnal / quru kontakt / rabitə qoşulması","Kabel kanalları və markalanma"],
+      "inst.test":["İşə salma (AC verildi)","Float və boost şarj gərginliyi","Şarj cərəyanının məhdudlaşdırılması","Akkumulyator rejimi (AC kəsilməsi)","DC yük altında yoxlama","Alarmlar (AC itkisi, DC aşağı / yüksək, torpaq qaçağı)"]},
+    bms:{"inst.chk":["Ölçü sensorlarının hər bloka quraşdırılması","Ölçü kabelləri və blokların nömrələnməsi","Temperatur sensorları","Cərəyan sensoru (şunt / Hall)","İdarəetmə bloku və qidalanması","Rabitə qoşulması (Modbus / SNMP / Ethernet)","Kabellərin bərkidilməsi və markalanma"],
+      "inst.test":["Hər blokun gərginliyi göstərilir","Daxili müqavimət ölçülür","Temperatur göstərilir","Alarm hədləri təyin edildi və yoxlandı","Uzaqdan monitorinq (veb / SNMP) işləyir"]},
+    pfc:{"inst.chk":["Avadanlığın yerləşməsi və ventilyasiya","Şinlər / kabellər — kəsik və bərkidilmə","Cərəyan transformatorunun (CT) qoşulma yeri və polyarlığı","Kondensator pillələri","Kontaktorlar","Qoruyucular / avtomatlar","Drossellər (varsa)","Torpaqlama (PE) qoşulması","Kabel kanalları və markalanma"],
+      "inst.test":["Tənzimləyicinin ayarlanması (CT nisbəti, C/k, hədəf cos φ)","Pillələrin ardıcıl qoşulması","Yük altında cos φ hədəfə çatır","Pillələrin cərəyanları bərabərdir","Qızma və səs yoxlaması","Alarm funksiyaları"]}};
+  for(const tp in INST_BY_DEV){DEFDEV[tp]=DEFDEV[tp]||{};Object.assign(DEFDEV[tp],INST_BY_DEV[tp])}
+  ["avr","svr","gen","panel","pfc"].forEach(tp=>{DEFDEV[tp]=DEFDEV[tp]||{};DEFDEV[tp]["mov.c1"]=MOV_NB1;DEFDEV[tp]["mov.c2"]=MOV_NB2});
+  DEFDEV.pq={"inst.chk":["Analizatorun yerləşdirilməsi və bərkidilməsi","Analizatorun qidalanması","Gərginlik probları (L1–L3, N, PE) düzgün qoşuldu","Cərəyan kəlbətinləri (CT) düzgün fazalarda və istiqamətdə","Ölçmə sxemi (1F / 3F, ulduz / üçbucaq) seçildi","Nominal gərginlik və tezlik təyin edildi","Qeyd intervalı təyin edildi"],
+    "inst.test":["Gərginliklər və faza ardıcıllığı düzgün göstərilir","Cərəyanlar və güc istiqaməti düzgündür (P > 0)","Qeyd başladı","Qeyd sonda yükləndi"],"upd.kinds":["Ölçü kabeli / prob","Cərəyan kəlbətini","Qidalanma bloku","Yaddaş kartı","Digər"],"upd.cp":CHK_GEN,"mov.c1":MOV_NB1,"mov.c2":MOV_NB2};
+  DEFDEV.rect=DEFDEV.rect||{};DEFDEV.rect["upd.cp"]=["Part № uyğundur","Konnektorlar və bərkidilmə","Termopasta (modul dəyişdirilibsə)","Ventilyatorun hava istiqaməti","Float və boost şarj gərginliyi","Şarj cərəyanının məhdudlaşdırılması","Akkumulyator rejimi","Alarm jurnalı təmizləndi"];
   /* measurements of a replacement for devices without batteries: [key, name, unit, kind (0 one value · 1 before / after · 2 min / max), group] */
   const UM_STAB=[["vin","Giriş gərginliyi","V",1,"p"],["vout","Çıxış gərginliyi","V",1,"p"],["acc","Çıxış gərginliyinin dəqiqliyi","%",1,"p"],["iin","Giriş cərəyanı","A",1,"p"],["iout","Çıxış cərəyanı","A",1,"p"],["tIn","Daxili temperatur","°C",1,"p"],["fw","Firmware versiyası","",1,"p"],["fan","Ventilyatorların işləməsi","",1,"p"]];
   DEFDEV.avr.um=UM_STAB.concat([["mot","Servo motorun hərəkət sürəti / reaksiyası","",1,"p"]]);DEFDEV.svr.um=UM_STAB.slice();
@@ -767,9 +804,24 @@ window.ZSQRST=(function(){let O=null,R=null,busy=false;
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" id="qrsGo">Statistikanı göstər</button>
         <select id="qrsP" aria-label="Dövr"><option value="0">Hamısı</option><option value="7">Son 7 gün</option><option value="30" selected>Son 30 gün</option><option value="90">Son 3 ay</option><option value="365">Son 1 il</option></select>
         <input type="text" id="qrsQ" placeholder="Axtar: müştəri, S/N, ad…" style="flex:1;min-width:140px" aria-label="Axtar"></div>
-      <div id="qrsBody" style="min-width:0"></div></div>`;
+      <div id="qrsBody" style="min-width:0"></div>
+      <details style="margin-top:12px"><summary style="cursor:pointer"><b>QR səhifəsi üçün PDF-lər</b> — PDF-i olmayan hesabatlar</summary>
+        <p class="note" style="margin:6px 0">Müştəri QR-ı oxuyanda hər hesabatın PDF-i açılmalıdır. Çox cihazlı hesabatda hər cihazın öz PDF-i olur (yalnız həmin cihazın hissəsi). Burada PDF-i serverdə olmayan təsdiqlənmiş hesabatlar göstərilir; “Hazırla” onları bu kompüterdə hazırlayıb serverə yükləyir.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="qrmGo">Yoxla</button><button class="btn sm pri" id="qrmRun" hidden>Hamısını hazırla</button></div><div id="qrmBody" style="min-width:0"></div></details></div>`;
     if(anchor)anchor.insertAdjacentHTML("afterend",h);else main.insertAdjacentHTML("beforeend",h);
-    g("qrsGo").onclick=load;g("qrsP").onchange=body;g("qrsQ").oninput=body;if(R)body()}
+    g("qrsGo").onclick=load;g("qrsP").onchange=body;g("qrsQ").oninput=body;if(R)body();g("qrmGo").onclick=miss;g("qrmRun").onclick=run;if(M)mBody()}
+  /* reports whose PDF is missing on the server (or, with several devices, a device's own PDF) */
+  let M=null,mBusy=false;const fD=d=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(d||""));return m?m[3]+"."+m[2]+"."+m[1]:esc(d)};
+  function mBody(){const box=g("qrmBody"),rb=g("qrmRun");if(!box||!M)return;const A=M.filter(x=>x.appr),P=M.filter(x=>!x.appr);if(rb)rb.hidden=!A.length;
+    box.innerHTML=!M.length?'<p class="note" style="margin:8px 0 0">Hamısı qaydasındadır — bütün hesabatların PDF-i var.</p>':`<div class="tw" style="overflow:auto;max-width:100%;max-height:45vh;margin-top:8px"><table><thead><tr><th>Tarix</th><th>Hesabat</th><th>Müştəri</th><th>Çatışmır</th></tr></thead><tbody>${M.map(x=>`<tr${x.appr?"":' style="opacity:.6"'}><td style="white-space:nowrap">${fD(x.date)}</td><td>${esc(x.repno)}</td><td>${esc(x.client)}</td><td>${[x.full?"hesabatın PDF-i":"",x.devs.length?"cihaz PDF-i: "+x.devs.map(esc).join(", "):""].filter(Boolean).join("; ")}${x.appr?"":" <i>(təsdiq gözləyir — təsdiqdən sonra)</i>"}</td></tr>`).join("")}</tbody></table></div><p class="note" style="margin:6px 0 0">Təsdiqlənmiş: ${A.length} · təsdiq gözləyən: ${P.length}</p>`}
+  async function miss(){if(mBusy)return;mBusy=true;const box=g("qrmBody");if(box)box.innerHTML='<p class="note">Yoxlanılır…</p>';
+    try{M=(await O.api("qr_missing",{})).items||[];mBody()}catch(e){if(box)box.innerHTML=`<p class="note">Alınmadı: ${esc(e&&e.message||e)}</p>`}finally{mBusy=false}}
+  async function run(){if(mBusy||!M)return;const L=M.filter(x=>x.appr);if(!L.length)return;mBusy=true;let ok=0,bad=0;const T=(t,ms)=>{try{toast(t,ms||4000)}catch(e){}};
+    try{for(let i=0;i<L.length;i++){const it=L[i];T("QR PDF-ləri: "+(i+1)+"/"+L.length+" — "+(it.repno||""),60000);
+        try{const r=await getFull(it.id);openReport(r);state.tab="rep";renderEditor();await new Promise(res=>setTimeout(res,700));
+          if(it.full){const pdf=await makePdf(state.cur,"az",()=>{});const res=await api("pdf",{id:r.id,client:r.cl.name,name:fname(r,"pdf"),data:await blobToB64(pdf.output("blob"))});if(state.remote[r.id])state.remote[r.id].pdf=res.url}
+          if(it.devs.length)await devPdfs(state.cur,"az");ok++}catch(e){bad++;console.log("qrpdf",it.id,e)}}}
+    finally{mBusy=false;try{state.cur=null;state.rep=null;renderSettings()}catch(e){}T("QR PDF-ləri hazırdır: "+ok+(bad?" · alınmadı: "+bad:""),9000);M=null;setTimeout(()=>{const d=g("qrmGo");if(d){d.closest("details").open=true;miss()}},400)}}
   return {init,card}})();
 </script>
 <script>/*BTCORE — akkumulyatorların vəziyyətinin dinamikası (proqram və server eyni kodu işlədir; ES5) */
@@ -2377,6 +2429,33 @@ const OPFIRST=(k,m)=>OPTS(k).find(o=>o[2]===m);
 const XALL=(path,k,m,n)=>{const o=OPFIRST(k,m);return o?`<button class="btn sm" data-xall="${path}" data-n="${n}" data-v="${esc(m)}" data-lb="${esc(o[0]===m?"":o[0])}">Boşları “${esc(o[0])}” et</button>`:""};
 const OPON=(o,l,m)=>!!o&&o.s===m&&String(o.lb||"")===(l===m?"":l);
 const OPLBL=(o)=>o&&o.lb?o.lb:"";
+/* installation of each device type: its own field names, configuration fields and (for a panel) the list of components it is built from */
+const INST_LBL={panel:{cin:"Giriş kabeli — şəbəkə (kəsik, mm²)",cout:"Çıxış kabeli — yük (kəsik, mm²)",bin:"Giriş avtomatı — şəbəkə, A",bout:"Giriş avtomatı — generator, A"},
+  gen:{cin:"Güc kabeli (kəsik, mm²)",cout:"Kontrol / siqnal kabeli",bin:"Çıxış avtomatı, A",bout:"ATS tərəfdəki avtomat, A"},
+  rect:{cin:"AC giriş kabeli (kəsik, mm²)",cout:"DC çıxış kabeli (kəsik, mm²)",bin:"AC giriş avtomatı, A",bout:"DC qoruyucu / avtomat, A"},
+  bms:{cin:"Ölçü kabelləri",cout:"Rabitə kabeli",bin:"Qidalanma avtomatı, A",bout:"—"},
+  pfc:{cin:"Qidalanma kabeli (kəsik, mm²)",cout:"CT kabeli",bin:"Giriş avtomatı / qoruyucu, A",bout:"Pillə qoruyucuları, A"},
+  pq:{cin:"Gərginlik probları — qoşulma nöqtəsi",cout:"Cərəyan kəlbətinləri (CT) — yeri",bin:"Probların qoruyucusu, A",bout:"—"}};
+const INSTL=k=>(INST_LBL[CUR_TYPE]||{})[k]||{cin:"Giriş kabeli (kəsik, mm²)",cout:"Çıxış kabeli (kəsik, mm²)",bin:"Giriş avtomatı, A",bout:"Çıxış / bypass avtomatı, A"}[k];
+const INST_CFG={
+  panel:{h:"ATS-in konfiqurasiyası",f:[["kind","ATS növü",{sel:["Motorlu açar (motorlu avtomat)","Kontaktorlu","Motorlu keçid açarı (changeover)","Statik keçid (STS)"]}],["ctrl","ATS kontrolleri (marka / model)"],["in","Nominal cərəyan, A",{n:1}],["src","Mənbələr",{sel:["Şəbəkə + generator","Şəbəkə + şəbəkə","Şəbəkə + 2 generator","Şəbəkə + generator + UPS"]}],["dOff","Şəbəkə itəndə keçid gecikməsi, san",{n:1}],["dBack","Şəbəkəyə geri qayıtma gecikməsi, san",{n:1}],["cool","Generatorun soyuma müddəti, san",{n:1}],["tSw","Ölçülən keçid müddəti, san",{n:1}],["vlo","Aşağı gərginlik həddi, V",{n:1}],["vhi","Yüksək gərginlik həddi, V",{n:1}]],cfg:"Digər ayarlar (faza nəzarəti, test rejimi, prioritet, rabitə…)"},
+  gen:{h:"Generatorun konfiqurasiyası",f:[["ctrl","Kontroller (marka / model)"],["vout","Çıxış gərginliyi, V",{n:1}],["fout","Çıxış tezliyi, Hz",{n:1}],["start","Start rejimi",{sel:["Avtomatik (ATS-dən)","Əl ilə","Uzaqdan"]}],["hrs","Motosaat",{n:1}],["fuel","Yanacaq səviyyəsi, %",{n:1}]],cfg:"Təyin edilən parametrlər (qorumalar, gecikmələr, xidmət intervalı…)"},
+  avr:{h:"Konfiqurasiya",f:[["vout","Çıxış gərginliyi, V",{n:1}],["acc","Tənzimləmə dəqiqliyi, %",{n:1}],["vlo","Aşağı gərginlik qoruması, V",{n:1}],["vhi","Yüksək gərginlik qoruması, V",{n:1}],["dly","Çıxışın gecikməsi, san",{n:1}]],cfg:"Digər ayarlar"},
+  svr:{h:"Konfiqurasiya",f:[["vout","Çıxış gərginliyi, V",{n:1}],["acc","Tənzimləmə dəqiqliyi, %",{n:1}],["vlo","Aşağı gərginlik qoruması, V",{n:1}],["vhi","Yüksək gərginlik qoruması, V",{n:1}],["dly","Çıxışın gecikməsi, san",{n:1}]],cfg:"Digər ayarlar"},
+  rect:{h:"Konfiqurasiya",f:[["vfl","Float gərginliyi, V",{n:1}],["vbo","Boost gərginliyi, V",{n:1}],["ilim","Şarj cərəyanı həddi, A",{n:1}],["vlo","DC aşağı gərginlik alarmı, V",{n:1}],["vhi","DC yüksək gərginlik alarmı, V",{n:1}]],cfg:"Digər ayarlar (temperatur kompensasiyası, rabitə…)"},
+  bms:{h:"Konfiqurasiya",f:[["nb","Blok sayı",{n:1}],["addr","IP / Modbus ünvanı"],["vlo","Blok aşağı gərginlik alarmı, V",{n:1}],["vhi","Blok yüksək gərginlik alarmı, V",{n:1}],["rmax","Daxili müqavimət alarmı, mΩ",{n:1}]],cfg:"Digər ayarlar"},
+  pfc:{h:"Tənzimləyicinin konfiqurasiyası",f:[["ctrl","Tənzimləyici (marka / model)"],["ct","CT nisbəti",{ph:"məs. 1000/5"}],["cos","Hədəf cos φ",{n:1}],["steps","Pillə sayı",{n:1}],["kvar","Ümumi güc, kVAr",{n:1}],["dly","Pillə gecikməsi, san",{n:1}]],cfg:"Digər ayarlar"},
+  pq:{h:"Analizatorun konfiqurasiyası",f:[["ctrl","Analizator (marka / model)"],["sch","Ölçmə sxemi",{sel:["1F","3F ulduz (4 məftil)","3F üçbucaq (3 məftil)"]}],["vnom","Nominal gərginlik, V",{n:1}],["fnom","Nominal tezlik, Hz",{n:1}],["ct","Cərəyan kəlbətini diapazonu, A",{n:1}],["int","Qeyd intervalı",{ph:"məs. 1 dəq"}],["dur","Qeyd müddəti",{ph:"məs. 7 gün"}]],cfg:"Digər ayarlar"}};
+/* the components an ATS / distribution panel is built from */
+const COMP_STD={panel:[["Giriş avtomatı — şəbəkə","1"],["Giriş avtomatı — generator","1"],["Motorlu açar / kontaktor — şəbəkə","1"],["Motorlu açar / kontaktor — generator","1"],["ATS kontrolleri","1"],["Mexaniki blokirovka","1"],["Gərginlik / faza nəzarət relesi","1"],["Çıxış avtomatları",""],["İdarəetmə dövrəsi avtomatı / qoruyucusu",""],["Cərəyan transformatorları","3"],["Multimetr / ölçü cihazı","1"],["Siqnal lampaları",""],["Rejim açarı (Avto / Əl / Test) və düymələr","1"],["Şinlər (mis)",""],["Korpus / şkaf","1"]]};
+function instComp(){if(!COMP_STD[CUR_TYPE])return "";const C=getP(state.cur,"x.inst.comp")||[];
+  return `<div class="card"><h3>Panelin komponentləri</h3><p class="note" style="margin:0 0 6px">Panelin hazırlanmasında istifadə olunan avadanlıq — hesabata və təhvil-təslim aktına düşür.</p>${C.map((k,i)=>`<div class="prow"><span class="wide">${fld(`x.inst.comp.${i}.name`,"Ad")}</span>${fld(`x.inst.comp.${i}.model`,"Marka / model")}${fld(`x.inst.comp.${i}.nom`,"Nominal (A, V…)")}${fld(`x.inst.comp.${i}.qty`,"Say",{n:1})}<button class="btn sm danger" data-delcomp="${i}" aria-label="Sil">✕</button></div>`).join("")||'<p class="note" style="margin:0">Hələ heç nə əlavə edilməyib.</p>'}
+   <div class="actions"><button class="btn sm" id="addComp">+ Sətir</button><button class="btn sm" id="compStd">Standart siyahı</button></div></div>`}
+/* what is handed over with each device type (the template's own list, if the manager set one, wins) */
+const KIT_BY_TYPE={panel:[["Elektrik sxemi (prinsipial və montaj)","1"],["Şkafın açarları","2"],["Ehtiyat qoruyucular",""],["İstifadəçi təlimatı və pasport","1"],["Zəmanət talonu","1"]],
+  gen:[["Start akkumulyatoru","1"],["Yanacaq (doldurulan miqdar, l)",""],["Açarlar","1"],["İstifadəçi təlimatı və pasport","1"],["Zəmanət talonu","1"]],
+  avr:[["İstifadəçi təlimatı və pasport","1"],["Zəmanət talonu","1"]],svr:[["İstifadəçi təlimatı və pasport","1"],["Zəmanət talonu","1"]],
+  pfc:[["Elektrik sxemi","1"],["İstifadəçi təlimatı və pasport","1"],["Zəmanət talonu","1"]],bms:[["Sensor modulları (dəst)",""],["Ölçü kabelləri (dəst)",""],["İstifadəçi təlimatı","1"],["Zəmanət talonu","1"]]};
 const CALL_RES=["Bərpa olundu","Müvəqqəti bərpa olundu","Bərpa olunmadı"];
 try{ZSTPL.applySvc({lists:{"inst.chk":INST_CHK,"inst.test":INST_TEST,"upd.cb":UPD_CHK_BAT,"upd.cp":UPD_CHK_PART,"upd.kinds":UPD_KINDS,"upd.why":UPD_WHY,"upd.fate":UPD_FATE,"call.res":CALL_RES,"mov.c1":MOV_C1,"mov.c2":MOV_C2},um:UPD_M,titles:PROF_TITLE,codes:RN_CODES})}catch(e){console.log("tpl svc",e)}
 function tabsFor(){const T=TYPES[CUR_TYPE],P=SVC_PROF(state.rep),B=T.hasBat;
@@ -2406,7 +2485,7 @@ function renderEditor(){
   (AFTER[state.tab]||(()=>{}))();
   live();applyLock();payBanner();
 }
-document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-xl],[data-xset],[data-xall],[data-delkit],#addKit,#kitStd");if(!b||!state.cur||lockedRep(state.rep))return;
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-xl],[data-xset],[data-xall],[data-delkit],#addKit,#kitStd,[data-delcomp],#addComp,#compStd");if(!b||!state.cur||lockedRep(state.rep))return;
   const X=state.cur.x||(state.cur.x={}),y=window.scrollY;
   if(b.dataset.xl||b.dataset.xall)stampL(X,b.dataset.xl||b.dataset.xall);
   if(b.dataset.xl){const path=b.dataset.xl,i=+b.dataset.xi;let L=getP(X,path);if(!Array.isArray(L)){L=[];setP(X,path,L)}const lb=b.dataset.lb||"",o=L[i]=L[i]||{};if(o.s===b.dataset.v&&String(o.lb||"")===lb){o.s="";delete o.lb}else{o.s=b.dataset.v;if(lb)o.lb=lb;else delete o.lb}}
@@ -2414,8 +2493,11 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
   else if(b.dataset.xall){let L=getP(X,b.dataset.xall);if(!Array.isArray(L)){L=[];setP(X,b.dataset.xall,L)}for(let i=0;i<+b.dataset.n;i++)if(!(L[i]&&L[i].s)){L[i]={s:b.dataset.v,n:""};if(b.dataset.lb)L[i].lb=b.dataset.lb}}
   else if(b.dataset.delkit!==undefined){(X.kit||[]).splice(+b.dataset.delkit,1)}
   else if(b.id==="addKit"){(X.kit=X.kit||[]).push({name:"",sn:"",qty:"1"})}
-  else if(b.id==="kitStd"){const B=state.cur.bat||{},n=(num(B.per)||0)*(num(B.str)||1);(X.kit=X.kit||[]);
-    [...(n&&bMulti(B)?(()=>{const G={},p=Math.floor(num(B.per))||0,ns=Math.floor(num(B.str))||0;for(let k=1;k<=ns;k++){const g=gBrand(B,k);G[g]=(G[g]||0)+p}return Object.entries(G).map(([g,c])=>["Akkumulyator "+[g,B.nom?B.nom+"V":"",B.ah?B.ah+"Ah":""].filter(Boolean).join(" "),String(c)])})():[[n?"Akkumulyator "+[B.brand,B.nom?B.nom+"V":"",B.ah?B.ah+"Ah":""].filter(Boolean).join(" "):"",n?String(n):""]]),...(window.ZS_KIT||[["Akkumulyator rəfi / kabineti","1"],["Akkumulyator birləşdirici kabelləri (dəst)","1"],["İstifadəçi təlimatı və pasport","1"],["Zəmanət talonu","1"]])].forEach(([nm,q])=>{if(nm&&!X.kit.some(k=>k.name===nm))X.kit.push({name:nm,sn:"",qty:q})})}
+  else if(b.dataset.delcomp!==undefined){((X.inst||{}).comp||[]).splice(+b.dataset.delcomp,1)}
+  else if(b.id==="addComp"){const I=X.inst=X.inst||{};(I.comp=I.comp||[]).push({name:"",model:"",nom:"",qty:"1"})}
+  else if(b.id==="compStd"){const I=X.inst=X.inst||{};I.comp=I.comp||[];(COMP_STD[CUR_TYPE]||[]).forEach(([nm,q])=>{if(!I.comp.some(k=>k.name===nm))I.comp.push({name:nm,model:"",nom:"",qty:q})})}
+  else if(b.id==="kitStd"){const B=TYPES[CUR_TYPE]&&TYPES[CUR_TYPE].hasBat?(state.cur.bat||{}):{},n=(num(B.per)||0)*(num(B.str)||1);(X.kit=X.kit||[]);
+    [...(n&&bMulti(B)?(()=>{const G={},p=Math.floor(num(B.per))||0,ns=Math.floor(num(B.str))||0;for(let k=1;k<=ns;k++){const g=gBrand(B,k);G[g]=(G[g]||0)+p}return Object.entries(G).map(([g,c])=>["Akkumulyator "+[g,B.nom?B.nom+"V":"",B.ah?B.ah+"Ah":""].filter(Boolean).join(" "),String(c)])})():[[n?"Akkumulyator "+[B.brand,B.nom?B.nom+"V":"",B.ah?B.ah+"Ah":""].filter(Boolean).join(" "):"",n?String(n):""]]),...((!window.ZS_KIT_SET&&KIT_BY_TYPE[CUR_TYPE])||window.ZS_KIT||[["Akkumulyator rəfi / kabineti","1"],["Akkumulyator birləşdirici kabelləri (dəst)","1"],["İstifadəçi təlimatı və pasport","1"],["Zəmanət talonu","1"]])].forEach(([nm,q])=>{if(nm&&!X.kit.some(k=>k.name===nm))X.kit.push({name:nm,sn:"",qty:q})})}
   markDirty();renderEditor();window.scrollTo(0,y)});
 document.addEventListener("input",e=>{const p=e.target.dataset&&e.target.dataset.path;if(!p||!state.cur||lockedRep(state.rep))return;setP(state.cur,p,e.target.value);
   if(p==="ups.kva"||p==="ups.pf"){const u=state.cur.ups,k=num(u.kva),f=num(String(u.pf||"").replace(",","."));if(k&&f){u.kw=String(Math.round(k*f*10)/10);const el=document.getElementById("f-ups-kw");if(el&&el!==e.target)el.value=u.kw}}
@@ -2468,13 +2550,13 @@ function live(){if(!state.cur)return;const a=analyze(state.cur);
 function xList(path,items,opts){const L=getP(state.cur,"x."+path)||[];return items.map((c,i)=>{const s=(L[i]||{}).s||"";return `<div class="citem"><b style="font-weight:600">${i+1}. ${esc(c)}</b><div class="seg">${opts.map(([l,cl,m])=>{m=m||l;return `<button type="button" class="${cl}" data-xl="${path}" data-xi="${i}" data-v="${esc(m)}" data-lb="${l===m?"":esc(l)}" aria-pressed="${OPON(L[i],l,m)}">${l===m?(m==="Tətbiq olunmur"?"T/O":esc(RNM(m))):esc(l)}</button>`}).join("")}</div>
   ${s&&s!=="Yaxşı"&&s!=="Uğurlu"&&s!=="Edildi"&&s!=="Tətbiq olunmur"?`<input type="text" data-path="x.${path}.${i}.n" placeholder="Qeyd" value="${esc((L[i]||{}).n||"")}">`:""}</div>`}).join("")}
 const XSECT={
- upd(){const r=state.cur,P=r.parts||[],X=r.x||{},U=X.upd||{},B=updHasBat();return `<h2 class="sec">Dəyişdirilən hissələr və akkumulyatorlar</h2><p class="hint">Nə dəyişdirildi, niyə və hansı seriya nömrələri ilə. Bu siyahı hesabata, təhvil-təslim aktına və Satış və Anbara (anbardan məxaric üçün) gedir.</p>
+ upd(){const r=state.cur,P=r.parts||[],X=r.x||{},U=X.upd||{},B=updHasBat();return `<h2 class="sec">${B?"Dəyişdirilən hissələr və akkumulyatorlar":"Dəyişdirilən hissələr"}</h2><p class="hint">Nə dəyişdirildi, niyə və hansı seriya nömrələri ilə. Bu siyahı hesabata, təhvil-təslim aktına və Satış və Anbara (anbardan məxaric üçün) gedir.</p>
   <div class="card"><h3>Səbəb</h3>${fld("x.upd.why","Dəyişdirmənin səbəbi",{sel:SVL("upd.why")})}${fld("x.upd.doc","Əsas sənəd (diaqnostika hesabatı, qüsur aktı, təklif / müqavilə №)",{ph:"məs. RSH-20261020-02 diaqnostika hesabatı"})}</div>
   <div class="card"><h3>Dəyişdirilənlər (${P.length})</h3>${P.map((p,i)=>`<div class="card" style="margin:0 0 10px;padding:10px;box-shadow:none"><div class="grid2">${fld(`parts.${i}.kind`,"Növ",{sel:SVL("upd.kinds")})}${fld(`parts.${i}.name`,"Ad / model")}</div>
     <div class="grid3">${fld(`parts.${i}.code`,"Kod / Part №")}${fld(`parts.${i}.qty`,"Say",{n:1})}${fld(`parts.${i}.warr`,"Zəmanət, ay",{n:1})}</div>
     <div class="grid2">${fld(`parts.${i}.oldsn`,"Köhnə S/N")}${fld(`parts.${i}.newsn`,"Yeni S/N")}</div>${fld(`parts.${i}.note`,"Qeyd")}
     <div class="actions" style="margin:0"><button class="btn sm danger" data-delupd="${i}">Sil</button></div></div>`).join("")||'<p class="note" style="margin:0 0 8px">Hələ heç nə əlavə edilməyib.</p>'}
-   <div class="actions"><button class="btn sm" id="addUpd">+ Hissə / akkumulyator</button>${B?'<button class="btn sm" id="addUpdBat">+ Akkumulyator dəstindən</button>':""}</div></div>
+   <div class="actions"><button class="btn sm" id="addUpd">${B?"+ Hissə / akkumulyator":"+ Hissə"}</button>${B?'<button class="btn sm" id="addUpdBat">+ Akkumulyator dəstindən</button>':""}</div></div>
   ${B?`<div class="card"><h3>Akkumulyator dəsti</h3><label class="f" style="display:flex;gap:8px;align-items:center;grid-template-columns:none"><input type="checkbox" id="updNewBat" style="width:auto;min-height:0" ${U.newBat?"checked":""}><span>Akkumulyator dəsti tam dəyişdirilir — yeni dəstin quraşdırma tarixi servis tarixi olur</span></label>
    ${U.newBat?`<div class="grid2">${fld("x.upd.oldBrand","Köhnə dəst — marka / model")}${fld("x.upd.oldInst","Köhnə dəstin quraşdırma tarixi",{date:1})}</div>
    <p class="note" style="margin:0">Yeni dəstin markasını, blok sayını və hədlərini “Akkum.” bölməsində, hər blokun ilk ölçməsini “Bloklar”da yazın. Bu ölçmələr sonrakı servislərdə müqayisə üçün başlanğıc olur.</p>`:""}</div>`:""}`},
@@ -2489,16 +2571,16 @@ const XSECT={
   ${B?`<div class="card"><h3>Akkumulyatorlar</h3><div class="actions" style="margin:0 0 8px">${XALL("upd.cb","upd","Edildi",xL(state.cur,"upd.cb",SVL("upd.cb")).length)}</div>${xList("upd.cb",xL(state.cur,"upd.cb",SVL("upd.cb")),OPTS("upd"))}</div>`:""}
   <div class="card"><h3>Detallar və işə salma</h3><div class="actions" style="margin:0 0 8px">${XALL("upd.cp","upd","Edildi",xL(state.cur,"upd.cp",SVL("upd.cp")).length)}</div>${xList("upd.cp",xL(state.cur,"upd.cp",SVL("upd.cp")),OPTS("upd"))}</div>`},
  inst(){return `<h2 class="sec">Quraşdırma və işə salma</h2><p class="hint">Montaj yoxlaması, işə salma testləri və konfiqurasiya.</p>
-  <div class="card"><h3>Quraşdırma yeri</h3>${fld("x.inst.place","Otaq / yer",{ph:"məs. Server otağı, 2-ci mərtəbə"})}<div class="grid2">${fld("x.inst.cin","Giriş kabeli (kəsik, mm²)")}${fld("x.inst.cout","Çıxış kabeli (kəsik, mm²)")}</div>
-   <div class="grid2">${fld("x.inst.bin","Giriş avtomatı, A")}${fld("x.inst.bout","Çıxış / bypass avtomatı, A")}</div>${fld("x.inst.earth","Torpaqlama müqaviməti, Ω",{n:1})}</div>
+  <div class="card"><h3>Quraşdırma yeri</h3>${fld("x.inst.place","Otaq / yer",{ph:"məs. Server otağı, 2-ci mərtəbə"})}<div class="grid2">${fld("x.inst.cin",INSTL("cin"))}${fld("x.inst.cout",INSTL("cout"))}</div>
+   <div class="grid2">${fld("x.inst.bin",INSTL("bin"))}${fld("x.inst.bout",INSTL("bout"))}</div>${fld("x.inst.earth","Torpaqlama müqaviməti, Ω",{n:1})}</div>${instComp()}
   <div class="card"><h3>Montaj yoxlaması</h3><div class="actions" style="margin:0 0 8px">${XALL("inst.chk","chk","Yaxşı",xL(state.cur,"inst.chk",SVL("inst.chk")).length)}</div>${xList("inst.chk",xL(state.cur,"inst.chk",SVL("inst.chk")),OPTS("chk"))}</div>
   <div class="card"><h3>İşə salma testləri</h3><div class="actions" style="margin:0 0 8px">${XALL("inst.test","test","Uğurlu",xL(state.cur,"inst.test",SVL("inst.test")).length)}</div>${xList("inst.test",xL(state.cur,"inst.test",SVL("inst.test")),OPTS("test"))}
    <div class="grid2">${fld("x.inst.loadPct","Yük testi — yük, %",{n:1})}${fld("x.inst.loadMin","Yük testi — müddət, dəq",{n:1})}</div></div>
-  <div class="card"><h3>Konfiqurasiya</h3><div class="grid2">${fld("x.inst.vout","Çıxış gərginliyi, V",{n:1})}${fld("x.inst.fout","Çıxış tezliyi, Hz",{n:1})}</div>${fld("x.inst.cfg","Təyin edilən parametrlər (akkumulyator sayı, şarj cərəyanı, bypass hədləri, IP / SNMP…)",{area:1})}</div>`},
- kit(){const K=getP(state.cur,"x.kit")||[];return `<h2 class="sec">Təhvil verilən avadanlıq</h2><p class="hint">Bu cihazla birlikdə təhvil verilənlər (akkumulyatorlar, rəf, kabellər, sənədlər, açarlar…). Təhvil-təslim aktının cədvəlinə düşür.</p>
+  <div class="card"><h3>${INST_CFG[CUR_TYPE]?esc(INST_CFG[CUR_TYPE].h):"Konfiqurasiya"}</h3>${INST_CFG[CUR_TYPE]?`<div class="grid2">${INST_CFG[CUR_TYPE].f.map(([k,l,o])=>fld("x.inst.cf."+k,l,o||{})).join("")}</div>`:`<div class="grid2">${fld("x.inst.vout","Çıxış gərginliyi, V",{n:1})}${fld("x.inst.fout","Çıxış tezliyi, Hz",{n:1})}</div>`}${fld("x.inst.cfg",INST_CFG[CUR_TYPE]?INST_CFG[CUR_TYPE].cfg:"Təyin edilən parametrlər (akkumulyator sayı, şarj cərəyanı, bypass hədləri, IP / SNMP…)",{area:1})}</div>`},
+ kit(){const K=getP(state.cur,"x.kit")||[];return `<h2 class="sec">Təhvil verilən avadanlıq</h2><p class="hint">Bu cihazla birlikdə təhvil verilənlər (${TYPES[CUR_TYPE]&&TYPES[CUR_TYPE].hasBat?"akkumulyatorlar, rəf, kabellər, ":CUR_TYPE==="panel"?"sxem, açarlar, ehtiyat qoruyucular, ":""}sənədlər, açarlar…). Təhvil-təslim aktının cədvəlinə düşür.</p>
   <div class="card"><h3>Komplektasiya</h3>${K.map((k,i)=>`<div class="prow"><span class="wide">${fld(`x.kit.${i}.name`,"Ad")}</span>${fld(`x.kit.${i}.sn`,"Seriya №")}${fld(`x.kit.${i}.qty`,"Say",{n:1})}<button class="btn sm danger" data-delkit="${i}" aria-label="Sil">✕</button></div>`).join("")||'<p class="note" style="margin:0">Cihazın özü avtomatik yazılır. Əlavə olaraq təhvil verilənləri əlavə edin.</p>'}
    <div class="actions"><button class="btn sm" id="addKit">+ Sətir</button><button class="btn sm" id="kitStd">Standart siyahı</button></div></div>
-  ${SVC_PROF(state.rep)==="upd"?`<div class="card"><h3>Köhnə hissələr</h3>${fld("x.upd.fate","Köhnə hissələrin / akkumulyatorların taleyi",{sel:SVL("upd.fate")})}</div>`:""}
+  ${SVC_PROF(state.rep)==="upd"?`<div class="card"><h3>Köhnə hissələr</h3>${fld("x.upd.fate",updHasBat()?"Köhnə hissələrin / akkumulyatorların taleyi":"Köhnə hissələrin taleyi",{sel:SVL("upd.fate")})}</div>`:""}
   <div class="card"><h3>Qeyd</h3>${fld("x.kitNote","Təhvil zamanı qeyd (məs. istifadə qaydaları izah edildi)",{area:1})}</div>`},
  diag(){return `<h2 class="sec">Diaqnostika</h2><p class="hint">Şikayət, aşkar edilən nasazlıq və tövsiyə olunan təmir.</p><div class="card">
   ${fld("x.diag.compl","Müştərinin şikayəti / problem",{area:1})}${fld("x.diag.codes","Xəta kodları, jurnal qeydləri",{area:1})}${fld("x.diag.found","Aşkar edilən nasazlıq",{area:1})}${fld("x.diag.rec","Tövsiyə olunan təmir",{area:1})}
@@ -2513,7 +2595,7 @@ const XSECT={
 const SECTIONS={
  svc(){return `<h2 class="sec">Servis və müştəri</h2><p class="hint">Hesabat nömrəsi, tarix və müştəri məlumatları.</p>
   <div class="card"><h3>Servis</h3><div class="grid2">${fld("svc.repno","Hesabat №",{ph:"avtomatik, məs. RSH-20261013-01"})}${fld("svc.date","Servis tarixi",{date:1})}</div>
-  ${fld("svc.type","Servis növü",{sel:SVC_TYPES})}<div class="grid2">${fld("svc.engCo","Mühəndisin şirkəti (imza yerində)",{ph:"məs. ZUVAND Grand System MMC-nin"})}${fld("svc.engPos","Mühəndisin vəzifəsi",{ph:"məs. Texniki direktoru"})}</div><div class="grid2">${fld("svc.eng","Servis mühəndisi")}${isDiag(state.rep)?"":fld("svc.interval","Növbəti servis intervalı, ay",{n:1})}</div>${teamCard()}${isDiag(state.rep)?`<p class="note" style="margin:0">Diaqnostika: müştəri servis müqaviləsində deyil — növbəti servis planlanmır və servis cədvəlinə düşmür.</p>`:""}
+  ${fld("svc.type","Servis növü",{sel:SVC_TYPES.filter(x=>x!=="Akkumulyator testi"||updHasBat()||((state.cur.svc||{}).type===x))})}<div class="grid2">${fld("svc.engCo","Mühəndisin şirkəti (imza yerində)",{ph:"məs. ZUVAND Grand System MMC-nin"})}${fld("svc.engPos","Mühəndisin vəzifəsi",{ph:"məs. Texniki direktoru"})}</div><div class="grid2">${fld("svc.eng","Servis mühəndisi")}${isDiag(state.rep)?"":fld("svc.interval","Növbəti servis intervalı, ay",{n:1})}</div>${teamCard()}${isDiag(state.rep)?`<p class="note" style="margin:0">Diaqnostika: müştəri servis müqaviləsində deyil — növbəti servis planlanmır və servis cədvəlinə düşmür.</p>`:""}
   <div class="note">Növbəti servis: <b data-live="next"></b></div>
   ${["inst","upd"].includes(SVC_PROF(state.rep))?`<div class="grid2">${fld("svc.conNo","Müqavilə № (akt üçün)")}${fld("svc.conDate","Müqavilə tarixi",{date:1})}</div><div class="grid2">${fld("svc.warr","Zəmanət müddəti, ay",{n:1,ph:"məs. 12"})}${fld("svc.train","Təlimat keçilən şəxs (Sifarişçi tərəfdən)",{ph:"məs. Fərid Həsənov"})}</div>`:""}
   ${SVC_PROF(state.rep)==="call"?`<div class="grid2">${fld("svc.tCall","Çağırış vaxtı",{ph:"məs. 14.10.2026 09:40"})}${fld("svc.tArr","Gəliş vaxtı",{ph:"məs. 14.10.2026 11:15"})}</div>`:""}
@@ -2548,7 +2630,7 @@ const SECTIONS={
   `${fld("wExtra","Əlavə iş (sərbəst mətn)",{area:1})}</div>`))+`
   <div class="card"><h3>Dəyişdirilən / quraşdırılan hissələr</h3>${r.parts.map((p,i)=>`<div class="prow"><span class="wide">${fld(`parts.${i}.name`,"Hissə")}</span>${fld(`parts.${i}.code`,"Kod / Part №")}${fld(`parts.${i}.qty`,"Say",{n:1})}<button class="btn sm danger" data-delpart="${i}" aria-label="Sil">✕</button><span class="wide" style="grid-column:1/-1">${fld(`parts.${i}.note`,"Qeyd")}</span></div>`).join("")||'<p class="note" style="margin:0">Hissə əlavə edilməyib.</p>'}
   <button class="btn sm" id="addPart">+ Hissə əlavə et</button></div>
-  <div class="card"><h3>Yararsız / dəyişdirilməli detallar</h3><p class="note" style="margin:0">Yoxlamada “Nasaz” seçilən bəndlər və “Dəyişdirilməli” akkumulyator blokları siyahıya avtomatik düşür. Burada əlavə yararsız detalları yazın (məs. lövhə, modul, kondensator).</p>
+  <div class="card"><h3>Yararsız / dəyişdirilməli detallar</h3><p class="note" style="margin:0">Yoxlamada “Nasaz” seçilən bəndlər${updHasBat()?" və “Dəyişdirilməli” akkumulyator blokları":""} siyahıya avtomatik düşür. Burada əlavə yararsız detalları yazın (məs. lövhə, modul, kondensator).</p>
   ${(r.bad||[]).map((p,i)=>`<div class="prow"><span class="wide">${fld(`bad.${i}.name`,"Detal")}</span>${fld(`bad.${i}.code`,"Kod / Part №")}${fld(`bad.${i}.qty`,"Say",{n:1})}<button class="btn sm danger" data-delbad="${i}" aria-label="Sil">✕</button><span class="wide" style="grid-column:1/-1">${fld(`bad.${i}.note`,"Səbəb / qeyd")}</span></div>`).join("")}
   <button class="btn sm" id="addBad">+ Yararsız detal əlavə et</button></div>
   <div class="card"><h3>Mühəndisin qeydləri</h3>${fld("notes","Texniki qeydlər",{area:1})}${fld("recs","Əlavə tövsiyələr",{area:1})}</div>`},
@@ -2619,8 +2701,8 @@ SECTIONS.foto=function(){const V=state.cur,P=V.photos||[];
 SECTIONS.ups=function(){const T=TYPES[CUR_TYPE],R=state.rep;
   const body=CUR_TYPE==="ups"?SECTIONS.upsUPS():`<h2 class="sec">${esc(T.title)}</h2><p class="hint">Cihazın pasport məlumatları.</p><div class="card"><div class="grid2">${T.info.map(([k,l,o])=>fld("ups."+k,l,o||{})).join("")}</div></div>`;
   const parCard=PAR_TYPES.includes(CUR_TYPE)?`<div class="card"><h3>Paralel iş</h3><p class="note" style="margin:0">Bu cihaz başqa cihazla paralel işləyirsə, rejimi və sistemin adını yazın — hesabatda göstərilir.</p>
-   ${fld("par.mode","Rejim",{sel:PAR_MODES})}<div class="grid2">${fld("par.grp","Paralel sistemin adı",{ph:"məs. Sistem A"})}${fld("par.pos","Bu cihazın sistemdəki sırası",{ph:"məs. 1/2"})}</div><p class="note" style="margin:0">Sıra “nömrə / cəmi cihaz” kimi yazılır: 2 UPS-li sistemdə birinci UPS — 1/2, ikinci — 2/2. Eyni sistemin bütün cihazlarına eyni ad yazın. Hesabatda: “UPS-1 · № 1/2”.</p></div>`:"";
-  const dupCard=`<div class="card"><h3>Eyni cihazdan daha biri var?</h3><p class="note" style="margin:0">Bu cihazın bütün məlumatları (pasport, paralel iş, akkumulyator quruluşu, ölçmələr, yoxlama, işlər) yeni cihaza köçürülür. Seriya №, şəkillər və akkumulyator blok ölçmələri boş qalır — fərqli olanları düzəldin.</p>
+   ${fld("par.mode","Rejim",{sel:PAR_MODES})}<div class="grid2">${fld("par.grp","Paralel sistemin adı",{ph:"məs. Sistem A"})}${fld("par.pos","Bu cihazın sistemdəki sırası",{ph:"məs. 1/2"})}</div><p class="note" style="margin:0">Sıra “nömrə / cəmi cihaz” kimi yazılır: 2 cihazlı sistemdə birinci — 1/2, ikinci — 2/2. Eyni sistemin bütün cihazlarına eyni ad yazın. Hesabatda: “Sistem A · № 1/2”.</p></div>`:"";
+  const dupCard=`<div class="card"><h3>Eyni cihazdan daha biri var?</h3><p class="note" style="margin:0">Bu cihazın bütün məlumatları (pasport, ${updHasBat()?"paralel iş, akkumulyator quruluşu, ":""}ölçmələr, yoxlama, işlər) yeni cihaza köçürülür. Seriya №, şəkillər${updHasBat()?" və akkumulyator blok ölçmələri":""} boş qalır — fərqli olanları düzəldin.</p>
    <button class="btn" id="dupDev">⧉ Bu cihazı kopyala</button></div>`;
   /* where the device stands: branch / building / floor / room (shown on the report and used by Satış for per-branch prices) */
   const locCard=`<div class="card"><h3>Yerləşdiyi yer və yoxlama tarixi</h3>${fld("loc","Filial / bina / mərtəbə / otaq",{list:locList(),ph:"məs. Nərimanov filialı, 2-ci mərtəbə, server otağı",note:"Müştərinin hansı filialında və hansı otaqda yerləşir — hesabatda cihaz məlumatlarında göstərilir."})}${fld("ddate","Bu cihazın yoxlama tarixi",{date:1,note:"Cihazlar müxtəlif günlərdə yoxlanıbsa yazın. Boş qalsa: digər cihazlara tarix yazılıbsa, “Servis” bölməsindəki tarix götürülür; heç bir cihaza yazılmayıbsa, hesabatda ayrıca göstərilmir."})}</div>`;
@@ -2709,6 +2791,16 @@ async function setAppr(kind,on){await flush();const r=realOf(state.rep);
   state.dirty=false;toast(kind==="appr"?(on?"Təsdiqləndi — Satış və Anbara göndərilir":"Təsdiq geri alındı — Satış və Anbarda satış da geri alınır (hesab yazılıbsa orada xəbərdarlıq çıxır)"):(on?"Rəhbərə göndərildi":"Geri götürüldü"));
   sync({all:true});const y=window.scrollY;renderEditor();window.scrollTo(0,y);
   if(kind==="appr"&&on&&hasServer()&&!r.sample)setTimeout(()=>apprPdf(r.id),600)}
+/* a report with several devices: each device also gets its own PDF on the server — the customer who scans a device's QR sees only that device's part */
+async function devPdfs(r,L){r=realOf(r);if((typeof CFG!=="undefined"&&CFG.hub)||!hasServer()||r.sample||(r.devices||[]).length<2)return 0;
+  const ds=r.devices.filter(d=>d&&d.type!=="pq"&&String(d.info&&d.info.sn||"").trim());if(!ds.length)return 0;
+  const ps=$("#ps");if(!ps)throw new Error("view");L=L||"az";let n=0;
+  try{for(const d of ds){const sn=String(d.info.sn).trim(),r2=Object.assign({},r,{devices:[d]});
+      ps.innerHTML=paperHTML(r2,null,L);fitPaper();
+      const pdf=await makePdf(r2,L,()=>{}),name=fname(r,"pdf").replace(/\.pdf$/,"_"+sn.replace(/[\\/:*?"<>|\s]+/g,"-").slice(0,40)+".pdf");
+      await api("pdf_dev",{id:r.id,sn,client:r.cl.name,name,data:await blobToB64(pdf.output("blob"))});n++}}
+  finally{try{const c=state.cur;if(c&&$("#ps")){$("#ps").innerHTML=paperHTML(c,null,state.plang||"az");fitPaper()}}catch(e){}}
+  return n}
 /* after approval the report's PDF goes to the server, so the accountant can take it in Satış və Anbar */
 async function apprPdf(id){try{toast("PDF mühasib üçün serverə hazırlanır…",5000);
     for(let i=0;i<40&&state.pending.has(id);i++)await new Promise(res=>setTimeout(res,1500));
@@ -2717,7 +2809,8 @@ async function apprPdf(id){try{toast("PDF mühasib üçün serverə hazırlanır
     const r=state.cur,pdf=await makePdf(r,"az",()=>{}),blob=pdf.output("blob"),name=fname(r,"pdf");
     const res=await api("pdf",{id,client:realOf(r).cl.name,name,data:await blobToB64(blob)});
     if(state.remote[id])state.remote[id].pdf=res.url;const l=$("#pdfLink");if(l){l.href=res.url;l.hidden=false}
-    toast("PDF serverə yükləndi — mühasib Satış və Anbarda görür")}
+    toast("PDF serverə yükləndi — mühasib Satış və Anbarda görür");
+    try{if(await devPdfs(r,"az"))toast("Hər cihazın öz PDF-i də yükləndi (QR üçün)")}catch(e){}}
   catch(e){toast("Təsdiqlənmiş hesabatın PDF-i serverə yüklənmədi — “PDF hazırla” düyməsini basın",8000)}}
 function bindAppr(){const two=(id,fn,txt)=>{const b=$("#"+id);if(b)b.onclick=()=>{if(b.dataset.confirm!=="1"){b.dataset.confirm="1";b.textContent=txt;return}b.disabled=true;fn()}};
   two("apprGo",()=>setAppr("appr",true),"Təsdiq edilsin? Yenidən basın");
@@ -2880,10 +2973,11 @@ function xPaper(V,PF,head,kv,pc,tv,dash,W){const X=V.x||{},esc2=v=>esc(ft(v||"")
   {const cr=cfRows(ZSTPL.cfDev(CUR_TYPE),X.cf);if(cr.length)h+=W(head("Əlavə məlumatlar")+kv(cr))}
   const tbl=(title,L,items)=>{const R=rowsOf(L,items);return R.length?W(head(title)+`<table><tr><th>#</th><th style="text-align:left">${t("Yoxlanılan bənd")}</th><th>${t("Nəticə")}</th><th style="text-align:left">${t("Qeyd")}</th></tr>${R.map(([c,o],q)=>`<tr${o.s==="Nasaz"||o.s==="Uğursuz"||o.s==="Edilmədi"?' class="r-nasaz"':""}><td class="c">${q+1}</td><td>${esc(t(c))}</td><td class="c ${o.s==="Uğurlu"||o.s==="Edildi"?"p-ok":o.s==="Uğursuz"||o.s==="Nasaz"?"":o.s==="Edilmədi"?"p-bad":pc(o.s)}">${o.lb?esc(o.lb):tv(o.s)}</td><td>${esc2(o.n)}</td></tr>`).join("")}</table>`):""};
   const txt=(rows)=>{const R=rows.filter(([,v])=>String(v||"").trim());return R.length?kv(R.map(([k,v])=>[[k,esc2(v).replace(/\n/g,"<br>")]])):""};
-  if(PF==="inst"){const I=X.inst||{};const info=[["Quraşdırma yeri",I.place],["Giriş kabeli",I.cin&&I.cin+" mm²"],["Çıxış kabeli",I.cout&&I.cout+" mm²"],["Giriş avtomatı",I.bin&&I.bin+" A"],["Çıxış / bypass avtomatı",I.bout&&I.bout+" A"],["Torpaqlama müqaviməti",I.earth&&I.earth+" Ω"]].filter(x=>x[1]);
+  if(PF==="inst"){const I=X.inst||{},LB=k=>INSTL(k).replace(/\s*\((kəsik, )?mm²\)|, A$/g,"").replace(/\s*\(kəsik, mm²\)/,""),un=(v,u)=>v&&(/^[\d\s.,x×*+\/-]+$/i.test(String(v))?v+" "+u:v);const info=[["Quraşdırma yeri",I.place],[LB("cin"),un(I.cin,"mm²")],[LB("cout"),un(I.cout,"mm²")],[LB("bin"),un(I.bin,"A")],[LB("bout"),un(I.bout,"A")],["Torpaqlama müqaviməti",I.earth&&I.earth+" Ω"]].filter(x=>x[1]);
     if(info.length){const rw=[];for(let q=0;q<info.length;q+=2)rw.push(info.slice(q,q+2).map(([k,v])=>[k,esc(v)]));h+=W(head("Quraşdırma məlumatları")+kv(rw))}
     h+=tbl("Montaj yoxlaması",I.chk,xL(V,"inst.chk",SVL("inst.chk")))+tbl("İşə salma testləri",I.test,xL(V,"inst.test",SVL("inst.test")));
-    const cf=[["Yük testi",I.loadPct||I.loadMin?(I.loadPct?I.loadPct+" % "+t("yük"):"")+(I.loadMin?" · "+I.loadMin+" "+t("dəq"):""):""],["Çıxış gərginliyi / tezliyi",[I.vout&&I.vout+" V",I.fout&&I.fout+" Hz"].filter(Boolean).join(" · ")],["Konfiqurasiya",I.cfg]];if(cf.some(x=>String(x[1]||"").trim()))h+=W(head("Konfiqurasiya")+txt(cf));
+    const CM=(I.comp||[]).filter(k=>k&&k.name);if(CM.length)h+=W(head("Panelin komponentləri")+`<table><tr><th>#</th><th style="text-align:left">${t("Ad")}</th><th style="text-align:left">${t("Marka / model")}</th><th>${t("Nominal")}</th><th>${t("Say")}</th></tr>${CM.map((k,j)=>`<tr><td class="c">${j+1}</td><td>${esc2(k.name)}</td><td>${esc2(k.model||"")}</td><td class="c">${esc(k.nom||"")}</td><td class="c">${esc(k.qty||"")}</td></tr>`).join("")}</table>`);
+    const IC=INST_CFG[CUR_TYPE],cfv=I.cf||{},cf=[["Yük testi",I.loadPct||I.loadMin?(I.loadPct?I.loadPct+" % "+t("yük"):"")+(I.loadMin?" · "+I.loadMin+" "+t("dəq"):""):""],...(IC?IC.f.map(([k,l])=>[l,cfv[k]]):[["Çıxış gərginliyi / tezliyi",[I.vout&&I.vout+" V",I.fout&&I.fout+" Hz"].filter(Boolean).join(" · ")]]),[IC?"Digər ayarlar":"Konfiqurasiya",I.cfg]];if(cf.some(x=>String(x[1]||"").trim()))h+=W(head(IC?IC.h:"Konfiqurasiya")+txt(cf));
     const K=(X.kit||[]).filter(k=>k.name);if(K.length)h+=W(head("Təhvil verilən avadanlıq")+`<table><tr><th>#</th><th style="text-align:left">${t("Ad")}</th><th>${t("Seriya №")}</th><th>${t("Say")}</th></tr>${K.map((k,j)=>`<tr><td class="c">${j+1}</td><td>${esc2(k.name)}</td><td class="c">${esc(k.sn||"")}</td><td class="c">${esc(k.qty||"")}</td></tr>`).join("")}</table>`+(X.kitNote?`<p><i>${esc2(X.kitNote)}</i></p>`:""))}
   if(PF==="diag"){const D=X.diag||{};const b=txt([["Müştərinin şikayəti",D.compl],["Xəta kodları / jurnal",D.codes],["Aşkar edilən nasazlıq",D.found],["Tövsiyə olunan təmir",D.rec]]);if(b)h+=W(head("Diaqnostika nəticəsi")+b)}
   if(PF==="call"){const C=X.call||{};const b=txt([["Problem",C.problem],["Səbəb / aşkar edilən",C.found],["Nəticə",C.res],["Sonrakı addımlar",C.next]]);if(b)h+=W(head("Qəza çağırışı")+b)}
@@ -2961,7 +3055,7 @@ function paperHTML(R,_a,lang){PL=lang||state.plang||"az";const r=realOf(R),keep=
       cIdx.map((j,q)=>[CHK[j],j,q]).map(([c,j,q])=>{const x=V.chk[j].s,rc=x==="Nasaz"?"r-nasaz":x==="Yararsız"?"r-yar":x==="Qeyd var"?"r-qeyd":"";
         return `<tr${rc?` class="${rc}"`:""}><td class="c">${q+1}</td><td>${esc(t(c))}</td><td class="c ${rc?"":pc(x)}">${V.chk[j].lb?esc(V.chk[j].lb):x==="Qeyd var"?(PL==="az"?RNM("Qeyd"):tv(x)):tv(x)}</td><td>${esc(ft(V.chk[j].n))}</td></tr>`}).join("")+(V.chkX&&V.chkX.length?V.chkX.map((o,q)=>`<tr><td class="c">${cIdx.length+q+1}</td><td>${esc(t(o.t))}</td><td class="c ${pc(o.s)}">${tv(o.s)}</td><td>${esc(ft(o.n||""))}</td></tr>`).join(""):"")+`</table>`);
     const wIdx=WORKS.map((w,j)=>j).filter(j=>V.works[j]==="Bəli");
-    if(wIdx.length||V.wExtra)h+=W(head(PF==="call"&&!wIdx.length?"Görülən işlər":"Görülən işlər")+(wIdx.length?`<table>`+wIdx.map((j,q)=>[WORKS[j],j,q]).map(([w,j,q])=>`<tr><td class="c" style="width:4%">${q+1}</td><td>${esc(t(w))}</td><td class="c" style="width:14%">${tv(V.works[j])}</td></tr>`).join("")+`</table>`:"")+`${V.wExtra?`<p><i>${t("Əlavə:")} ${esc(ft(V.wExtra))}</i></p>`:""}`);
+    if(wIdx.length||V.wExtra)h+=W(head(PF==="call"&&!wIdx.length?"Görülən işlər":"Görülən işlər")+(wIdx.length?`<table>`+wIdx.map((j,q)=>[WORKS[j],j,q]).map(([w,j,q])=>`<tr><td class="c" style="width:4%">${q+1}</td><td>${esc(t(w))}</td><td class="c" style="width:14%">${tv(V.works[j])}</td></tr>`).join("")+`</table>`:"")+`${V.wExtra?`<div class="wxtra" style="background:#FFF2A8;border:1px solid #E6CF5C;border-radius:3px;padding:6px 9px;margin:6px 0;-webkit-print-color-adjust:exact;print-color-adjust:exact"><b>${t("Əlavə:")}</b><br>${esc(String(ft(V.wExtra)||"").replace(/\r\n?/g,"\n").replace(/^\s*\n+|\n+\s*$/g,"")).replace(/\n/g,"<br>")}</div>`:""}`);
     h+=logPaper(d,head,kv,W);
     if(TYPES[d.type].hasBat&&(PF==="prof"||PF==="bat"||PF==="inst"||(PF==="upd"&&V.x&&V.x.upd&&V.x.upd.newBat))){const B=V.bat,p=Math.floor(num(B.per))||0,ns=p?Math.ceil(a.tot/p):0;
       h+=(multi?"":'<div class="pb"></div>')+W(head("Akkumulyatorlar")+kv([[["Marka / model",dash(batBrandText(B))],["Tip",tv(B.type)]],[["Konfiqurasiya",a.tot?esc(T.cfg(B.str,B.per,a.tot))+(B.mid&&num(B.per)>1?" · "+esc(t("orta uc"))+" ("+Math.floor(num(B.per)/2)+" + "+(Math.floor(num(B.per))-Math.floor(num(B.per)/2))+")":""):"—"],["Tutum",B.ah?esc(B.ah)+" Ah":"—"]],...(c=>{const o=[];for(let q=0;q<c.length;q+=2)o.push(c.slice(q,q+2));return o})([...(batInstText(B)?[["Quraşdırma tarixi",esc(batInstText(B))]]:[]),...(B.year?[["İstehsal ili",esc(B.year)]]:[]),...(a.age!==null?[["Yaşı",a.age.toFixed(1)+" "+t("il")]]:[])]),[["Ölçü cihazı",dash(B.dev)],["Referans R",a.ref?fmt(a.ref)+" mΩ":"—"]]])+
@@ -3375,7 +3469,7 @@ function qaBodyAuto(R){const r=realOf(R),D=qaDefects(r);if(!D.length)return "Tex
 const coGen=S=>{const c=String(S.co||"ZUVAND Grand System").trim();return (/MMC|ASC|LLC/i.test(c)?c:c+" MMC")+"-nin"};
 function qaHasBat(R){const r=realOf(R);return r.devices.some(d=>TYPES[d.type].hasBat&&(d.bat.blocks||[]).some(b=>b&&(String(b.v||"").trim()||String(b.r||"").trim())))}
 function qaCard(){const r=realOf(state.rep),Q=r.qa||{},n=qaDefects(r).length,hb=qaHasBat(r);
-  return `<div class="card"><h3>Qüsur aktı</h3><p class="note" style="margin:0">Aktın mətni hesabatdan avtomatik yaranır (Yoxlamada “Nasaz” bəndlər, norma xaricində ölçmələr, dəyişdirilməli akkumulyatorlar, diaqnostika / təmir nəticəsi, “Yararsız detallar”) — hazırda <b>${n}</b> qüsur. “Hesabatdan doldur” basıb mətni redaktə edə bilərsiniz.</p>
+  return `<div class="card"><h3>Qüsur aktı</h3><p class="note" style="margin:0">Aktın mətni hesabatdan avtomatik yaranır (Yoxlamada “Nasaz” bəndlər, norma xaricində ölçmələr, ${updHasBat()?"dəyişdirilməli akkumulyatorlar, ":""}diaqnostika / təmir nəticəsi, “Yararsız detallar”) — hazırda <b>${n}</b> qüsur. “Hesabatdan doldur” basıb mətni redaktə edə bilərsiniz.</p>
    <div class="grid2">${fld("qa.date","Akt tarixi",{date:1})}${fld("qa.no","Akt № (istəyə görə)")}</div>
    <p class="note" style="margin:6px 0 0"><b>Yuxarıda — rəhbərlərin imzası (M.Y.)</b></p>
    ${fld("qa.clOrg","Sifarişçi təşkilatı (yiyəlik halında)",{ph:(r.cl.name||"məs. İctimai Televiziya və Radio yayımları şirkətinin")})}
@@ -3460,7 +3554,8 @@ async function exportPdf(){const root=await prepareFolder();await flush();const 
       try{await sync();if(state.pending.has(r.id))throw new Error("pending");
         const res=await api("pdf",{id:r.id,client:r.cl.name,name,data:await blobToB64(blob)});
         if(state.remote[r.id])state.remote[r.id].pdf=res.url;const l=$("#pdfLink");if(l){l.href=res.url;l.hidden=false}
-        toast("PDF Drive-a da yükləndi")}
+        toast("PDF Drive-a da yükləndi");
+        if(realOf(r).devices.length>1){btn.textContent="Cihazların PDF-i…";try{if(await devPdfs(r,L))toast("Hər cihazın öz PDF-i də yükləndi (QR üçün)")}catch(e){toast("Cihazların ayrıca PDF-i yüklənmədi")}}}
       catch(e){toast("PDF Drive-a yüklənmədi (internet?)")}}}
   catch(e){if(window.zsPdfFail)zsPdfFail("PDF",e);else toast("PDF yaratmaq alınmadı")}
   btn.disabled=false;btn.textContent="PDF hazırla"}
@@ -4853,12 +4948,12 @@ window.ZSMOV=(function(){
   /* ---------- editor: what is moved (per device) ---------- */
   function secItems(){const V=state.cur,L=getP(V,"x.mv.items")||[];
     const sum=L.reduce((a,x)=>{const o=iqN(x.qo),i=iqN(x.qi);if(o!==null&&i!==null&&i<o)a.miss++;if(x.st==="Zədəli")a.dmg++;return a},{miss:0,dmg:0});
-    return `<h2 class="sec">Daşınan cihaz və detallar</h2><p class="hint">Bu cihazla birlikdə sökülüb daşınanlar: akkumulyatorlar, rəf, kabellər, kartlar… “Söküldü” və “Quraşdırıldı” sayları fərqli olarsa, sətir qırmızı olur və hesabatda göstərilir.</p>
+    return `<h2 class="sec">Daşınan cihaz və detallar</h2><p class="hint">Bu cihazla birlikdə sökülüb daşınanlar: ${TYPES[CUR_TYPE]&&TYPES[CUR_TYPE].hasBat?"akkumulyatorlar, rəf, ":""}kabellər, kartlar… “Söküldü” və “Quraşdırıldı” sayları fərqli olarsa, sətir qırmızı olur və hesabatda göstərilir.</p>
     ${sum.miss||sum.dmg?`<div class="banner" style="margin:0 0 10px">${sum.miss?`⚠ ${sum.miss} sətirdə quraşdırılan say sökülən saydan azdır. `:""}${sum.dmg?`⚠ ${sum.dmg} sətir zədəli kimi qeyd olunub.`:""}</div>`:""}
     <div class="card"><h3>Siyahı (${L.length})</h3>${L.map((x,i)=>{const o=iqN(x.qo),q=iqN(x.qi),bad=(o!==null&&q!==null&&q<o)||x.st==="Çatışmır";
       return `<div class="mvit${bad?" bad":x.st==="Zədəli"?" warn":""}"><div class="grid2">${fld(`x.mv.items.${i}.n`,"Ad",{list:ITEM_N})}${fld(`x.mv.items.${i}.m`,"Model / S/N / qeyd")}</div>
         <div class="grid4">${fld(`x.mv.items.${i}.qo`,"Söküldü, say",{n:1})}${fld(`x.mv.items.${i}.qi`,"Quraşdırıldı, say",{n:1})}${fld(`x.mv.items.${i}.u`,"Vahid",{list:["ədəd","dəst","metr","komplekt"]})}${fld(`x.mv.items.${i}.st`,"Vəziyyəti",{sel:ST})}</div>
-        <div class="mvrow">${bad&&o!==null&&q!==null?`<span class="chip bad">Fərq: ${q-o}</span>`:""}<button class="btn sm danger" data-mvirm="${i}" style="margin-left:auto">Sil</button></div></div>`}).join("")||'<p class="note" style="margin:0 0 8px">Siyahı boşdur — “Standart siyahı” cihazın özünü, akkumulyatorları (dəstdən), rəfi və kabelləri əlavə edir.</p>'}
+        <div class="mvrow">${bad&&o!==null&&q!==null?`<span class="chip bad">Fərq: ${q-o}</span>`:""}<button class="btn sm danger" data-mvirm="${i}" style="margin-left:auto">Sil</button></div></div>`}).join("")||`<p class="note" style="margin:0 0 8px">Siyahı boşdur — “Standart siyahı” cihazın özünü${TYPES[CUR_TYPE]&&TYPES[CUR_TYPE].hasBat?", akkumulyatorları (dəstdən), rəfi":""} və kabelləri əlavə edir.</p>`}
       <div class="actions"><button class="btn sm" id="mvIAdd">+ Sətir</button><button class="btn sm" id="mvIStd">Standart siyahı</button><button class="btn sm" id="mvIEq">Quraşdırılan = sökülən</button></div></div>`}
   /* ---------- editor: checks ---------- */
   function secChk(){const L1=xL(state.cur,"mov.c1",SVL("mov.c1")),L2=xL(state.cur,"mov.c2",SVL("mov.c2"));
