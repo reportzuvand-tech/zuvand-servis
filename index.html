@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111505;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111507;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -824,6 +824,58 @@ window.ZSQRST=(function(){let O=null,R=null,busy=false;
     finally{mBusy=false;try{state.cur=null;state.rep=null;renderSettings()}catch(e){}T("QR PDF-ləri hazırdır: "+ok+(bad?" · alınmadı: "+bad:""),9000);M=null;setTimeout(()=>{const d=g("qrmGo");if(d){d.closest("details").open=true;miss()}},400)}}
   return {init,card}})();
 </script>
+<script>/* ZUVAND — eyni müştərinin fərqli yazılışları (İCTİMAİ / İctimai, I / İ, ə / e…): adları bir yazılışa gətirmək və kompüterdəki / Drive-dakı qovluqları birləşdirmək */
+window.ZSFOLD=(function(){
+  const g=id=>document.getElementById(id);
+  /* names with the same key but more than one spelling, from all reports (customer and payer) */
+  function groups(){const G={};listItems().forEach(it=>[it.client,it.payer].forEach(n=>{n=String(n||"").trim();const k=nk(n);if(!k)return;const x=G[k]=G[k]||{};x[n]=(x[n]||0)+1}));
+    (state.customers||[]).forEach(c=>{const n=String(c&&c.name||"").trim(),k=nk(n);if(!k||!G[k])return;G[k][n]=(G[k][n]||0)+1000});
+    return Object.values(G).filter(x=>Object.keys(x).length>1).map(x=>{const L=Object.keys(x).sort((a,b)=>x[b]-x[a]);return {to:L[0],from:L.slice(1),n:x}})}
+  function card(){const rc=g("renCard");if(!rc||g("zfBox"))return;const G=groups(),hub=typeof CFG!=="undefined"&&CFG.hub,gas=hasServer()&&!hub;
+    rc.insertAdjacentHTML("beforeend",`<div id="zfBox" style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+      <b>Eyni ad — fərqli yazılış</b><p class="note" style="margin:4px 0 8px">Böyük / kiçik hərf, İ / I, ə / e, dırnaq və boşluq fərqləri eyni müştəri sayılır. Yeni hesabatda belə yazılan ad avtomatik mövcud yazılışa gətirilir. Köhnə hesabatlardakı fərqli yazılışları aşağıdan bir yazılışa gətirin.</p>
+      ${G.length?G.map((x,i)=>`<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)"><span>${x.from.map(f=>`<s class="note">${esc(f)}</s> (${x.n[f]%1000})`).join(", ")} → <b>${esc(x.to)}</b></span><button class="btn sm" data-zfg="${i}">Yoxla və birləşdir</button></div>`).join(""):'<p class="note" style="margin:0">Fərqli yazılan ad tapılmadı.</p>'}
+      <div style="margin-top:12px"><b>Qovluqlar</b><p class="note" style="margin:4px 0 8px">Əvvəl fərqli yazılış üzündən eyni müştəri üçün açılmış qovluqlar bir qovluğa yığılır (faylı ən çox olan qovluq qalır, o birilərindəki fayllar ora köçür, boş qalan qovluq silinir). Yeni fayllar artıq həmişə mövcud qovluğa yazılır.</p>
+        <div class="actions" style="margin:0">${typeof canDir==="function"&&canDir()?'<button class="btn" id="zfPc">Kompüterdəki qovluqları yoxla</button>':""}${gas?'<button class="btn" id="zfDr">Google Drive qovluqlarını yoxla</button>':""}</div><div id="zfOut" style="margin-top:8px"></div></div></div>`);
+    rc.querySelectorAll("[data-zfg]").forEach(b=>b.onclick=()=>{const x=G[+b.dataset.zfg];g("renFrom").value=x.from[0];g("renTo").value=x.to;g("renFrom").dispatchEvent(new Event("input"));g("renDry").click();g("renFrom").scrollIntoView({block:"center"});
+      if(x.from.length>1)toast("Sonra qalan yazılışlar üçün də təkrarlayın: "+x.from.slice(1).join(", "),7000)});
+    const pc=g("zfPc");if(pc)pc.onclick=()=>pcScan();const dr=g("zfDr");if(dr)dr.onclick=()=>drScan()}
+  const out=h=>{const o=g("zfOut");if(o)o.innerHTML=h};
+  /* computer: the chosen reports folder; customer folders and, inside them, sub-folders (customers of an intermediary, “Servis hesabatları”, “Aktlar”) */
+  async function dirsOf(d){const L=[];for await(const h of d.values())if(h.kind==="directory")L.push(h);return L}
+  async function count(d){let n=0;for await(const h of d.values()){n+=h.kind==="file"?1:await count(h)}return n}
+  async function plan(d,path,acc){const L=await dirsOf(d),G={};for(const h of L){const k=nk(h.name);(G[k]=G[k]||[]).push(h)}
+    for(const k in G){const A=G[k];if(A.length>1){const C=[];for(const h of A)C.push({h,n:await count(h)});C.sort((a,b)=>b.n-a.n);acc.push({parent:d,path,to:C[0],from:C.slice(1)})}
+      if(path.split("\\").filter(Boolean).length<2)for(const h of A)await plan(h,path+"\\"+h.name,acc)}return acc}
+  let P=null;
+  async function pcScan(){out('<p class="note">Yoxlanılır…</p>');const root=await prepareFolder();if(!root){out('<p class="note">Qovluğa icazə verilmədi.</p>');return}
+    try{P={root,list:await plan(root,root.name,[])};
+      out(P.list.length?`<p style="margin:0 0 6px">Birləşdiriləcək: <b>${P.list.length}</b></p>${P.list.map(x=>`<div class="note" style="margin:2px 0">${esc(x.path)}\\ <s>${x.from.map(f=>esc(f.h.name)+" ("+f.n+" fayl)").join(", ")}</s> → <b>${esc(x.to.h.name)}</b> (${x.to.n} fayl)</div>`).join("")}<div class="actions"><button class="btn pri" id="zfPcGo">Birləşdir</button></div>`
+        :'<p class="note" style="margin:0">Kompüterdə eyni müştəri üçün ayrı qovluq yoxdur.</p>');const b=g("zfPcGo");if(b)b.onclick=()=>pcGo(b)}
+    catch(e){out('<p class="note">Alınmadı: '+esc(e&&e.message||e)+'</p>')}}
+  async function freeName(d,name){const m=/^(.*?)(\.[^.]+)?$/.exec(name);for(let n=1;n<100;n++){const t=n===1?name:m[1]+" ("+n+")"+(m[2]||"");try{await d.getFileHandle(t);continue}catch(e){return t}}return name}
+  async function moveInto(src,dst){let n=0;for(const h of [...await (async()=>{const A=[];for await(const x of src.values())A.push(x);return A})()]){
+      if(h.kind==="file"){const f=await h.getFile(),t=await freeName(dst,h.name),fh=await dst.getFileHandle(t,{create:true}),w=await fh.createWritable();await w.write(f);await w.close();await src.removeEntry(h.name);n++}
+      else{const k=nk(h.name);let sub=null;for await(const x of dst.values())if(x.kind==="directory"&&nk(x.name)===k){sub=x;break}if(!sub)sub=await dst.getDirectoryHandle(h.name,{create:true});n+=await moveInto(h,sub);await src.removeEntry(h.name)}}
+    return n}
+  async function pcGo(b){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Təsdiq: birləşdir";return}b.disabled=true;let n=0,bad=0;
+    for(const x of P.list)for(const f of x.from){try{n+=await moveInto(f.h,x.to.h);await x.parent.removeEntry(f.h.name);
+        /* the folder buttons of saved files point to the new place */
+        const rel=x.path.split("\\").slice(1).concat(f.h.name).join("\\"),nw=x.path.split("\\").slice(1).concat(x.to.h.name).join("\\");
+        Object.keys(localStorage).filter(k=>k.startsWith("ups.saved.")).forEach(k=>{try{const v=JSON.parse(localStorage.getItem(k));if(v&&v.dir&&(v.dir===rel||v.dir.startsWith(rel+"\\"))){v.dir=nw+v.dir.slice(rel.length);localStorage.setItem(k,JSON.stringify(v))}}catch(e){}})}
+      catch(e){bad++;console.log("zfold",e)}}
+    out(`<p style="margin:0">✓ ${n} fayl köçürüldü${bad?" · alınmadı: "+bad+" qovluq (fayl açıq ola bilər — bağlayıb təkrarlayın)":""}.</p>`);toast("Qovluqlar birləşdirildi");P=null}
+  /* Google Drive (server) */
+  let D=null;
+  async function drScan(){out('<p class="note">Drive yoxlanılır…</p>');try{D=await api("client_folders",{mode:"scan"});const L=D.groups||[];
+      out(L.length?`<p style="margin:0 0 6px">Drive-da birləşdiriləcək: <b>${L.length}</b></p>${L.map(x=>`<div class="note" style="margin:2px 0"><s>${x.from.map(f=>esc(f.name)+" ("+f.n+")").join(", ")}</s> → <b>${esc(x.to.name)}</b> (${x.to.n})</div>`).join("")}<div class="actions"><button class="btn pri" id="zfDrGo">Drive-da birləşdir</button></div>`
+        :'<p class="note" style="margin:0">Drive-da eyni müştəri üçün ayrı qovluq yoxdur.</p>');const b=g("zfDrGo");if(b)b.onclick=async()=>{if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Təsdiq: birləşdir";return}b.disabled=true;b.textContent="Birləşdirilir…";
+        try{const r=await api("client_folders",{mode:"merge"});out(`<p style="margin:0">✓ Drive-da ${r.moved||0} fayl / qovluq köçürüldü, boş qalan qovluqlar zibil qutusuna atıldı.</p>`);toast("Drive qovluqları birləşdirildi")}catch(e){b.disabled=false;b.textContent="Drive-da birləşdir";toast("Alınmadı: "+(e&&e.message||e))}}}
+    catch(e){out('<p class="note">Alınmadı: '+esc(e&&e.message||e)+'</p>')}}
+  function init(){try{const _rc=renCard;renCard=function(){const o=_rc.apply(this,arguments);try{card()}catch(e){console.log("zfold",e)}return o}}catch(e){}try{API_TIMEOUT.client_folders=330000}catch(e){}}
+  return {init,groups,card,_t:{plan,moveInto}}})();
+document.addEventListener("DOMContentLoaded",()=>{try{ZSFOLD.init()}catch(e){console.log("zsfold init",e)}});
+</script>
 <script>/*BTCORE — akkumulyatorların vəziyyətinin dinamikası (proqram və server eyni kodu işlədir; ES5) */
 /* nöqtə: {id, d:'YYYY-MM-DD', no, n, ar, mr, av, mv, at, w, x} — n ölçülmüş blok, ar/mr orta/maks R (mΩ), av/mv orta/min V, at orta T, w Diqqət, x Dəyişdirilməli */
 function btNum(v) { var x = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(x) ? x : null; }
@@ -1469,7 +1521,11 @@ const realOf=r=>(r&&r.__real)||r;
    Təsdiqlənmiş hesabat Satış və Anbar proqramına gedir (satış + anbardan çıxacaq hissələr); işçi onu artıq dəyişə bilmir. */
 const APPR_SINCE="2026-10-01";
 const apprOf=r=>{r=realOf(r);return r&&r.appr&&r.appr.at?r.appr:null};
-const nameKey=x=>String(x||"").trim().replace(/\s+/g," ").toLocaleLowerCase("az");
+/* one key for names everywhere: case, İ / I / ı / i, Azerbaijani letters typed as Latin (ə→e, ş→s…), Cyrillic look-alikes, quotes and extra spaces do not make a different customer */
+const NK_CY={"а":"a","е":"e","о":"o","р":"p","с":"c","у":"y","х":"x","к":"k","м":"m","т":"t","в":"b","н":"h","і":"i","ё":"e"};
+const nk=x=>String(x==null?"":x).normalize("NFKC").replace(/[İIı]/g,"i").toLowerCase().replace(/̇/g,"").replace(/ə/g,"e").replace(/ş/g,"s").replace(/ç/g,"c").replace(/ğ/g,"g").replace(/ö/g,"o").replace(/ü/g,"u")
+  .replace(/[аеорсухкмтвніё]/g,c=>NK_CY[c]).replace(/["“”«»„'`’‘.,]+/g," ").replace(/\s+/g," ").trim();
+const nameKey=nk;
 const ownerOf=r=>{r=realOf(r)||{};return String(r.creator||(state.remote[r.id]||{}).creator||"").trim()};
 /* someone else's report: a worker may look at it, but changes go into a new report of their own (the manager edits everything) */
 const foreignRep=r=>{if(!r||realOf(r).sample||!hasServer()||state.me.role==="admin")return false;const o=ownerOf(r);return !!o&&!!state.me.name&&nameKey(o)!==nameKey(state.me.name)};
@@ -1489,9 +1545,9 @@ function forkReport(src,keepDate){const r=normalize(clone(realOf(src)));r.id=new
 const needsAppr=s=>!s.appr&&(s.remote||s.pending)&&(!!s.sub||(s.date||"")>=APPR_SINCE);
 function devName(d){const i=d.info||{};return [i.brand,i.model].filter(Boolean).join(" ")}
 /* places already used for this client's devices (this report + earlier reports of the same client) */
-function locList(){const R=realOf(state.rep),cn=String(R&&R.cl&&R.cl.name||"").trim().toLowerCase(),m={};
+function locList(){const R=realOf(state.rep),cn=nk(R&&R.cl&&R.cl.name),m={};
   const add=r=>(r&&r.devices||[]).forEach(d=>{const l=String(d&&d.loc||"").trim();if(l)m[l]=1});add(R);
-  if(cn)Object.values(state.reports).forEach(r=>{if(r&&r.cl&&String(r.cl.name||"").trim().toLowerCase()===cn)add(r)});return Object.keys(m).sort((a,b)=>a.localeCompare(b,"az"))}
+  if(cn)Object.values(state.reports).forEach(r=>{if(r&&r.cl&&nk(r.cl.name)===cn)add(r)});return Object.keys(m).sort((a,b)=>a.localeCompare(b,"az"))}
 
 const TABS=[["svc","Servis"],["ups","UPS"],["meas","Ölçmə"],["chk","Yoxlama"],["work","İşlər"],["bat","Akkum."],["blk","Bloklar"],["rep","Hesabat"]];
 
@@ -1851,7 +1907,7 @@ function snHint(){const inp=document.getElementById("f-ups-sn");if(!inp||!state.
   const hits=v.length<3?[]:(snSearch(inp.value,listItems()).find(x=>snNorm(x.sn)===v)||{hits:[]}).hits.filter(h=>h.id!==R.id);
   if(!hits.length){if(el)el.remove();return}
   if(!el){el=document.createElement("small");el.className="note snhint";inp.insertAdjacentElement("afterend",el)}
-  const L=hits[0],my=String(R.cl&&R.cl.name||"").trim().toLowerCase(),other=L.client&&my&&L.client.trim().toLowerCase()!==my;
+  const L=hits[0],my=nk(R.cl&&R.cl.name),other=L.client&&my&&nk(L.client)!==my;
   el.classList.toggle("w",!!other);
   el.textContent=(other?"Diqqət: bu seriya № başqa müştəridə qeydiyyatdadır — ":"Bu cihaz əvvəl servis olunub — ")+(L.client||"adsız müştəri")+(L.obj?" ("+L.obj+")":"")+", "+(fmtDate(L.date)||"tarixsiz")+(L.repno?", "+L.repno:"")+(hits.length>1?" · cəmi "+hits.length+" hesabat":"")}
 let snHintT=0;
@@ -2057,7 +2113,7 @@ function listItems(){
 const REMIND_DAYS=2;
 function upcomingAll(){const latest={};
   listItems().forEach(it=>{if(it.local&&state.reports[it.id]&&state.reports[it.id].sample)return;
-    const key=it.sn?"sn:"+String(it.sn).toLowerCase():"c:"+String(it.client||"").toLowerCase()+"|"+String(it.obj||"").toLowerCase();
+    const key=it.sn?"sn:"+String(it.sn).toLowerCase():"c:"+nk(it.client)+"|"+nk(it.obj);
     if(!latest[key]||(it.date||"")>(latest[key].date||""))latest[key]=it});
   const now=new Date(),t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
   return Object.values(latest).map(it=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(it.next||"");if(!m)return null;
@@ -2080,7 +2136,7 @@ async function scheduleReminders(){if(!IS_APP)return;
 /* payments of the service work: written by Satış və Anbar, shown to the manager (workers — if allowed) */
 let PAY=(()=>{try{return JSON.parse(localStorage.getItem("ups.pay")||"null")}catch(e){return null}})(),PAY_AT=0;
 const payOn=()=>!!(PAY&&!PAY.hidden&&PAY.reps);
-const ckey=x=>String(x||"").trim().replace(/\s+/g," ").toLocaleLowerCase("az").replace(/["“”«»']/g,"");
+const ckey=nk;
 async function payRefresh(force){if(!hasServer()||state.online===false)return;if(!force&&Date.now()-PAY_AT<120000)return;PAY_AT=Date.now();
   try{const r=await api("pay");const old=JSON.stringify(PAY);PAY=r&&r.hidden?{hidden:true,workers:false}:{reps:r.reps||{},items:r.items||[],at:r.at||"",workers:!!r.workers};
     try{localStorage.setItem("ups.pay",JSON.stringify(PAY))}catch(e){}
@@ -2120,7 +2176,7 @@ function renderHome(){
   const qn=snNorm(q),snRes=snSearch(q,all),snIds=new Set(snRes.flatMap(x=>x.hits.map(h=>h.id)));
   const base=all.filter(s=>(!q||[s.repno,s.client,s.obj,s.model,s.sn,s.sns,s.eng].join(" ").toLowerCase().includes(q)||snIds.has(s.id))&&(!(state.af&&state.me.role==="admin")||needsAppr(s))&&inF(s)&&(!state.mf||String(s.date||"").startsWith(state.mf)))
     .sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.updatedAt||0)-(a.updatedAt||0));
-  const dkey=s=>[String(s.client||"").trim().toLowerCase(),s.date||"",String(s.sn||"").trim().toLowerCase()||String(s.model||"").trim().toLowerCase(),s.type||""].join("|");
+  const dkey=s=>[nk(s.client),s.date||"",String(s.sn||"").trim().toLowerCase()||String(s.model||"").trim().toLowerCase(),s.type||""].join("|");
   const score=s=>(s.appr?1e6:0)+(s.sub?1e5:0)+(s.fill||0)*100+((s.updatedAt||0)/1e13);
   const groups={};base.forEach(s=>{const k=dkey(s);(groups[k]=groups[k]||[]).push(s)});
   const dupOf={},items=[];base.forEach(s=>{const g=groups[dkey(s)];if(g.length<2){items.push(s);return}const best=g.slice().sort((a,b)=>score(b)-score(a))[0];
@@ -2361,15 +2417,19 @@ function fld(path,label,o={}){label=RNM(label);const v=getP(state.cur,path)??"";
   return `<label class="f"><span>${label}</span><input ${t} id="${id}" data-path="${path}" value="${esc(v)}" placeholder="${esc(o.ph||"")}" autocomplete="off"${dl?` list="${id}-dl"`:""}>${dl}${o.note?`<small class="note">${o.note}</small>`:""}</label>`}
 /* intermediaries used before — offered when the bill goes to a contractor instead of the client */
 /* client names: the client base on the office server + clients of earlier reports */
-function clientList(){const m={};(state.customers||[]).forEach(c=>{if(c&&c.name)m[c.name]=1});Object.values(state.reports).forEach(r=>{const n=r&&r.cl&&String(r.cl.name||"").trim();if(n)m[n]=1});return Object.keys(m).sort((a,b)=>a.localeCompare(b,"az"))}
-function fillClientFrom(name){const R=realOf(state.rep);if(!R)return 0;const k=String(name||"").trim().toLowerCase();if(!k)return 0;
-  let src=(state.customers||[]).find(c=>String(c.name||"").trim().toLowerCase()===k),n=0;
-  const prev=Object.values(state.reports).filter(r=>r&&r.id!==R.id&&r.cl&&String(r.cl.name||"").trim().toLowerCase()===k).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
+/* the spelling already in use for a name with the same key (the customer book first, then the most used one) */
+function canonName(v,path){const k=nk(v);if(!k)return "";const fld=path==="cl.payer"?"payer":"name",cur=state.rep&&realOf(state.rep),C={};const add=(n,w)=>{n=String(n||"").trim();if(n&&nk(n)===k)C[n]=(C[n]||0)+w};
+  if(fld==="name")(state.customers||[]).forEach(c=>add(c&&c.name,1000));Object.values(state.reports).forEach(r=>{if(r&&r.cl&&r!==cur&&!r.sample){add(r.cl[fld],1);if(fld==="payer")add(r.cl.name,1);else add(r.cl.payer,1)}});
+  return Object.keys(C).sort((a,b)=>C[b]-C[a])[0]||""}
+function clientList(){const m={};const add=n=>{n=String(n||"").trim();const k=nk(n);if(k&&!m[k])m[k]=n};(state.customers||[]).forEach(c=>add(c&&c.name));Object.values(state.reports).forEach(r=>add(r&&r.cl&&r.cl.name));return Object.values(m).sort((a,b)=>a.localeCompare(b,"az"))}
+function fillClientFrom(name){const R=realOf(state.rep);if(!R)return 0;const k=nk(name);if(!k)return 0;
+  let src=(state.customers||[]).find(c=>nk(c.name)===k),n=0;
+  const prev=Object.values(state.reports).filter(r=>r&&r.id!==R.id&&r.cl&&nk(r.cl.name)===k).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
   const pick=f=>(src&&src[f])||(prev&&prev.cl[f])||"";
   ["addr","person","tel","sign"].forEach(f=>{const v=f==="sign"?(prev&&prev.cl.sign)||"":pick(f);if(v&&!String(R.cl[f]||"").trim()){R.cl[f]=v;n++}});
   if(!String(R.cl.payer||"").trim()&&prev&&prev.cl.payer){R.cl.payer=prev.cl.payer;n++}return n}
 /* ---- the client's device base (office server): pick devices instead of typing them ---- */
-const lc=x=>String(x||"").trim().toLocaleLowerCase("az");
+const lc=nk;
 function custOf(name){const k=lc(name);return k?(state.customers||[]).find(c=>lc(c.name)===k):null}
 const devTitle=d=>[d.brand,d.model].filter(Boolean).join(" ")+(d.kva?" · "+d.kva+" kVA":"");
 const isBlankDev=d=>!d.info.brand&&!d.info.model&&!d.info.sn&&!(d.photos||[]).length&&!(d.parts||[]).length;
@@ -2394,7 +2454,7 @@ function bindCustDev(){const box=$("#cdCard");if(!box)return;const R=realOf(stat
       nd.loc=d.loc||"";if(TYPES[tp].hasBat&&d.blocks){nd.bat.per=String(d.blocks);nd.bat.str="1";if(d.ah)nd.bat.ah=String(d.ah)}
       R.devices.push(nd)});
     setActive(0);markDirty();toast(pick.length+" cihaz hesabata əlavə olundu");const y=window.scrollY;renderEditor();window.scrollTo(0,y)}}
-function payerList(){const m={};Object.values(state.reports).forEach(r=>{const p=r&&r.cl&&String(r.cl.payer||"").trim();if(p)m[p]=1});return Object.keys(m).sort((a,b)=>a.localeCompare(b,"az"))}
+function payerList(){const m={};Object.values(state.reports).forEach(r=>{const p=r&&r.cl&&String(r.cl.payer||"").trim(),k=nk(p);if(k&&!m[k])m[k]=p});return Object.values(m).sort((a,b)=>a.localeCompare(b,"az"))}
 /* every kind of service has its own blank: its own sections in the editor and its own report title */
 const SVC_PROF=r=>{const R=realOf(r)||{},t=String(R.svc&&R.svc.type||""),cx=window.ZS_SVCX&&ZS_SVCX[t];if(cx)return cx.base;return /Yerdəyiş|demontaj/i.test(t)?"mov":/Quraşdırma/i.test(t)?"inst":/Yenilən|dəyişdiril/i.test(t)?"upd":/Akkumulyator/i.test(t)?"bat":/Diaq/i.test(t)?"diag":/Qəza/i.test(t)?"call":/Təmir/i.test(t)?"rep":"prof"};
 const PROF_TITLE={inst:"QURAŞDIRMA VƏ İŞƏ SALMA HESABATI",upd:"YENİLƏNMƏ / DƏYİŞDİRMƏ HESABATI",bat:"AKKUMULYATOR TESTİ HESABATI",diag:"TEXNİKİ DİAQNOSTİKA HESABATI",call:"QƏZA ÇAĞIRIŞI HESABATI",rep:"TƏMİR HESABATI",mov:"YERDƏYİŞMƏ HESABATI (DEMONTAJ – DAŞINMA – MONTAJ)"};
@@ -2511,6 +2571,7 @@ document.addEventListener("change",e=>{if(e.target.dataset&&e.target.dataset.cha
   if(e.target.id==="f-bat-str"&&state.cur&&bMulti(state.cur.bat)){setTimeout(()=>{const y=window.scrollY;renderEditor();window.scrollTo(0,y)},0)}
   if(e.target.id==="batMid"&&state.cur&&!lockedRep(state.rep)){state.cur.bat.mid=e.target.checked;autoLimits(state.cur);markDirty();live();return}
   const p=e.target.dataset&&e.target.dataset.path;if(!p||!state.cur||lockedRep(state.rep))return;setP(state.cur,p,e.target.value);
+  if((p==="cl.name"||p==="cl.payer")&&typeof canonName==="function"){const v0=String(e.target.value||"").trim(),c=canonName(v0,p);if(c&&c!==v0){setP(state.cur,p,c);e.target.value=c;toast("Bu ad artıq “"+c+"” kimi yazılıb — eyni yazılış götürüldü (qovluq və siyahılar qarışmasın)",6000)}}
   {const mm=/^meas\.(\d+)\.(min|max)$/.exec(p);if(mm)state.cur.meas[+mm[1]].man=1}
   if(/^(ups\.(kva|kw|pf|phase)|bat\.(per|str|nom|ah))$/.test(p)){if(p==="ups.pf"||p==="ups.kva"){const u=state.cur.ups,k=num(u.kva),f=num(String(u.pf||"").replace(",","."));if(k&&f){u.kw=String(Math.round(k*f*10)/10);const el=document.getElementById("f-ups-kw");if(el)el.value=u.kw}}autoLimits(state.cur)}
   if(p==="svc.repno"){const R=realOf(state.rep);R.svc.repnoAuto=!String(e.target.value).trim();if(R.svc.repnoAuto){applyRepNo(R);e.target.value=R.svc.repno}}
@@ -3260,8 +3321,10 @@ async function prepareFolder(){if(!canDir())return null;
 const cdir=(client,sep)=>(Array.isArray(client)?client:[client]).map(safeName).join(sep);
 /* the folder of a report: the customer, or — when the bill goes to an intermediary / contractor — <intermediary>\<customer> */
 const cfolder=r=>{r=realOf(r);const pay=String(r.cl.payer||"").trim(),nm=r.cl.name||"";return pay&&safeName(pay)!==safeName(nm)?[pay,nm||"Müştərisiz"]:nm};
-async function writeToDir(root,client,filename,blob,sub){let d=root;for(const sg of (Array.isArray(client)?client:[client]))d=await d.getDirectoryHandle(safeName(sg),{create:true});if(sub)d=await d.getDirectoryHandle(sub,{create:true});
-  const fh=await d.getFileHandle(filename,{create:true});const w=await fh.createWritable();await w.write(blob);await w.close();return root.name+"\\"+cdir(client,"\\")+(sub?"\\"+sub:"")+"\\"+filename}
+/* a customer's folder is found by its key: “İCTİMAİ TV” and “İctimai TV” go to the same (first made) folder */
+async function subDir(d,name){const want=safeName(name),k=nk(want);try{for await(const h of d.values())if(h.kind==="directory"&&nk(h.name)===k)return h}catch(e){}return d.getDirectoryHandle(want,{create:true})}
+async function writeToDir(root,client,filename,blob,sub){let d=root;const segs=[];for(const sg of (Array.isArray(client)?client:[client])){d=await subDir(d,sg);segs.push(d.name)}if(sub){d=await subDir(d,sub);segs.push(d.name)}
+  const fh=await d.getFileHandle(filename,{create:true});const w=await fh.createWritable();await w.write(blob);await w.close();writeToDir.last=segs.join("\\");return root.name+"\\"+segs.join("\\")+"\\"+filename}
 const SUB_REP="Servis hesabatları",SUB_ACT="Aktlar";
 /* where a report's files were saved (per kind: rep / act / qa) — for the folder buttons */
 const savedKey=(id,k)=>"ups.saved."+id+"."+k;
@@ -3298,10 +3361,11 @@ async function saveFile(filename,blob,client,root,sub,tag){
   try{
     if(IS_APP){const P=Capacitor.Plugins||{};const FS=P.Filesystem||Capacitor.registerPlugin("Filesystem"),SH=P.Share||Capacitor.registerPlugin("Share");
       const data=await blobToB64(blob);let saved="";
-      if(client!==undefined){const pth="UPS Servis Hesabatları/"+cdir(client,"/")+"/"+(sub?sub+"/":"")+filename;try{await FS.writeFile({path:pth,data,directory:"DOCUMENTS",recursive:true});saved="Documents/"+pth}catch(e){}}
+      if(client!==undefined){let base="UPS Servis Hesabatları";for(const sg of (Array.isArray(client)?client:[client]).map(safeName)){let nm=sg;try{const L=await FS.readdir({path:base,directory:"DOCUMENTS"});const h=(L.files||[]).find(x=>(x.type==="directory"||x.type===undefined)&&nk(x.name||x)===nk(sg));if(h)nm=h.name||h}catch(e){}base+="/"+nm}
+        const pth=base+"/"+(sub?sub+"/":"")+filename;try{await FS.writeFile({path:pth,data,directory:"DOCUMENTS",recursive:true});saved="Documents/"+pth}catch(e){}}
       const w=await FS.writeFile({path:filename,data,directory:"CACHE"});if(saved)toast("Saxlanıldı: "+saved);
       await SH.share({title:filename,url:w.uri,dialogTitle:"Göndər (WhatsApp, e-poçt…) və ya bağla"});return true}
-    if(root&&client!==undefined){const note=fn=>{if(tag&&tag.id){LS.set(savedKey(tag.id,tag.k),{dir:cdir(client,"\\")+(sub?"\\"+sub:""),file:fn});updFolderBtns()}};
+    if(root&&client!==undefined){const note=fn=>{if(tag&&tag.id){LS.set(savedKey(tag.id,tag.k),{dir:writeToDir.last||(cdir(client,"\\")+(sub?"\\"+sub:"")),file:fn});updFolderBtns()}};
       try{toast("Saxlanıldı: "+await writeToDir(root,client,filename,blob,sub));note(filename);return true}
       catch(e){const m=/^(.*?)(\.[^.]+)?$/.exec(filename);for(let n=2;n<=20;n++){const alt=m[1]+" ("+n+")"+(m[2]||"");try{const pth=await writeToDir(root,client,alt,blob,sub);note(alt);toast("Əvvəlki fayl açıqdır (PDF / Word proqramında) — yeni adla saxlanıldı: "+pth,6000);return true}catch(e2){}}
         toast("Qovluğa yazmaq alınmadı ("+((e&&e.name)||"xəta")+") — fayl Yükləmələr qovluğuna saxlanılır")}}
@@ -3385,13 +3449,13 @@ function actData(R){const r=realOf(R),S=state.settings,rows=[],UPD=SVC_PROF(r)==
       P.forEach(p=>rows.push({name:[p.kind,p.name].filter(Boolean).join(" — ")+(p.code?" ("+p.code+")":""),sn:p.newsn||"",unit:"ədəd",qty:p.qty||"1"}));
       (((d.x||{}).kit)||[]).filter(k=>k.name).forEach(k=>rows.push({name:k.name,sn:k.sn||"",unit:"ədəd",qty:k.qty||"1"}));const f=d.x&&d.x.upd&&d.x.upd.fate;if(f&&!fates.includes(f))fates.push(f)});
     rows.push({name:"Hissələrin dəyişdirilməsi, cihazın işə salınması və yoxlanılması işləri",sn:"",unit:"xidmət",qty:"1"});const place=[r.cl.obj,r.cl.addr].filter(Boolean).join(", ");
-    return {r,S,rows,client:r.cl.name||"",co:S.co||"ZUVAND Grand System",dir:LS.get("ups.actdir")||"",clDir:clIsDir(r)?String(r.cl.person).trim():(LS.get("ups.actcl."+String(r.cl.name||"").toLowerCase())||r.cl.sign||r.cl.person||""),clPos:clIsDir(r)?String(r.cl.ppos).trim():"Direktor",
+    return {r,S,rows,client:r.cl.name||"",co:S.co||"ZUVAND Grand System",dir:LS.get("ups.actdir")||"",clDir:clIsDir(r)?String(r.cl.person).trim():(LS.get("ups.actcl."+nk(r.cl.name))||r.cl.sign||r.cl.person||""),clPos:clIsDir(r)?String(r.cl.ppos).trim():"Direktor",
       place,warr:num(r.svc.warr)||0,t1:"Belə ki, Podratçı tərəfindən"+(place?" "+place+" ünvanında":"")+" Sifarişçiyə məxsus "+(devs.join(", ")||"avadanlıq")+" cihazında aşağıda göstərilən hissələr dəyişdirilmiş, cihaz işə salınmış, yoxlanılmış və işlək vəziyyətdə Sifarişçiyə təhvil verilmişdir:",
       t2:"Dəyişdirmədən sonra avadanlıq Sifarişçinin nümayəndəsinin iştirakı ilə yoxlanılmışdır."+(fates.length?" Köhnə hissələr: "+fates.map(x=>x.toLowerCase()).join(", ")+".":"")}}
   r.devices.forEach(d=>{const i=d.info||{},nm=(t(TYPES[d.type].title)+" "+[i.brand,i.model].filter(Boolean).join(" ")+(i.kva?" "+i.kva+" kVA":"")).replace(/\s+/g," ").trim();rows.push({name:nm,sn:i.sn||"",unit:"ədəd",qty:"1"});
     (((d.x||{}).kit)||[]).filter(k=>k.name).forEach(k=>rows.push({name:k.name,sn:k.sn||"",unit:/akkumulyator|blok/i.test(k.name)?"ədəd":"dəst",qty:k.qty||"1"}))});
   rows.push({name:"Avadanlığın quraşdırılması, işə salınması və sazlanması işləri",sn:"",unit:"xidmət",qty:"1"});
-  return {r,S,rows,client:r.cl.name||"",co:S.co||"ZUVAND Grand System",dir:LS.get("ups.actdir")||"",clDir:clIsDir(r)?String(r.cl.person).trim():(LS.get("ups.actcl."+String(r.cl.name||"").toLowerCase())||r.cl.sign||r.cl.person||""),clPos:clIsDir(r)?String(r.cl.ppos).trim():"Direktor",
+  return {r,S,rows,client:r.cl.name||"",co:S.co||"ZUVAND Grand System",dir:LS.get("ups.actdir")||"",clDir:clIsDir(r)?String(r.cl.person).trim():(LS.get("ups.actcl."+nk(r.cl.name))||r.cl.sign||r.cl.person||""),clPos:clIsDir(r)?String(r.cl.ppos).trim():"Direktor",
     place:[r.cl.obj,r.cl.addr].filter(Boolean).join(", "),warr:num(r.svc.warr)||0}}
 function actHTML(R){const D=actData(R),r=D.r,sg=(r.sig||{}),e=x=>esc(x||"");
   const con=r.svc.conNo?`${r.svc.conDate?fmtDate(r.svc.conDate)+"-cı il tarixli ":""}${e(r.svc.conNo)} №-li müqaviləyə əlavə olaraq `:"";
@@ -3720,9 +3784,9 @@ function renderLists(){state.view="lists";$("#tabs").hidden=true;$("#hBack").hid
   <div class="card" id="lstBox"><p class="note" style="margin:0" id="lstMsg">Yüklənir…</p></div><button class="btn ghost" id="lstBack">← Geri</button>`;
   $("#lstBack").onclick=renderHome;
   const draw=()=>{const R=state.itemRows||[];const years=[...new Set(R.map(x=>yearOf(x.date)).concat(listItems().map(x=>yearOf(x.date))).filter(Boolean))].sort().reverse();
-    const clients=[...new Set(R.map(x=>x.client).concat(listItems().map(x=>x.client||"Adsız müştəri")))].sort((a,b)=>a.localeCompare(b));
+    const clients=(()=>{const m={};R.map(x=>x.client).concat(listItems().map(x=>x.client||"Adsız müştəri")).forEach(c=>{const k=nk(c);if(k&&!m[k])m[k]=c});return Object.values(m)})().sort((a,b)=>a.localeCompare(b,"az"));
     const rows=listFiltered();const by={};rows.forEach(x=>{(by[x.client]=by[x.client]||[]).push(x)});
-    const svc=listItems().filter(x=>!(state.reports[x.id]&&state.reports[x.id].sample)&&(F.year==="all"||yearOf(x.date)===F.year)&&(!F.client||(x.client||"Adsız müştəri")===F.client));
+    const svc=listItems().filter(x=>!(state.reports[x.id]&&state.reports[x.id].sample)&&(F.year==="all"||yearOf(x.date)===F.year)&&(!F.client||nk(x.client||"Adsız müştəri")===nk(F.client)));
     const cs=[...new Set(Object.keys(by).concat(svc.map(x=>x.client||"Adsız müştəri")))].sort((a,b)=>a.localeCompare(b));
     const cnt=(c,k)=>(by[c]||[]).filter(x=>x.kind===k).length;
     $("#lstBox").innerHTML=`<div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
@@ -3742,7 +3806,7 @@ function renderLists(){state.view="lists";$("#tabs").hidden=true;$("#hBack").hid
   loadItems((k,n)=>{const m=$("#lstMsg");if(m)m.textContent="Köhnə hesabatlar oxunur… "+k+"/"+n}).then(r=>{state.itemRows=r;if(state.view==="lists")draw()})
     .catch(()=>{const m=$("#lstMsg");if(m)m.textContent="Siyahını yükləmək üçün internet lazımdır"});
   window.scrollTo(0,0)}
-function listFiltered(){const F=state.lst;return (state.itemRows||[]).filter(x=>(F.year==="all"||yearOf(x.date)===F.year)&&(!F.client||x.client===F.client)&&(F.kind==="all"||x.kind===F.kind))
+function listFiltered(){const F=state.lst;return (state.itemRows||[]).filter(x=>(F.year==="all"||yearOf(x.date)===F.year)&&(!F.client||nk(x.client)===nk(F.client))&&(F.kind==="all"||x.kind===F.kind))
   .sort((a,b)=>a.client.localeCompare(b.client)||(b.date||"").localeCompare(a.date||"")||String(a.dev).localeCompare(String(b.dev)))}
 async function exportList(kind){const root=await prepareFolder();const F=state.lst,rows=listFiltered();
   if(!rows.length){toast("Seçilən filtrdə detal yoxdur");return}
@@ -3778,7 +3842,7 @@ async function exportDoc(kind,o){const btn=document.activeElement;const old=btn&
   finally{if(btn){btn.disabled=false;btn.textContent=old}}}
 
 /* ================= servis cədvəli: növbəti servis tarixləri ================= */
-const planKey=it=>it.sn?"sn:"+String(it.sn).toLowerCase():"c:"+String(it.client||"").toLowerCase()+"|"+String(it.obj||"").toLowerCase();
+const planKey=it=>it.sn?"sn:"+String(it.sn).toLowerCase():"c:"+nk(it.client)+"|"+nk(it.obj);
 function planRows(){const G={};listItems().forEach(it=>{if(it.local&&state.reports[it.id]&&state.reports[it.id].sample)return;(G[planKey(it)]=G[planKey(it)]||[]).push(it)});
   const now=new Date(),t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime(),out=[];
   Object.values(G).forEach(L=>{L.sort((a,b)=>(a.date||"").localeCompare(b.date||""));
@@ -3941,7 +4005,7 @@ function onTimeMap(){const G={},out={};listItems().forEach(it=>{if(state.reports
   Object.values(G).forEach(L=>{L.sort((a,b)=>(a.date||"").localeCompare(b.date||""));for(let k=1;k<L.length;k++){const prev=L[k-1],it=L[k];if(!prev.next||it.type==="Diaqnostika")continue;
     const late=Math.round((Date.parse(it.date)-Date.parse(prev.next))/864e5);if(Number.isFinite(late))out[it.id]=late}});return out}
 /* ---------- customers and their devices, collected from every report (manager only) ---------- */
-const cuKey=x=>String(x||"").trim().replace(/\s+/g," ").toLocaleLowerCase("az");
+const cuKey=nk;
 function customerBook(){const C={};const tt=t=>t&&TYPES[t]?TYPES[t].title:"";
   listItems().forEach(it=>{if(it.local&&state.reports[it.id]&&state.reports[it.id].sample)return;if(!String(it.client||"").trim())return;
     const full=state.reports[it.id]?realOf(state.reports[it.id]):null,k=cuKey(it.client);
@@ -4136,7 +4200,7 @@ function renderTasks(focus){state.view="tasks";$("#tabs").hidden=true;$("#hBack"
   document.querySelectorAll("[data-tkgo]").forEach(b=>b.onclick=()=>startFromTask(T(b.dataset.tkgo)));
   if(focus){const el=$("#tk-"+focus);if(el)el.scrollIntoView({block:"center"})}else window.scrollTo(0,0)}
 /* new report from a task: the customer's latest report is copied (devices, set-up); otherwise a blank report with the customer data */
-async function startFromTask(t){if(!t)return;const key=s=>String(s||"").trim().toLowerCase();
+async function startFromTask(t){if(!t)return;const key=nk;
   const prev=listItems().filter(x=>key(x.client)===key(t.client)&&(!t.obj||!x.obj||key(x.obj)===key(t.obj))&&!(state.reports[x.id]&&state.reports[x.id].sample)).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
   const go=r=>{r.taskId=t.id;if(!r.cl.name)r.cl.name=t.client||"";if(!r.cl.obj)r.cl.obj=t.obj||"";if(!r.cl.addr)r.cl.addr=t.addr||"";startReport(r);state.tab="svc";renderEditor();toast("Tapşırıq üçün hesabat açıldı — saxlananda tapşırıq sizin adınıza görülmüş sayılacaq")};
   if(prev){try{go(nextFrom(normalize(clone(await getFull(prev.id)))));return}catch(e){}}

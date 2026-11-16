@@ -1,1 +1,1 @@
-{"v": 2026111505, "notes": "Təsdiq yavaş internetdə itmirdi: göndərilərkən dəyişən hesabat yenidən göndərilir; Yeni servis səhifəsindən geri qayıtmaq", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}
+{"v": 2026111507, "notes": "Müştəri adları: böyük/kiçik hərf, İ/I, ə/e fərqi eyni müştəri sayılır; eyni müştərinin qovluqları birləşir", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}
