@@ -203,8 +203,8 @@ const SEC = {
   reset_pw_set: (u, b) => { needBoss(u); if (meta.resetPw) pwTry(b.old); if (!/^[0-9a-f]{64}$/.test(String(b.pwh || ""))) err("bad_pw"); meta.resetPw = pwHash(b.pwh); saveMeta(); log(u, "reset-pw", ""); return {} },
   activity: (u, b) => {
     needBoss(u); let txt = ""; try { const st = fs.statSync(P("log.txt")), fd = fs.openSync(P("log.txt"), "r"), len = Math.min(st.size, 1500000), buf = Buffer.alloc(len); fs.readSync(fd, buf, 0, len, st.size - len); fs.closeSync(fd); txt = buf.toString("utf8") } catch (e) { }
-    const q = String(b.q || "").toLowerCase().trim(), rows = [];
-    const L = txt.split("\n"); for (let i = L.length - 1; i >= 0 && rows.length < 1500; i--) { const c = L[i].split("\t"); if (c.length < 3 || !/^\d{4}-/.test(c[0])) continue; const r = [c[0], c[1], c[2], c.slice(3).join(" ")]; if (q && r.join(" ").toLowerCase().indexOf(q) < 0) continue; rows.push(r) }
+    const qw = nk(b.q).split(" ").filter(Boolean), q = qw.length, rows = [];
+    const L = txt.split("\n"); for (let i = L.length - 1; i >= 0 && rows.length < 1500; i--) { const c = L[i].split("\t"); if (c.length < 3 || !/^\d{4}-/.test(c[0])) continue; const r = [c[0], c[1], c[2], c.slice(3).join(" ")]; if (q) { const H = nk(r.join(" ")); if (!qw.every(w => H.includes(w))) continue } rows.push(r) }
     return { rows };
   },
   /* mühasib: təsdiqlənmiş servis hesabatlarının PDF-ləri */
