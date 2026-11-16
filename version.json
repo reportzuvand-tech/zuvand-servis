@@ -1,1 +1,1 @@
-{"v": 2026111507, "notes": "Müştəri adları: böyük/kiçik hərf, İ/I, ə/e fərqi eyni müştəri sayılır; eyni müştərinin qovluqları birləşir", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}
+{"v": 2026111508, "notes": "Axtarış: böyük/kiçik hərf, İ/I, ə/e fərqi olmadan, sözlər istənilən sırada", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}

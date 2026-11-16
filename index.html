@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111507;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111508;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -564,7 +564,7 @@ window.ZSTPL=(function(){
       if(md==="names"){const groups=nameGroups(),f=filt.toLowerCase();
         return `<p class="note" style="margin:0">Sol tərəfdə proqramdakı ad, sağda onun yerinə yazılacaq ad. Boş qalsa, ad dəyişmir. Yeni ad redaktorda və hesabatda (PDF) görünür.</p>
         <input id="exFilt" placeholder="Axtar…" value="${esc(filt)}" style="width:100%">
-        <div class="rows">${groups.map(([g,L])=>{const R=L.filter(x=>!f||x.toLowerCase().includes(f)||String(W.names[x]||"").toLowerCase().includes(f));return R.length?`<b style="margin-top:6px">${esc(g)}</b>`+R.map(x=>`<div class="row" style="grid-template-columns:1fr 1fr"><span style="font-size:14px">${esc(x)}</span><input data-nm="${esc(x)}" value="${esc(W.names[x]||"")}" placeholder="dəyişmir" aria-label="${esc(x)} — yeni ad"></div>`).join(""):""}).join("")}
+        <div class="rows">${groups.map(([g,L])=>{const R=L.filter(x=>!f||nkHas(x,f)||nkHas(W.names[x]||"",f));return R.length?`<b style="margin-top:6px">${esc(g)}</b>`+R.map(x=>`<div class="row" style="grid-template-columns:1fr 1fr"><span style="font-size:14px">${esc(x)}</span><input data-nm="${esc(x)}" value="${esc(W.names[x]||"")}" placeholder="dəyişmir" aria-label="${esc(x)} — yeni ad"></div>`).join(""):""}).join("")}
           <b style="margin-top:6px">Digər mətnlər</b><p class="note" style="margin:0">Siyahıda olmayan istənilən mətni (məs. sütun adı, status) dəqiq yazın və yerinə yazılacaq mətni göstərin.</p>
           ${W.free.map((x,i)=>`<div class="row" style="grid-template-columns:1fr 1fr auto"><input data-fr="${i}" data-f="0" value="${esc(x[0])}" placeholder="Proqramdakı mətn"><input data-fr="${i}" data-f="1" value="${esc(x[1])}" placeholder="Yeni mətn"><button class="btn sm danger" data-frm="${i}" aria-label="Sil">✕</button></div>`).join("")}</div>
         <div class="actions"><button class="btn" id="exFrAdd">+ Mətn əlavə et</button></div>`}
@@ -781,7 +781,7 @@ window.ZSQRST=(function(){let O=null,R=null,busy=false;
   function body(){const box=g("qrsBody");if(!box)return;if(!R){box.innerHTML="";return}
     const L=R.rows||[],q=(g("qrsQ")&&g("qrsQ").value||"").trim().toLowerCase(),days=+(g("qrsP")&&g("qrsP").value||0);
     const since=days?(d=>{const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())})(new Date(Date.now()-days*864e5)):"";
-    const F=L.filter(x=>(!since||String(x[0])>=since)&&(!q||x.join(" ").toLowerCase().includes(q)));
+    const F=L.filter(x=>(!since||String(x[0])>=since)&&(!q||nkHas(x.join(" "),q)));
     const scans=F.filter(x=>x[1]!=="Ad yazıldı"),named=F.filter(x=>x[8]),vis=new Set(scans.map(x=>x[5]).filter(Boolean));
     const nv=new Set(named.map(x=>x[5]||x[8]));
     const mon=top(scans,x=>String(x[0]).slice(0,7),24).sort((a,b)=>a[0]<b[0]?-1:1);
@@ -1526,6 +1526,8 @@ const NK_CY={"а":"a","е":"e","о":"o","р":"p","с":"c","у":"y","х":"x","к"
 const nk=x=>String(x==null?"":x).normalize("NFKC").replace(/[İIı]/g,"i").toLowerCase().replace(/̇/g,"").replace(/ə/g,"e").replace(/ş/g,"s").replace(/ç/g,"c").replace(/ğ/g,"g").replace(/ö/g,"o").replace(/ü/g,"u")
   .replace(/[аеорсухкмтвніё]/g,c=>NK_CY[c]).replace(/["“”«»„'`’‘.,]+/g," ").replace(/\s+/g," ").trim();
 const nameKey=nk;
+/* search: every word of the query, in any order, with the same key rules */
+const nkHas=(hay,q)=>{const H=nk(hay),W=nk(q).split(" ").filter(Boolean);return W.every(w=>H.includes(w))};
 const ownerOf=r=>{r=realOf(r)||{};return String(r.creator||(state.remote[r.id]||{}).creator||"").trim()};
 /* someone else's report: a worker may look at it, but changes go into a new report of their own (the manager edits everything) */
 const foreignRep=r=>{if(!r||realOf(r).sample||!hasServer()||state.me.role==="admin")return false;const o=ownerOf(r);return !!o&&!!state.me.name&&nameKey(o)!==nameKey(state.me.name)};
@@ -2151,7 +2153,7 @@ function debtCard(){if(!payOn())return "";const D=debtsBy();if(!D.length)return 
     <p class="note" style="margin:6px 0 4px">Hesab yazılıb, ödənilməyib: <b>${azn(ti)}</b> · hesab yazılmalı (iş görülüb): <b>${azn(tn)}</b>${PAY.at?" · yeniləndi "+esc(PAY.at):""}</p>
     ${D.slice(0,5).map(d=>`<div class="rrow" style="cursor:default;padding:4px 0"><span>${esc(d.client)}</span><span>${d.inv?`<span class="chip warn">${azn(d.inv)}</span>`:""}${d.none?` <span class="chip">${azn(d.none)} yazılmalı</span>`:""}</span></div>`).join("")}${D.length>5?`<p class="note" style="margin:4px 0 0">və daha ${D.length-5} müştəri…</p>`:""}</div>`}
 function renderDebts(){state.view="debts";$("#tabs").hidden=true;$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#hTitle").innerHTML='Müştərilərin borcları<small>Satış və Anbardan</small>';
-  const adm=state.me.role==="admin",q=ckey(state.dq||""),D=debtsBy().filter(d=>!q||ckey([d.client,...d.items.map(x=>x.site+" "+x.no)].join(" ")).includes(q));
+  const adm=state.me.role==="admin",q=ckey(state.dq||""),D=debtsBy().filter(d=>!q||nkHas([d.client,...d.items.map(x=>x.site+" "+x.no)].join(" "),q));
   let h=`<h2 class="sec">Müştərilərin borcları</h2><p class="hint">Satış və Anbarda qəbul edilmiş, amma ödənişi qeyd olunmamış sənədlər. Vasitəçi şirkətlərdə obyektlər ayrıca göstərilir. Ödəniş Satış və Anbarda “Ödənilib” qeyd olunanda buradan çıxır və servis hesabatında “Ödənildi” görünür.${PAY&&PAY.at?" Yeniləndi: "+esc(PAY.at)+".":""}</p>`;
   if(adm)h+=`<div class="card"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:600"><input type="checkbox" id="payW" style="width:18px;height:18px;min-height:0;margin:0"${PAY&&PAY.workers?" checked":""}> İşçilər də borc və ödəniş məlumatını görsün</label><p class="note" style="margin:4px 0 0">İşarəsiz olanda bu məlumatı yalnız rəhbər görür.</p></div>`;
   h+=`<div class="card"><input id="dq" type="search" placeholder="Axtar: müştəri, vasitəçi, obyekt, sənəd №" value="${esc(state.dq||"")}"></div>`;
@@ -2174,7 +2176,7 @@ function renderHome(){
   const HF=state.hf||"work",inF=s=>HF==="all"||(HF==="done"?!!s.appr:!s.appr);
   const cnt={work:all.filter(s=>!s.appr).length,done:all.filter(s=>s.appr).length,all:all.length};
   const qn=snNorm(q),snRes=snSearch(q,all),snIds=new Set(snRes.flatMap(x=>x.hits.map(h=>h.id)));
-  const base=all.filter(s=>(!q||[s.repno,s.client,s.obj,s.model,s.sn,s.sns,s.eng].join(" ").toLowerCase().includes(q)||snIds.has(s.id))&&(!(state.af&&state.me.role==="admin")||needsAppr(s))&&inF(s)&&(!state.mf||String(s.date||"").startsWith(state.mf)))
+  const base=all.filter(s=>(!q||nkHas([s.repno,s.client,s.payer,s.obj,s.model,s.sn,s.sns,s.eng,s.type].join(" "),q)||snIds.has(s.id))&&(!(state.af&&state.me.role==="admin")||needsAppr(s))&&inF(s)&&(!state.mf||String(s.date||"").startsWith(state.mf)))
     .sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.updatedAt||0)-(a.updatedAt||0));
   const dkey=s=>[nk(s.client),s.date||"",String(s.sn||"").trim().toLowerCase()||String(s.model||"").trim().toLowerCase(),s.type||""].join("|");
   const score=s=>(s.appr?1e6:0)+(s.sub?1e5:0)+(s.fill||0)*100+((s.updatedAt||0)/1e13);
@@ -2310,7 +2312,7 @@ function openNew(){
   <button class="btn ghost" id="nCancel">← Geri</button>`;
   $("#main").innerHTML=h;
   const draw=()=>{const box=$("#nlist");if(!box)return;const q=($("#nq").value||"").toLowerCase();
-    box.innerHTML=items.filter(s=>!q||[s.client,s.sn,s.model,s.obj].join(" ").toLowerCase().includes(q)).slice(0,40).map(s=>`<button class="rcard" data-copy="${esc(s.id)}"><span class="t">${esc(s.client||"Adsız")}</span><span class="no">${esc(fmtDate(s.date))}</span><span class="m">${esc([s.brand,s.model,s.sn].filter(Boolean).join(" · "))}</span></button>`).join("");
+    box.innerHTML=items.filter(s=>!q||nkHas([s.client,s.payer,s.sn,s.sns,s.model,s.obj,s.repno].join(" "),q)).slice(0,40).map(s=>`<button class="rcard" data-copy="${esc(s.id)}"><span class="t">${esc(s.client||"Adsız")}</span><span class="no">${esc(fmtDate(s.date))}</span><span class="m">${esc([s.brand,s.model,s.sn].filter(Boolean).join(" · "))}</span></button>`).join("");
     box.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{b.disabled=true;
       let src;try{src=normalize(clone(await getFull(b.dataset.copy)))}catch(e){b.disabled=false;toast("Köçürmək üçün internet lazımdır");return}
       b.disabled=false;copyChoice(src)})};
@@ -2446,7 +2448,7 @@ function bindCustDev(){const box=$("#cdCard");if(!box)return;const R=realOf(stat
   const upd=()=>{const n=box.querySelectorAll("[data-cdev]:checked").length;const b=$("#cdAdd");b.disabled=!n;b.textContent=n?n+" cihazı hesabata əlavə et":"Seçilənləri hesabata əlavə et"};
   box.querySelectorAll("[data-cdev]").forEach(x=>x.onchange=upd);
   box.querySelectorAll("[data-cdall]").forEach(b=>b.onclick=()=>{box.querySelectorAll(`.cdrow[data-cdloc="${CSS.escape(b.dataset.cdall)}"] input:not([disabled])`).forEach(x=>x.checked=true);upd()});
-  const q=$("#cdQ");if(q)q.oninput=()=>{const k=lc(q.value);box.querySelectorAll(".cdrow").forEach(r=>r.hidden=!!k&&!r.dataset.cdtxt.includes(k));if(k)box.querySelectorAll(".cdg").forEach(g=>g.open=true)};
+  const q=$("#cdQ");if(q)q.oninput=()=>{const k=lc(q.value);box.querySelectorAll(".cdrow").forEach(r=>r.hidden=!!k&&!nkHas(r.dataset.cdtxt,k));if(k)box.querySelectorAll(".cdg").forEach(g=>g.open=true)};
   $("#cdAdd").onclick=()=>{const pick=[...box.querySelectorAll("[data-cdev]:checked")].map(x=>c.devices[+x.dataset.cdev]);if(!pick.length)return;
     if(R.devices.length===1&&isBlankDev(R.devices[0]))R.devices=[];
     pick.forEach(d=>{const tp=TYPES[d.type]?d.type:"ups",nd=blankDevice(state.settings,tp);
@@ -3961,7 +3963,7 @@ let CU={q:"",cur:null,list:null};
 async function customersCard(){const box=$("#cuBox");if(!box)return;
   const save=async(c,remove)=>{const r=await api("customer_save",{c,remove:!!remove});state.customers=r.customers||[];LS.set("ups.customers",state.customers);CU.list=state.customers;return r};
   const errMsg=e=>e&&e.message==="dup_name"?"Bu adda müştəri artıq var":e&&e.message==="forbidden"?"Yalnız rəhbər / servis müdiri dəyişə bilər":"Alınmadı — ofis serverinə qoşulun";
-  const drawList=()=>{const L=(CU.list||[]).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),"az")),Q=lc(CU.q),F=Q?L.filter(c=>lc([c.name,c.voen,c.person,c.tel,c.addr].join(" ")).includes(Q)):L;
+  const drawList=()=>{const L=(CU.list||[]).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),"az")),Q=lc(CU.q),F=Q?L.filter(c=>nkHas([c.name,c.voen,c.person,c.tel,c.addr].join(" "),Q)):L;
     box.innerHTML=`<h3>Müştərilər · ${L.length}</h3><p class="note" style="margin:0">Müştərinin adını, əlaqə məlumatlarını və cihazlarını dəyişin və ya silin. Dəyişiklik bütün cihazlara sinxronda gedir; köhnə hesabatlar dəyişmir.</p>
     <div class="grid2" style="margin-top:8px"><label class="f"><span>Axtar</span><input id="cuQ" value="${esc(CU.q)}" placeholder="ad, VÖEN, telefon…"></label><div class="actions" style="align-items:end"><button class="btn" id="cuNew">+ Yeni müştəri</button></div></div>
     <div class="maptbl"><table class="ltbl"><tr><th style="text-align:left">Müştəri</th><th>Cihaz</th><th>Dövr</th><th style="text-align:left">Əlaqə</th><th></th></tr>
@@ -4027,7 +4029,7 @@ function renderCustomers(){if(!svCan("cust")){toast("Bu bölmə yalnız rəhbər
   /* intermediary companies (who pays) and the end customers served through them */
   const VIA={};book.forEach(c=>c.payers.forEach(p=>{const k=cuKey(p);(VIA[k]=VIA[k]||{name:p,n:0}).n++}));const vias=Object.entries(VIA).sort((a,b)=>a[1].name.localeCompare(b[1].name,"az"));
   if(state.cuVia&&!VIA[state.cuVia])state.cuVia="";const via=state.cuVia||"",viaName=via?VIA[via].name:"";
-  const match=c=>(!via||c.payers.some(p=>cuKey(p)===via))&&(!q||cuKey([c.name,c.objs.join(" "),c.payers.join(" "),c.addr,...c.devs.map(d=>[d.brand,d.model,d.sn,d.loc].join(" "))].join(" ")).includes(q));
+  const match=c=>(!via||c.payers.some(p=>cuKey(p)===via))&&(!q||nkHas([c.name,c.objs.join(" "),c.payers.join(" "),c.addr,...c.devs.map(d=>[d.brand,d.model,d.sn,d.loc].join(" "))].join(" "),q));
   const list=book.filter(match),nDev=list.reduce((x,c)=>x+c.devs.length,0),cur=sel?book.find(c=>cuKey(c.name)===sel):null;
   const devRow=(d,i)=>`<tr><td class="c">${i+1}</td><td>${esc(d.tt||"")}</td><td><b>${esc([d.brand,d.model].filter(Boolean).join(" ")||"—")}</b>${d.kva?" · "+esc(d.kva)+" kVA":""}</td><td class="mono">${esc(d.sn||"—")}</td><td>${esc(d.loc||"")}</td><td class="c">${esc(fmtDate(d.last)||"")}</td><td class="c">${d.n}</td><td class="c">${esc(fmtDate(d.next)||"")}</td><td>${d.lastId?`<button class="btn sm" data-cuopen="${esc(d.lastId)}">Son hesabat</button>`:""}</td></tr>`;
   const devTable=c=>c.devs.length?`<div class="tw" style="overflow-x:auto"><table class="cut"><tr><th>#</th><th>Növ</th><th>Marka / model</th><th>Seriya №</th><th>Yerləşmə</th><th>Son servis</th><th>Servis sayı</th><th>Növbəti</th><th></th></tr>${c.devs.map(devRow).join("")}</table></div>`:'<p class="note" style="margin:0">Cihaz məlumatı yoxdur.</p>';
@@ -4037,7 +4039,7 @@ function renderCustomers(){if(!svCan("cust")){toast("Bu bölmə yalnız rəhbər
      <button class="btn pri" id="cuPdf">PDF</button><button class="btn" id="cuXls">Excel</button>${listFolderBtn("cust")}</div>
      <p class="note" style="margin:6px 0 0">${via?"Vasitəçi: <b>"+esc(viaName)+"</b> · ":""}${list.length} müştəri · ${nDev} cihaz${q?" (axtarışa uyğun)":""} · PDF / Excel ${cur?"<b>seçilən müştərini</b>":"görünən siyahını"} çıxarır.</p></div>`;
   /* an intermediary chosen (or found by search): all devices of its customers in one table */
-  if(!cur&&(via||(q&&list.length&&list.every(c=>c.payers.some(p=>cuKey(p).includes(q)))))){const rows=[];list.forEach(c=>c.devs.forEach(d=>rows.push({c,d})));
+  if(!cur&&(via||(q&&list.length&&list.every(c=>c.payers.some(p=>nkHas(p,q)))))){const rows=[];list.forEach(c=>c.devs.forEach(d=>rows.push({c,d})));
     h+=`<div class="card"><h3>${via?esc(viaName):"Vasitəçi şirkət üzrə"} — bütün cihazlar · ${rows.length}</h3>${rows.length?`<div class="tw" style="overflow-x:auto"><table class="cut"><tr><th>#</th><th>Müştəri / obyekt</th><th>Növ</th><th>Marka / model</th><th>Seriya №</th><th>Yerləşmə</th><th>Son servis</th><th>Növbəti</th><th></th></tr>${rows.map(({c,d},i)=>`<tr><td class="c">${i+1}</td><td><b>${esc(c.name)}</b></td><td>${esc(d.tt||"")}</td><td>${esc([d.brand,d.model].filter(Boolean).join(" ")||"—")}${d.kva?" · "+esc(d.kva)+" kVA":""}</td><td class="mono">${esc(d.sn||"—")}</td><td>${esc(d.loc||"")}</td><td class="c">${esc(fmtDate(d.last)||"")}</td><td class="c">${esc(fmtDate(d.next)||"")}</td><td>${d.lastId?`<button class="btn sm" data-cuopen="${esc(d.lastId)}">Son hesabat</button>`:""}</td></tr>`).join("")}</table></div>`:'<p class="note" style="margin:0">Cihaz məlumatı yoxdur.</p>'}</div>`}
   if(cur){h+=`<div class="card"><div class="actions" style="justify-content:space-between;align-items:center"><h3 style="margin:0">${esc(cur.name)}</h3><button class="btn sm" id="cuAll">← Bütün müştərilər</button></div>
      <p class="note" style="margin:4px 0 8px">${[cur.objs.length?"Obyekt: "+cur.objs.join(", "):"",cur.addr?"Ünvan: "+cur.addr:"",cur.person?"Əlaqə: "+cur.person+(cur.tel?" · "+cur.tel:""):"",cur.payers.length?"Vasitəçi (hesab): "+cur.payers.join(", "):"",cur.reps+" hesabat · son servis "+(fmtDate(cur.last)||"—")+(cur.next?" · növbəti "+fmtDate(cur.next):"")].filter(Boolean).map(esc).join("<br>")}</p>${devTable(cur)}</div>`}
