@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111508;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111509;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -1186,6 +1186,9 @@ input,select,textarea{width:100%;min-width:0;border:1px solid var(--line);backgr
 textarea{min-height:84px;resize:vertical}
 input.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
 .chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;white-space:nowrap;background:var(--surface2);color:var(--muted)}
+.wchip{display:inline-flex;align-items:center;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;white-space:nowrap;background:hsl(var(--h) 65% 88%);color:hsl(var(--h) 60% 24%)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .wchip{background:hsl(var(--h) 45% 26%);color:hsl(var(--h) 80% 82%)}}
+:root[data-theme="dark"] .wchip{background:hsl(var(--h) 45% 26%);color:hsl(var(--h) 80% 82%)}
 .chip.ok{background:var(--ok-bg);color:var(--ok)} .chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.bad{background:var(--bad-bg);color:var(--bad)}
 .chip:empty{display:none}
 /* measurement rows */
@@ -1531,7 +1534,7 @@ const nkHas=(hay,q)=>{const H=nk(hay),W=nk(q).split(" ").filter(Boolean);return 
 const ownerOf=r=>{r=realOf(r)||{};return String(r.creator||(state.remote[r.id]||{}).creator||"").trim()};
 /* someone else's report: a worker may look at it, but changes go into a new report of their own (the manager edits everything) */
 const foreignRep=r=>{if(!r||realOf(r).sample||!hasServer()||state.me.role==="admin")return false;const o=ownerOf(r);return !!o&&!!state.me.name&&nameKey(o)!==nameKey(state.me.name)};
-const SVP=[["rep","Hesabat yazmaq və doldurmaq"],["view","Bütün hesabatlara baxmaq, PDF yükləmək (dəyişmədən)"],["appr","Təsdiq və tapşırıq vermək (servis müdiri)"],["plan","Servis cədvəli"],["parts","Dəyişdirilmiş detallar siyahısı"],["staff","İşçi paneli və mükafat hesablanması"],["cust","Müştərilər və cihazlar"],["pay","Borclar və ödənişlər"],["stats","Statistika"]];
+const SVP=[["rep","Hesabat yazmaq və doldurmaq"],["view","“Təsdiqlənmiş” və “Hamısı” bölmələrini görmək, PDF yükləmək (dəyişmədən)"],["appr","Təsdiq və tapşırıq vermək (servis müdiri)"],["plan","Servis cədvəli"],["parts","Dəyişdirilmiş detallar siyahısı"],["staff","İşçi paneli və mükafat hesablanması"],["cust","Müştərilər və cihazlar"],["pay","Borclar və ödənişlər"],["stats","Statistika"]];
 const SV_POS=[["Servis mühəndisi",["rep","plan","parts"]],["Servis müdiri",["rep","view","appr","plan","parts","staff","cust","stats"]],["Mühasib",["view","staff","pay","stats","parts"]],["Anbardar",["view","parts"]]];
 function svPerms(){if(state.me.role==="admin"||!hasServer())return SVP.map(x=>x[0]);
   if(typeof CFG!=="undefined"&&CFG.hub){const P=state.me.perms||["servis"],o=[];if(P.includes("servis"))o.push("rep");if(P.includes("tesdiq"))o.push("appr");P.forEach(m=>{if(/^sv_/.test(m))o.push(m.slice(3))});if(!P.some(m=>/^sv_/.test(m))&&o.includes("rep"))o.push("plan","parts");return o}
@@ -1546,6 +1549,13 @@ function forkReport(src,keepDate){const r=normalize(clone(realOf(src)));r.id=new
   applyRepNo(r,true);return r}
 const needsAppr=s=>!s.appr&&(s.remote||s.pending)&&(!!s.sub||(s.date||"")>=APPR_SINCE);
 function devName(d){const i=d.info||{};return [i.brand,i.model].filter(Boolean).join(" ")}
+/* short label for the device bar: brand + power (kVA / kW / kvar / DC / A); without power — brand + model */
+function devTag(d){const i=d.info||{},v=k=>String(i[k]==null?"":i[k]).trim();let p="";
+  if(v("kva"))p=v("kva")+" kVA";else if(v("kw"))p=v("kw")+" kW";else if(v("kvar"))p=v("kvar")+" kvar";else if(v("idc"))p=(v("udc")?v("udc")+" V / ":"")+v("idc")+" A";else if(v("inom"))p=v("inom")+" A";
+  return p?[v("brand"),p].filter(Boolean).join(" "):devName(d)}
+/* worker name badge: every worker has his own colour (stable, from the name) */
+function wChip(n){n=String(n||"").trim();if(!n)return "";let h=0;const k=nk(n);for(let i=0;i<k.length;i++)h=(h*31+k.charCodeAt(i))>>>0;
+  return `<span class="wchip" style="--h:${(h%10)*36+8}">${esc(n)}</span>`}
 /* places already used for this client's devices (this report + earlier reports of the same client) */
 function locList(){const R=realOf(state.rep),cn=nk(R&&R.cl&&R.cl.name),m={};
   const add=r=>(r&&r.devices||[]).forEach(d=>{const l=String(d&&d.loc||"").trim();if(l)m[l]=1});add(R);
@@ -2123,7 +2133,7 @@ function upcomingAll(){const latest={};
     return {...it,days,at:due-REMIND_DAYS*864e5+9*3600e3}}).filter(Boolean).sort((a,b)=>a.days-b.days)}
 function upcomingBanner(){const u=upcomingAll().filter(x=>x.days<=REMIND_DAYS&&x.days>=-30);if(!u.length)return "";
   const when=d=>d<0?`<b style="color:var(--bad)">${-d} gün gecikir</b>`:d===0?"<b>bu gün</b>":d===1?"<b>sabah</b>":`<b>${d} gün sonra</b>`;
-  return `<div class="card remind" role="status"><h3>Planlı servis yaxınlaşır</h3>${u.map(x=>`<button class="rrow" data-open="${esc(x.id)}"><span>${esc(x.client||"Adsız müştəri")}${x.obj?` · <span class="note">${esc(x.obj)}</span>`:""}<br><span class="note">${esc([x.brand,x.model].filter(Boolean).join(" "))}${x.sn?" · S/N "+esc(x.sn):""}</span></span><span style="text-align:right">${esc(fmtDate(x.next))}<br>${when(x.days)}</span></button>`).join("")}</div>`}
+  return `<details class="card remind" role="status"${localStorage.getItem("ups.pbOpen")!=="0"?" open":""} ontoggle="try{localStorage.setItem('ups.pbOpen',this.open?'1':'0')}catch(e){}"><summary style="cursor:pointer"><h3 style="display:inline">Planlı servis yaxınlaşır: ${u.length}</h3></summary><div style="margin-top:8px">${u.map(x=>`<button class="rrow" data-open="${esc(x.id)}"><span>${esc(x.client||"Adsız müştəri")}${x.obj?` · <span class="note">${esc(x.obj)}</span>`:""}<br><span class="note">${esc([x.brand,x.model].filter(Boolean).join(" "))}${x.sn?" · S/N "+esc(x.sn):""}</span></span><span style="text-align:right">${esc(fmtDate(x.next))}<br>${when(x.days)}</span></button>`).join("")}</div></details>`}
 let remindSig="";
 async function scheduleReminders(){if(!IS_APP)return;
   try{const LN=(Capacitor.Plugins&&Capacitor.Plugins.LocalNotifications)||Capacitor.registerPlugin("LocalNotifications");
@@ -2173,9 +2183,9 @@ function renderHome(){
   updateSyncBadge();
   const q=(state.q||"").toLowerCase(),all=listItems();
   /* folders: in work / approved; copies of the same job (same client, date and device) are folded under one card */
-  const HF=state.hf||"work",inF=s=>HF==="all"||(HF==="done"?!!s.appr:!s.appr);
+  const HF=svCan("view")?(state.hf||"work"):"work",inF=s=>HF==="all"||(HF==="done"?!!s.appr:!s.appr);
   const cnt={work:all.filter(s=>!s.appr).length,done:all.filter(s=>s.appr).length,all:all.length};
-  const qn=snNorm(q),snRes=snSearch(q,all),snIds=new Set(snRes.flatMap(x=>x.hits.map(h=>h.id)));
+  const qn=snNorm(q),snRes=snSearch(q,svCan("view")?all:all.filter(x=>!x.appr)),snIds=new Set(snRes.flatMap(x=>x.hits.map(h=>h.id)));
   const base=all.filter(s=>(!q||nkHas([s.repno,s.client,s.payer,s.obj,s.model,s.sn,s.sns,s.eng,s.type].join(" "),q)||snIds.has(s.id))&&(!(state.af&&state.me.role==="admin")||needsAppr(s))&&inF(s)&&(!state.mf||String(s.date||"").startsWith(state.mf)))
     .sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.updatedAt||0)-(a.updatedAt||0));
   const dkey=s=>[nk(s.client),s.date||"",String(s.sn||"").trim().toLowerCase()||String(s.model||"").trim().toLowerCase(),s.type||""].join("|");
@@ -2196,11 +2206,11 @@ function renderHome(){
   h+=snCard(snRes,q);
   if(q&&qn.length>=3&&!snRes.length&&!base.length)h+=`<p class="note" style="margin:0 0 10px">“${esc(state.q)}” üzrə heç nə tapılmadı${hasServer()&&state.online===false?" (server əlçatan deyil — yalnız bu cihazdakı hesabatlarda axtarıldı)":""}.</p>`;
   if(hasServer()&&state.me.role&&state.me.role!=="admin"&&all.some(x=>x.remote))h+=`<p class="note" style="margin:0 0 10px">Serverdəki hesabatları yalnız rəhbər silə bilər (🗑 düyməsi rəhbər açarı ilə görünür: Ayarlar → Açar).</p>`;
-  if(all.length)h+=`<div class="seg filters" style="margin-bottom:10px">${[["work","İşdə"],["done","Təsdiqlənmiş"],["all","Hamısı"]].map(([k,l])=>`<button data-hf="${k}" aria-pressed="${HF===k}">${l} <span class="note">${cnt[k]}</span></button>`).join("")}</div>
+  if(all.length)h+=`<div class="seg filters" style="margin-bottom:10px${svCan("view")?"":";display:none"}">${[["work","İşdə"],["done","Təsdiqlənmiş"],["all","Hamısı"]].map(([k,l])=>`<button data-hf="${k}" aria-pressed="${HF===k}">${l} <span class="note">${cnt[k]}</span></button>`).join("")}</div>
     ${nDup?`<p class="note" style="margin:0 0 10px">${nDup} təkrar (eyni müştəri, tarix və cihaz üzrə kopya) ${state.showDup?"göstərilir":"gizlədilib — hər işin ən tam variantı görünür"}. <button class="btn sm" id="bDup">${state.showDup?"Təkrarları gizlət":"Təkrarları göstər"}</button></p>`:""}`;
   if(!all.length)h+=`<div class="empty"><h3>Hələ hesabat yoxdur</h3><p class="note" style="margin:0">“Yeni servis” ilə ilk hesabatı başladın. Tətbiqi tanımaq üçün doldurulmuş nümunə də aça bilərsiniz (bu nümunə serverə göndərilməz).</p><button class="btn" id="bSample">Nümunə hesabatı aç</button></div>`;
   else h+=`<div class="rlist">`+items.map(s=>`<div class="rwrap${canDelItem(s)?" hasdel":""}"><button class="rcard" data-open="${esc(s.id)}" data-st="${s.cls==="bad"?"bad":s.appr?"ok":(s.sub||(state.me.role==="admin"&&needsAppr(s)))?"wait":"none"}"><span class="t">${esc(s.client||"Adsız müştəri")}</span><span class="chip ${s.cls||""}">${s.cls==="ok"?"Qənaətbəxş":s.cls==="warn"?"Diqqət":s.cls==="bad"?"Təcili":""}</span>
-    <span class="m"><span class="no">${esc(s.repno||"№ yoxdur")}</span><span>${esc(fmtDate(s.date))}</span><span>${esc([s.brand,s.model].filter(Boolean).join(" "))}${s.kva?" · "+esc(s.kva)+" kVA":""}</span>${s.eng?`<span>${esc(s.eng)}</span>`:""}
+    <span class="m"><span class="no">${esc(s.repno||"№ yoxdur")}</span><span>${esc(fmtDate(s.date))}</span><span>${esc([s.brand,s.model].filter(Boolean).join(" "))}${s.kva?" · "+esc(s.kva)+" kVA":""}</span>${s.eng?wChip(s.eng):""}
     ${dupOf[s.id]?`<span class="chip warn">+${dupOf[s.id].length} təkrar</span>`:""}${s.isDup?'<span class="chip bad">təkrar</span>':""}${s.appr?'<span class="chip ok">təsdiqlənib</span>':s.sub?'<span class="chip warn">təsdiq gözləyir</span>':state.me.role==="admin"&&needsAppr(s)?'<span class="chip">təsdiqlənməyib</span>':""}${s.pending?'<span class="chip warn">göndərilməyib</span>':""}${!s.local?'<span class="chip">serverdə</span>':""}${payChip(s.id)}</span></button>${canDelItem(s)?`<button class="rdel" data-del="${esc(s.id)}" title="Hesabatı sil" aria-label="Hesabatı sil">🗑</button>`:""}</div>`).join("")+`</div>`;
   $("#main").innerHTML=h;
   $("#bNew").onclick=()=>openNew();$("#bTasks").onclick=()=>renderTasks();document.querySelectorAll("[data-topen]").forEach(b=>b.onclick=()=>{state.tkF="open";renderTasks(b.dataset.topen)});$("#bPlan").onclick=renderPlan;$("#bLists").onclick=()=>renderLists();const bst=$("#bStaff");if(bst)bst.onclick=renderStaff;const bcu=$("#bCust");if(bcu)bcu.onclick=()=>{state.cuSel="";renderCustomers()};
@@ -2531,7 +2541,7 @@ function tabsFor(){const T=TYPES[CUR_TYPE],P=SVC_PROF(state.rep),B=T.hasBat;
   if(P==="call")return [["svc","Servis"],["ups",T.short],["call","Çağırış"],["meas","Ölçmə"],["work","İşlər"],["foto","Şəkillər"],["rep","Hesabat"]];
   if(P==="rep")return [["svc","Servis"],["ups",T.short],["repair","Təmir"],["meas","Ölçmə"],["work","Hissələr"],["foto","Şəkillər"],["rep","Hesabat"]];
   return [["svc","Servis"],["ups",T.short],...(B?[["bat","Akkum."]]:[]),["meas","Ölçmə"],["chk","Yoxlama"],["work","İşlər"],...(B?[["blk","Bloklar"]]:[]),["foto","Şəkillər"],["rep","Hesabat"]]}
-function devBar(){const R=state.rep;return `<div class="devbar" role="group" aria-label="Cihazlar">${R.devices.map((d,i)=>`<button class="dchip" data-dev="${i}" aria-pressed="${i===state.di}"><span class="k">${i+1}</span>${esc(TYPES[d.type].short)}${devName(d)?" · "+esc(devName(d)):""}</button>`).join("")}<button class="dchip" id="addDev">+ Cihaz</button></div>`}
+function devBar(){const R=state.rep;return `<div class="devbar" role="group" aria-label="Cihazlar">${R.devices.map((d,i)=>`<button class="dchip" data-dev="${i}" aria-pressed="${i===state.di}"><span class="k">${i+1}</span>${esc(TYPES[d.type].short)}${devTag(d)?" · "+esc(devTag(d)):""}</button>`).join("")}<button class="dchip" id="addDev">+ Cihaz</button></div>`}
 function renderEditor(){
   const TABS=tabsFor();if(!TABS.some(x=>x[0]===state.tab))state.tab="ups";
   const r=state.cur;state.view="edit";$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#tabs").hidden=false;
@@ -3887,7 +3897,7 @@ function logout(){clearTimeout(syncTimer);state.me={name:"",url:state.me.url||CF
   state.tasks=[];state.taskMe="";state.ratings=null;state.itemRows=null;["ups.tasks","ups.taskMe","ups.seenTasks","ups.taskSig"].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
   state.cur=null;state.rep=null;state.online=null;state.syncErr="";$("#hTitle").innerHTML='ZUVAND Servis<small>Servis hesabatları</small>';$("#hBack").hidden=true;toast("Hesabdan çıxdınız");renderWelcome()}
 /* modules of ZUVAND Servis (the manager ticks them per person) */
-const MODS=[["servis","Servis hesabatları"],["tesdiq","Təsdiq / tapşırıq"],["satis","Satış"],["anbar","Anbar"],["muhasibat","Mühasibat"],["xerc","Xərclər / maaş"],["sv_view","Hesabatlara baxış, PDF"],["sv_plan","Servis cədvəli"],["sv_parts","Dəyişdirilmiş detallar"],["sv_staff","İşçi paneli, mükafat"],["sv_cust","Müştərilər və cihazlar"],["sv_pay","Borclar"],["sv_stats","Statistika"]];
+const MODS=[["servis","Servis hesabatları"],["tesdiq","Təsdiq / tapşırıq"],["satis","Satış"],["anbar","Anbar"],["muhasibat","Mühasibat"],["xerc","Xərclər / maaş"],["sv_view","Təsdiqlənmiş / Hamısı bölmələri, PDF"],["sv_plan","Servis cədvəli"],["sv_parts","Dəyişdirilmiş detallar"],["sv_staff","İşçi paneli, mükafat"],["sv_cust","Müştərilər və cihazlar"],["sv_pay","Borclar"],["sv_stats","Statistika"]];
 const hasMod=m=>state.me.boss||!state.me.perms||state.me.perms.includes(m);
 const hasSales=()=>!!state.me.perms&&(state.me.boss||["satis","anbar","muhasibat","xerc"].some(m=>state.me.perms.includes(m)));
 /* someone without the service module (e.g. only warehouse or accounting) goes straight to the sales screen */
