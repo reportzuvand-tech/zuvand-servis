@@ -24,6 +24,9 @@ const MAX_BODY = 40 * 1024 * 1024;
 
 /* ---------------- files ---------------- */
 function readJSON(f, def) { try { return JSON.parse(fs.readFileSync(f, "utf8")) } catch (e) { return def } }
+const NK_CY = { "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "у": "y", "х": "x", "к": "k", "м": "m", "т": "t", "в": "b", "н": "h", "і": "i", "ё": "e" };
+const nk = x => String(x == null ? "" : x).normalize("NFKC").replace(/[İIı]/g, "i").toLowerCase().replace(/\u0307/g, "").replace(/ə/g, "e").replace(/ş/g, "s").replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ö/g, "o").replace(/ü/g, "u")
+  .replace(/[аеорсухкмтвніё]/g, c => NK_CY[c]).replace(/["“”«»„'`’‘.,]+/g, " ").replace(/\s+/g, " ").trim();
 function writeJSON(f, v) { fs.mkdirSync(path.dirname(f), { recursive: true }); const t = f + ".tmp" + process.pid; fs.writeFileSync(t, JSON.stringify(v)); fs.renameSync(t, f) }
 const P = (...a) => path.join(DATA, ...a);
 const safeName = s => String(s || "").replace(/[\\/:*?"<>|\x00-\x1f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) || "_";
@@ -460,6 +463,8 @@ const ACTIONS = {
 
   pdf: (u, b, req) => {
     if (!b.data) err("bad_pdf"); const rel = ["pdf", safeName(b.client || "Müştərisiz"), safeName(b.name || (b.id + ".pdf"))];
+    /* the same customer written another way (İCTİMAİ / İctimai…) goes to the folder that already exists */
+    try { const k = nk(rel[1]); const ex = fs.readdirSync(P("pdf"), { withFileTypes: true }).find(e => e.isDirectory() && nk(e.name) === k); if (ex) rel[1] = ex.name } catch (e) { }
     if (!/\.pdf$/i.test(rel[2])) rel[2] += ".pdf";
     const f = P(...rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, Buffer.from(String(b.data), "base64"));
     const url = "/files/" + rel.map(encodeURIComponent).join("/"), abs = "http://" + (req.headers.host || ("localhost:" + PORT)) + url;
@@ -564,11 +569,11 @@ const ACTIONS = {
     needAdmin(u); const c = b.c || {}; const name = String(c.name || "").trim();
     /* an existing customer is changed only by its id; a new one with a name already in the list is refused */
     let x = c.id ? customers.find(y => y.id === c.id) : null;
-    if (b.remove && !x && name) x = customers.find(y => y.name.toLowerCase() === name.toLowerCase());
+    if (b.remove && !x && name) x = customers.find(y => nk(y.name) === nk(name));
     if (c.id && !x && !b.remove) err("notfound");
     if (b.remove) { if (!x) err("notfound"); customers = customers.filter(y => y !== x); writeJSON(P("customers.json"), customers); log(u, "customer-del", x.name); return { customers } }
     if (!name) err("bad_name");
-    if (customers.some(y => y !== x && String(y.name).toLowerCase() === name.toLowerCase())) err("dup_name");
+    if (customers.some(y => y !== x && nk(y.name) === nk(name))) err("dup_name");
     if (!x) { x = { id: newId("c"), devices: [] }; customers.push(x) }
     ["name", "voen", "person", "tel", "email", "addr", "note", "period"].forEach(k => { if (c[k] !== undefined) x[k] = String(c[k]).trim().slice(0, 500) });
     if (Array.isArray(c.devices)) x.devices = c.devices.slice(0, 500).map(d => { const o = {}; ["type", "loc", "brand", "model", "kva", "sn", "blocks", "ah", "period", "price"].forEach(k => { if (d && d[k] != null && String(d[k]).trim() !== "") o[k] = String(d[k]).trim().slice(0, 200) }); if (!o.type) o.type = "ups"; return o }).filter(o => o.loc || o.brand || o.model || o.sn || o.kva);
