@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111504;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111505;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -1911,10 +1911,12 @@ async function sync(opt={}){
       const r=state.reports[id];
       if(!r){state.pending.delete(id);continue}
       if(state.cur&&state.cur.id===id&&(state.dirty||state.saving||(state.view==="edit"&&!opt.all&&Date.now()-(state.lastEdit||0)<60000))){SYNC_WHY[id]="Hazırda açıqdır və redaktə olunur — redaktordan çıxanda (və ya 1 dəqiqə toxunulmayanda) göndəriləcək";continue}
-      try{await uploadPhotos(r);const res=await api("save",{report:r,summary:summaryOf(r),blocks:blocksOf(r),items:itemsOf(r)});
-        state.pending.delete(id);delete SYNC_WHY[id];state.remote[id]={...summaryOf(r),...(res.summary||{})};savePending();changed=true;
+      try{await uploadPhotos(r);const sent=r.updatedAt;const res=await api("save",{report:r,summary:summaryOf(r),blocks:blocksOf(r),items:itemsOf(r)});
+        /* the report may have changed while it was being sent (e.g. "Təsdiq et" pressed during a slow save): then it stays in the queue and is sent again */
+        const newer=state.reports[id]!==r||r.updatedAt!==sent;
+        if(newer)scheduleSync(1500);else state.pending.delete(id);delete SYNC_WHY[id];state.remote[id]={...summaryOf(r),...(res.summary||{})};savePending();changed=true;
         /* an approved report: the server added only the new signature — take its copy */
-        if(res.report&&res.report.id===id){state.reports[id]=res.report;saveLocalReports([res.report]);applyRemoteToOpen(id);toast("İmza təsdiqlənmiş hesabata əlavə olundu")}}
+        if(!newer&&res.report&&res.report.id===id){state.reports[id]=res.report;saveLocalReports([res.report]);applyRemoteToOpen(id);toast("İmza təsdiqlənmiş hesabata əlavə olundu")}}
       catch(e){
         if(e.server&&e.data&&e.data.error==="not_owner"){const f=forkReport(r,true);state.reports[f.id]=f;state.pending.add(f.id);saveLocalReports([f]);
           if(e.data.report){state.reports[id]=e.data.report;saveLocalReports([e.data.report]);applyRemoteToOpen(id)}state.pending.delete(id);savePending();delete SYNC_WHY[id];changed=true;
@@ -2244,8 +2246,9 @@ function startCopy(src){const r=nextFrom(src);startReport(r);state.tab="svc";ren
 /* who may delete from the list: a draft that never reached the server — anyone; a report on the server — only the manager */
 function canDelItem(s){return s.remote?state.me.role==="admin":true}
 function openNew(){
+  state.view="new";$("#tabs").hidden=true;$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#hTitle").innerHTML='Yeni servis<small>Cihazı və ya əvvəlki hesabatı seçin</small>';window.scrollTo(0,0);
   const items=listItems().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
-  const h=`<h2 class="sec">Yeni servis</h2><p class="hint">Boş hesabat başladın və ya əvvəlki hesabatı seçin — sonra seçərsiniz: bütün məlumatlar köçürülsün, yoxsa müştəri və cihazlar köçürülüb yeni məlumat doldurulsun.</p>
+  const h=`<button class="btn ghost" id="nCancel0" style="margin-bottom:8px">← Geri (ana səhifə)</button><h2 class="sec">Yeni servis</h2><p class="hint">Boş hesabat başladın və ya əvvəlki hesabatı seçin — sonra seçərsiniz: bütün məlumatlar köçürülsün, yoxsa müştəri və cihazlar köçürülüb yeni məlumat doldurulsun.</p>
   <div class="card"><button class="btn pri" id="nBlank">Yeni hesabat — cihazı seç</button></div>
   ${items.length?`<div class="card"><h3>Əvvəlki hesabatdan köçür</h3><input id="nq" type="search" placeholder="Müştəri və ya seriya № ilə axtar"><div class="rlist" id="nlist"></div></div>`:""}
   <button class="btn ghost" id="nCancel">← Geri</button>`;
@@ -2256,7 +2259,7 @@ function openNew(){
       let src;try{src=normalize(clone(await getFull(b.dataset.copy)))}catch(e){b.disabled=false;toast("Köçürmək üçün internet lazımdır");return}
       b.disabled=false;copyChoice(src)})};
   if($("#nq")){$("#nq").oninput=draw;draw()}
-  $("#nCancel").onclick=renderHome;
+  $("#nCancel").onclick=renderHome;$("#nCancel0").onclick=renderHome;
   $("#nBlank").onclick=()=>typePicker("Xidmət olunacaq cihaz nədir?","Hesabatı seçdiyiniz cihaz üçün başladın. Eyni müştəridə başqa cihazlar da varsa, onları sonra “+ Cihaz” düyməsi ilə eyni hesabata əlavə edə bilərsiniz.",tp=>startReport(freshReport(state.settings,tp)),openNew)}
 function copyChoice(src){const R=realOf(src),nDev=R.devices.length,nPh=R.devices.reduce((x,d)=>x+((d.photos||[]).length),0);
   const ov=document.createElement("div");ov.className="sigpad";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");
@@ -2282,9 +2285,9 @@ function teamCard(){const R=realOf(state.rep),T=(R.svc.team||[]),lead=R.creator|
    ${T.map((x,i)=>`<div class="row" style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span style="flex:1;min-width:0">${esc(x.n)}</span><select data-tmrole="${i}" style="width:auto">${Object.entries(TEAM_ROLE).map(([k,l])=>`<option value="${k}"${(x.r==="m"?"m":"k")===k?" selected":""}>${l}</option>`).join("")}</select><button class="btn sm danger" data-tmdel="${i}" aria-label="Sil">✕</button></div>`).join("")}
    <div style="display:flex;gap:8px"><input id="tmName" list="tmList" placeholder="İşçinin adı" autocomplete="off" style="flex:1"><datalist id="tmList">${knownWorkers().filter(n=>nameKey(n)!==nameKey(lead)&&!T.some(x=>nameKey(x.n)===nameKey(n))).map(n=>`<option value="${esc(n)}">`).join("")}</datalist><button class="btn" id="tmAdd">+ Əlavə et</button></div></div>`}
 function typePicker(title,hint,onPick,onBack){
-  $("#main").innerHTML=`<h2 class="sec">${esc(title)}</h2><p class="hint">${esc(hint)}</p><div class="tpick">${TYPE_ORDER.map(k=>`<button class="tcard" data-tp="${k}"><b>${esc(TYPES[k].label)}</b><span class="note">${esc(TYPES[k].chk.length)} yoxlama bəndi · ${esc(TYPES[k].meas.length)} ölçmə${TYPES[k].hasBat?" · akkumulyator testi":""}</span></button>`).join("")}</div>
+  $("#main").innerHTML=`<button class="btn ghost" id="tpBack0" style="margin-bottom:8px">← Geri</button><h2 class="sec">${esc(title)}</h2><p class="hint">${esc(hint)}</p><div class="tpick">${TYPE_ORDER.map(k=>`<button class="tcard" data-tp="${k}"><b>${esc(TYPES[k].label)}</b><span class="note">${esc(TYPES[k].chk.length)} yoxlama bəndi · ${esc(TYPES[k].meas.length)} ölçmə${TYPES[k].hasBat?" · akkumulyator testi":""}</span></button>`).join("")}</div>
   <button class="btn ghost" id="tpBack" style="margin-top:12px">← Geri</button>`;
-  document.querySelectorAll("[data-tp]").forEach(b=>b.onclick=()=>onPick(b.dataset.tp));$("#tpBack").onclick=onBack;window.scrollTo(0,0)}
+  document.querySelectorAll("[data-tp]").forEach(b=>b.onclick=()=>onPick(b.dataset.tp));$("#tpBack").onclick=onBack;$("#tpBack0").onclick=onBack;window.scrollTo(0,0)}
 function startReport(r){applyRepNo(r,true);if(!r.svc.eng)r.svc.eng=state.me.name;if(!r.creator)r.creator=state.me.name;state.reports[r.id]=r;openReport(r);markDirty()}
 function setActive(i){const r=state.rep;state.di=Math.max(0,Math.min(i,r.devices.length-1));useType(r.devices[state.di].type,r.devices[state.di]);state.cur=devProxy(r,state.di);state.bi=0}
 function openReport(r){r=realOf(r);
@@ -4222,7 +4225,7 @@ $("#hTheme").onclick=()=>{const cur=LS.get("ups_theme")||"auto",i=THEMES.findInd
 window.addEventListener("resize",fitPaper);
 if(IS_APP){try{const AP=(Capacitor.Plugins&&Capacitor.Plugins.App)||Capacitor.registerPlugin("App");
   AP.addListener("resume",()=>scheduleSync(300));
-  AP.addListener("backButton",async()=>{if(state.sigOpen){state.sigOpen();return}if(window.ZSNAV&&ZSNAV.nav.st.length&&await ZSNAV.back())return;if(["edit","settings","lists","plan","staff","tasks"].includes(state.view)){await flush();state.cur=null;state.rep=null;renderHome();sync()}else AP.exitApp()})}catch(e){}}
+  AP.addListener("backButton",async()=>{if(state.sigOpen){state.sigOpen();return}if(window.ZSNAV&&ZSNAV.nav.st.length&&await ZSNAV.back())return;const ov=document.querySelector('.sigpad[role="dialog"]');if(ov){ov.remove();return}if(state.view&&!["home","welcome"].includes(state.view)){await flush();state.cur=null;state.rep=null;renderHome();sync()}else AP.exitApp()})}catch(e){}}
 loadLocal();
 (async()=>{await loadReportsDB();if(!state.me.name)renderWelcome();else{renderHome();if(autoSync())sync();else updateSyncBadge();autoBackup()}})();
 </script>

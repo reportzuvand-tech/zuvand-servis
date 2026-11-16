@@ -1,1 +1,1 @@
-{"v": 2026111504, "notes": "Panel/ATS və digər cihazların quraşdırma bölmələri; şablon düzəlişi hesabata tətbiq olunur; Əlavə iş sarı fonda və sətirlərlə; QR: cihazın öz PDF-i, bütün hesabatlar, düzgün sıra", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}
+{"v": 2026111505, "notes": "Təsdiq yavaş internetdə itmirdi: göndərilərkən dəyişən hesabat yenidən göndərilir; Yeni servis səhifəsindən geri qayıtmaq", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}
