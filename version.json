@@ -1,1 +1,1 @@
-{"v": 2026111513, "notes": "QR skan: tünd rejimdə oxunaqlı pəncərə, kamera açılmayanda foto ilə skan", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}
+{"v": 2026111514, "notes": "QR skan: Skan basanda foto/kamera dərhal açılır; açıq hesabata QR ilə əlavə cihaz", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}
