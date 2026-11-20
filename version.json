@@ -1,1 +1,1 @@
-{"v": 2026111509, "notes": "Planlı servis yığılan bölmə, işçi icazəsi (Təsdiqlənmiş/Hamısı), işçi rəngləri, cihaz başlığı marka+güc", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}
+{"v": 2026111511, "notes": "Yenilənmə hesabatı: qismən dəyişdirmədə qalıq say, Lazım deyil seçimi, köhnə bölmələr gizlədilir", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}
