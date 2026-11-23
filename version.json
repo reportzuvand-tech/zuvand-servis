@@ -1,1 +1,1 @@
-{"v": 2026111514, "notes": "QR skan: Skan basanda foto/kamera dərhal açılır; açıq hesabata QR ilə əlavə cihaz", "files": {"zs": "index.html"}, "hub": {"app/index.html": "index.html", "server.js": "hub/server.js"}}
+{"v":2026112316,"notes":"PDF hazırla sürətləndi və qovluğa saxlayır; vasitəçi qovluğu; işçinin daimi imzası; müştəriyə WhatsApp ilə imza linki","files":{"zs":"index.html"},"hub":{"app/index.html":"index.html","server.js":"hub/server.js"}}

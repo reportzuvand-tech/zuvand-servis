@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026111514;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112316;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -819,7 +819,7 @@ window.ZSQRST=(function(){let O=null,R=null,busy=false;
   async function run(){if(mBusy||!M)return;const L=M.filter(x=>x.appr);if(!L.length)return;mBusy=true;let ok=0,bad=0;const T=(t,ms)=>{try{toast(t,ms||4000)}catch(e){}};
     try{for(let i=0;i<L.length;i++){const it=L[i];T("QR PDF-ləri: "+(i+1)+"/"+L.length+" — "+(it.repno||""),60000);
         try{const r=await getFull(it.id);openReport(r);state.tab="rep";renderEditor();await new Promise(res=>setTimeout(res,700));
-          if(it.full){const pdf=await makePdf(state.cur,"az",()=>{});const res=await api("pdf",{id:r.id,client:r.cl.name,name:fname(r,"pdf"),data:await blobToB64(pdf.output("blob"))});if(state.remote[r.id])state.remote[r.id].pdf=res.url}
+          if(it.full){const pdf=await makePdf(state.cur,"az",()=>{});const res=await api("pdf",{id:r.id,client:r.cl.name,payer:r.cl.payer||"",name:fname(r,"pdf"),data:await blobToB64(pdf.output("blob"))});if(state.remote[r.id])state.remote[r.id].pdf=res.url}
           if(it.devs.length)await devPdfs(state.cur,"az");ok++}catch(e){bad++;console.log("qrpdf",it.id,e)}}}
     finally{mBusy=false;try{state.cur=null;state.rep=null;renderSettings()}catch(e){}T("QR PDF-ləri hazırdır: "+ok+(bad?" · alınmadı: "+bad:""),9000);M=null;setTimeout(()=>{const d=g("qrmGo");if(d){d.closest("details").open=true;miss()}},400)}}
   return {init,card}})();
@@ -1834,7 +1834,7 @@ async function addPhotos(files){const V=state.cur;if(!V.photos)V.photos=[];let n
     PHOTO_CACHE[id]=d;await idbPut(id,d);V.photos.push({id,cap:"",fid:""});n++}catch(e){}}
   if(n){markDirty();toast(n+" şəkil əlavə olundu")}else toast("Şəkil oxunmadı");const y=window.scrollY;renderEditor();window.scrollTo(0,y)}
 async function uploadPhotos(r){for(const d of r.devices)for(const p of (d.photos||[])){if(p.fid)continue;const data=PHOTO_CACHE[p.id]||await idbGet(p.id);if(!data)continue;
-  const res=await api("photo",{rid:r.id,pid:p.id,client:r.cl.name,repno:r.svc.repno,data:data.split(",")[1]});if(res.fid){p.fid=res.fid}}}
+  const res=await api("photo",{rid:r.id,pid:p.id,client:r.cl.name,payer:r.cl.payer||"",repno:r.svc.repno,data:data.split(",")[1]});if(res.fid){p.fid=res.fid}}}
 
 /* ---------------- storage & sync (offline-first, central server) ---------------- */
 const CFG=Object.assign({serverUrl:"",apiKey:""},window.UPS_CONFIG||{});
@@ -2372,6 +2372,8 @@ function renderSettings(){
   <div class="card"><h3>Mən və server</h3>
    <label class="f"><span>Adınız, soyadınız${state.me.personal?" (şəxsi açara bağlıdır)":""}</span><input id="meName" value="${esc(state.me.name)}"${state.me.personal?" readonly":""}></label>
    <div class="grid2"><label class="f"><span>Mühəndisin şirkəti (imza yerində)</span><input id="meEngCo" value="${esc(state.me.engCo||"")}" placeholder="məs. ZUVAND Grand System MMC-nin"></label><label class="f"><span>Vəzifəniz (imza yerində)</span><input id="meEngPos" value="${esc(state.me.engPos||"")}" placeholder="məs. Texniki direktoru"></label></div>
+   <div class="sigslot" style="margin-top:10px"><b>Mənim daimi imzam</b>${state.me.sig?`<img src="${state.me.sig}" alt="İmza" style="height:58px;max-width:230px;object-fit:contain;background:#fff;border:1px solid #ccd;border-radius:6px;padding:4px"><label class="chk" style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" id="meSigAuto" ${state.me.sigAuto===false?"":"checked"}> Hesabatlara avtomatik əlavə et</label>`:`<span class="note">Hələ çəkilməyib — bir dəfə çəkin, sonra hər hesabatda özü düşəcək.</span>`}<div class="actions"><button class="btn sm" id="meSigDraw">✍ ${state.me.sig?"Yenidən çək":"İmzamı çək"}</button>${state.me.sig?`<button class="btn sm ghost" id="meSigDel">Sil</button>`:""}</div></div>
+   <label class="f" style="margin-top:10px"><span>Müştəriyə göndərilən imza linkində görünən</span><select id="meSignMode"><option value="pdf" ${(LS.get("ups.signmode")||"pdf")==="pdf"?"selected":""}>Hesabatın PDF-i + imza xanası</option><option value="sum" ${LS.get("ups.signmode")==="sum"?"selected":""}>Qısa xülasə + imza xanası</option></select></label>
    <p class="note" style="margin:0 0 6px">Yeni hesabat açılanda “Servis” bölməsindəki bu iki xana avtomatik doldurulur (hesabatda dəyişmək olar).</p>
    ${IS_GAS||CFG.hub?"":`<label class="f"><span>Server ünvanı (ofis kompüteri)</span><input id="meUrl" inputmode="url" placeholder="məs. 192.168.1.10:8787" value="${esc(state.me.url)}"></label>`}
    <label class="f"><span>Açar (işçi və ya rəhbər açarı)</span><input id="meKey" autocomplete="off" value="${esc(state.me.key)}"></label>
@@ -2402,6 +2404,7 @@ function renderSettings(){
   document.querySelectorAll("[data-smode]").forEach(b=>b.onclick=()=>{state.me.syncMode=b.dataset.smode;LS.set("ups.me",state.me);toast(autoSync()?"Avtomatik sinxronlaşma":"Sinxronlaşma yalnız düymə ilə");if(autoSync())scheduleSync(500);renderSettings()});
   const sn=$("#syncNow");if(sn)sn.onclick=async()=>{readMe();sn.disabled=true;$("#syncMsg").textContent="sinxronlaşır…";await flush();await sync({all:true});sn.disabled=false;
     $("#syncMsg").textContent=state.online?"Sinxronlaşdı ✓"+(state.me.via===1?" (internet ünvanı ilə)":""):"Serverə qoşulmaq olmadı"+(state.syncErr?": "+state.syncErr:"")};
+  {const d=$("#meSigDraw");if(d)d.onclick=()=>openSignPad("@me");const x=$("#meSigDel");if(x)x.onclick=()=>{delete state.me.sig;LS.set("ups.me",state.me);renderSettings()};const a=$("#meSigAuto");if(a)a.onchange=()=>{state.me.sigAuto=a.checked;LS.set("ups.me",state.me);toast(a.checked?"Avtomatik imza açıqdır":"Avtomatik imza söndürüldü")};const m=$("#meSignMode");if(m)m.onchange=()=>{LS.set("ups.signmode",m.value);toast("Saxlanıldı")}}
   ["meEngCo","meEngPos"].forEach(k=>{const el=$("#"+k);if(el)el.onchange=()=>{state.me[k==="meEngCo"?"engCo":"engPos"]=el.value.trim();LS.set("ups.me",state.me);toast("Saxlanıldı — yeni hesabatlarda avtomatik yazılacaq")}});
   const readMe=()=>{state.me.name=$("#meName").value.trim();const al=$("#meAlt");if(al)state.me.alt=al.value.trim();if($("#meKey").value.trim()!==state.me.key)state.me.role="";if($("#meUrl"))state.me.url=$("#meUrl").value.trim();state.me.key=$("#meKey").value.trim();LS.set("ups.me",state.me)};
   $("#meOut").onclick=()=>{const b=$("#meOut");
@@ -2543,7 +2546,10 @@ function tabsFor(){const T=TYPES[CUR_TYPE],P=SVC_PROF(state.rep),B=T.hasBat;
   if(P==="rep")return [["svc","Servis"],["ups",T.short],["repair","Təmir"],["meas","Ölçmə"],["work","Hissələr"],["foto","Şəkillər"],["rep","Hesabat"]];
   return [["svc","Servis"],["ups",T.short],...(B?[["bat","Akkum."]]:[]),["meas","Ölçmə"],["chk","Yoxlama"],["work","İşlər"],...(B?[["blk","Bloklar"]]:[]),["foto","Şəkillər"],["rep","Hesabat"]]}
 function devBar(){const R=state.rep;return `<div class="devbar" role="group" aria-label="Cihazlar">${R.devices.map((d,i)=>`<button class="dchip" data-dev="${i}" aria-pressed="${i===state.di}"><span class="k">${i+1}</span>${esc(TYPES[d.type].short)}${devTag(d)?" · "+esc(devTag(d)):""}</button>`).join("")}<button class="dchip" id="addDev">+ Cihaz</button></div>`}
-function renderEditor(){
+/* the worker's saved signature goes into his own reports by itself (not when he deleted it from that report, not in an approved one) */
+function autoEngSig(r){try{const m=state.me;if(!r||!m||!m.sig||m.sigAuto===false)return false;if(r.appr&&r.appr.at)return false;if(r.sig&&r.sig.eng&&r.sig.eng.img)return false;if(r.sigDel&&r.sigDel.eng)return false;
+  const nm=String((r.svc&&r.svc.eng)||"").trim();if(!nm||nk(nm)!==nk(m.name||""))return false;r.sig=r.sig||{};r.sig.eng={img:m.sig,name:nm,at:new Date().toISOString(),auto:1};return true}catch(e){return false}}
+function renderEditor(){try{const _r=realOf(state.rep);if(_r&&!_r.sample&&autoEngSig(_r))markDirty()}catch(e){}
   const TABS=tabsFor();if(!TABS.some(x=>x[0]===state.tab))state.tab="ups";
   const r=state.cur;state.view="edit";$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#tabs").hidden=false;
   $("#hTitle").innerHTML=esc(r.cl.name||"Yeni servis")+'<small>'+esc([r.svc.repno,fmtDate(r.svc.date)].filter(Boolean).join(" · ")||"Hesabat")+'</small>';
@@ -2835,6 +2841,7 @@ const AFTER={
   $("#bPdf").onclick=exportPdf;$("#bPrint").onclick=printReport;$("#bXls").onclick=exportXlsx;
   ratingCard();bindAppr();
   document.querySelectorAll("[data-sign]").forEach(b=>b.onclick=()=>openSignPad(b.dataset.sign));
+  document.querySelectorAll("[data-signlink]").forEach(b=>b.onclick=()=>sendSignLink(b.dataset.signlink,b));
   document.querySelectorAll("[data-signdel]").forEach(b=>b.onclick=()=>{if(b.dataset.confirm!=="1"){b.dataset.confirm="1";b.textContent="Silinsin?";return}
     const r=realOf(state.rep);if(r.sig){delete r.sig[b.dataset.signdel];r.sigDel=r.sigDel||{};r.sigDel[b.dataset.signdel]=Date.now()};markDirty();const y=window.scrollY;renderEditor();window.scrollTo(0,y)});
   if($("#bDel")){$("#bDel").onclick=()=>{$("#delConfirm").hidden=false};$("#bDelNo").onclick=()=>{$("#delConfirm").hidden=true};
@@ -2875,7 +2882,7 @@ async function devPdfs(r,L){r=realOf(r);if((typeof CFG!=="undefined"&&CFG.hub)||
   try{for(const d of ds){const sn=String(d.info.sn).trim(),r2=Object.assign({},r,{devices:[d]});
       ps.innerHTML=paperHTML(r2,null,L);fitPaper();
       const pdf=await makePdf(r2,L,()=>{}),name=fname(r,"pdf").replace(/\.pdf$/,"_"+sn.replace(/[\\/:*?"<>|\s]+/g,"-").slice(0,40)+".pdf");
-      await api("pdf_dev",{id:r.id,sn,client:r.cl.name,name,data:await blobToB64(pdf.output("blob"))});n++}}
+      await api("pdf_dev",{id:r.id,sn,client:r.cl.name,payer:r.cl.payer||"",name,data:await blobToB64(pdf.output("blob"))});n++}}
   finally{try{const c=state.cur;if(c&&$("#ps")){$("#ps").innerHTML=paperHTML(c,null,state.plang||"az");fitPaper()}}catch(e){}}
   return n}
 /* after approval the report's PDF goes to the server, so the accountant can take it in Satış və Anbar */
@@ -2884,7 +2891,7 @@ async function apprPdf(id){try{toast("PDF mühasib üçün serverə hazırlanır
     if(state.pending.has(id))throw new Error("pending");
     if(!state.rep||realOf(state.rep).id!==id||!$("#paper"))throw new Error("view");
     const r=state.cur,pdf=await makePdf(r,"az",()=>{}),blob=pdf.output("blob"),name=fname(r,"pdf");
-    const res=await api("pdf",{id,client:realOf(r).cl.name,name,data:await blobToB64(blob)});
+    const res=await api("pdf",{id,client:realOf(r).cl.name,payer:realOf(r).cl.payer||"",name,data:await blobToB64(blob)});
     if(state.remote[id])state.remote[id].pdf=res.url;const l=$("#pdfLink");if(l){l.href=res.url;l.hidden=false}
     toast("PDF serverə yükləndi — mühasib Satış və Anbarda görür");
     try{if(await devPdfs(r,"az"))toast("Hər cihazın öz PDF-i də yükləndi (QR üçün)")}catch(e){}}
@@ -3419,7 +3426,7 @@ async function buildPdf(paper,onPage){const PW=733,PH=Math.floor(PW*261/194),FIL
     host.innerHTML="";
     const tiny=document.createElement("div");tiny.style.cssText="width:4px;height:4px";host.appendChild(tiny);
     const pdf=await html2pdf().set(OPT).from(tiny).toPdf().get("pdf");host.removeChild(tiny);for(let j=pdf.internal.getNumberOfPages();j>=1;j--)pdf.deletePage(j);
-    let pg=0;const DE=document.documentElement,ovH=DE.style.overflow,ovB=document.body.style.overflow;DE.style.overflow="hidden";document.body.style.overflow="hidden";
+    let pg=0;const __fl=[...document.fonts].some(f=>f.status==="loaded"&&/Noto Sans/.test(f.family));const __lk=__fl?[]:[...document.querySelectorAll('link[rel="stylesheet"][href^="http"]')].map(x=>[x,x.parentNode,x.nextSibling]);__lk.forEach(([x])=>x.remove());const DE=document.documentElement,ovH=DE.style.overflow,ovB=document.body.style.overflow;DE.style.overflow="hidden";document.body.style.overflow="hidden";
     try{for(const d of divs){if(onPage)onPage(++pg,divs.length);host.appendChild(d);const cv=await html2pdf().set(OPT).from(d).toCanvas().get("canvas");pdf.addPage("a4","portrait");
       host.removeChild(d);
       const pp=Math.floor(cv.width*261/194);
@@ -3427,7 +3434,7 @@ async function buildPdf(paper,onPage){const PW=733,PH=Math.floor(PW*261/194),FIL
       parts.forEach(([y,hh],k)=>{let c2=cv;if(parts.length>1){c2=document.createElement("canvas");c2.width=cv.width;c2.height=hh;const x=c2.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c2.width,hh);x.drawImage(cv,0,y,cv.width,hh,0,0,cv.width,hh)}
         if(k>0)pdf.addPage();let wm=194,hm=hh*194/cv.width;if(hm>261){wm=194*261/hm;hm=261}
         pdf.addImage(c2.toDataURL("image/jpeg",0.85),"JPEG",8+(194-wm)/2,22,wm,hm)})}}
-    finally{DE.style.overflow=ovH;document.body.style.overflow=ovB}
+    finally{__lk.forEach(([x,p,n])=>p.insertBefore(x,n));DE.style.overflow=ovH;document.body.style.overflow=ovB}
     return pdf}
   finally{host.remove()}}
 /* full report PDF (pages + header/footer on every page) — used by "PDF hazırla" and "Çap et" */
@@ -3624,15 +3631,22 @@ function qaDocx(R){const Q=qaData(R),r=Q.r,S=Q.S,H2="http:"+"/"+"/",x=v=>String(
   return zipStore([["[Content_Types].xml",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="${P_NS}content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`],
     ["_rels/.rels",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${P_NS}relationships"><Relationship Id="rId1" Type="${R_NS}/officeDocument" Target="word/document.xml"/></Relationships>`],["word/document.xml",doc]])}
 async function exportQaWord(){const root=await prepareFolder();await flush();const r=state.cur;try{await saveFile(fname(r,"pdf").replace(/\.pdf$/,"_Qusur-akti.docx"),qaDocx(r),cfolder(r),root,SUB_ACT,{id:realOf(r).id,k:"qa"})}catch(e){toast("Word faylı yaradılmadı")}}
-async function exportPdf(){const root=await prepareFolder();await flush();const btn=$("#bPdf");btn.disabled=true;btn.textContent="PDF hazırlanır…";const r=state.cur;
+/* PDF is ready but the folder permission was not given at click time: ask with a fresh click */
+function pdfAskDir(){return new Promise(res=>{const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center";
+ o.innerHTML='<div style="background:#fff;color:#111;border-radius:12px;padding:20px;max-width:360px;font:15px Noto Sans,Segoe UI,sans-serif;text-align:center"><div style="margin-bottom:14px"><b>PDF hazırdır.</b><br>Hesabat qovluğuna saxlamaq üçün düyməyə basın.</div><button id="arOk" style="padding:10px 16px;border:0;border-radius:8px;background:#0a7;color:#fff;font-size:15px;margin:4px">Qovluğa saxla</button><button id="arPick" style="padding:10px 16px;border:1px solid #999;border-radius:8px;background:#fff;font-size:15px;margin:4px">Başqa qovluq seç</button><br><button id="arNo" style="padding:8px 14px;border:0;background:none;color:#555;margin-top:6px">Yükləmələrə yüklə</button></div>';
+ document.body.appendChild(o);const done=v=>{o.remove();res(v)};
+ o.querySelector("#arNo").onclick=()=>done(null);
+ o.querySelector("#arPick").onclick=async()=>{try{done(await pickRoot())}catch(e){done(null)}};
+ o.querySelector("#arOk").onclick=async()=>{try{let r=await getRoot();if(!r)r=await pickRoot();let p=await r.queryPermission({mode:"readwrite"});if(p!=="granted")p=await r.requestPermission({mode:"readwrite"});if(p!=="granted"){r=await pickRoot()}done(r)}catch(e){try{done(await pickRoot())}catch(e2){done(null)}}}})}
+async function exportPdf(){const btn=$("#bPdf");btn.disabled=true;btn.textContent="Qovluq yoxlanılır…";const __pf=1;let root=null;try{root=await Promise.race([prepareFolder(),new Promise(res=>setTimeout(()=>res(null),6000))])}catch(e){root=null}try{await flush()}catch(e){}btn.textContent="PDF hazırlanır…";const r=state.cur;
   try{const L=state.plang||"az";
     const pdf=await makePdf(r,L,(i,n)=>{btn.textContent="PDF hazırlanır… "+i+"/"+n});
-    btn.textContent="Saxlanılır…";const blob=pdf.output("blob");
+    btn.textContent="Saxlanılır…";const blob=pdf.output("blob");if(!root&&canDir()){try{root=await pdfAskDir()}catch(e){root=null}}
     const name=fname(r,"pdf").replace(/\.pdf$/,(L!=="az"?"_"+L.toUpperCase():"")+".pdf");
     await saveFile(name,blob,cfolder(r),root,SUB_REP,{id:realOf(r).id,k:"rep"});
     if((LS.get("ups.pdfdrive")||(realOf(r).appr&&realOf(r).appr.at))&&hasServer()&&!r.sample){btn.textContent="Serverə yüklənir…";
       try{await sync();if(state.pending.has(r.id))throw new Error("pending");
-        const res=await api("pdf",{id:r.id,client:r.cl.name,name,data:await blobToB64(blob)});
+        const res=await api("pdf",{id:r.id,client:r.cl.name,payer:r.cl.payer||"",name,data:await blobToB64(blob)});
         if(state.remote[r.id])state.remote[r.id].pdf=res.url;const l=$("#pdfLink");if(l){l.href=res.url;l.hidden=false}
         toast("PDF Drive-a da yükləndi");
         if(realOf(r).devices.length>1){btn.textContent="Cihazların PDF-i…";try{if(await devPdfs(r,L))toast("Hər cihazın öz PDF-i də yükləndi (QR üçün)")}catch(e){toast("Cihazların ayrıca PDF-i yüklənmədi")}}}
@@ -4250,13 +4264,35 @@ function sigDiffCard(){const r=realOf(state.rep),S=r.sigSnap;if(!S||!S.flat||sta
    ${D.length?`<details><summary><b>${D.length} dəyişiklik</b> — baxmaq üçün basın</summary><div style="max-height:360px;overflow:auto"><table class="tbl" style="width:100%;font-size:13px;border-collapse:collapse"><thead><tr><th style="text-align:left">Sahə</th><th style="text-align:left">İmza anında</th><th style="text-align:left">İndi</th></tr></thead><tbody>${D.slice(0,400).map(([k,a,b])=>`<tr style="border-top:1px solid var(--line)"><td>${esc(snapLbl(k))}</td><td style="color:#8A6D00">${a===undefined?"<i>boş</i>":esc(a)}</td><td style="color:#0B6B3A">${b===undefined?"<i>silinib</i>":esc(b)}</td></tr>`).join("")}</tbody></table></div></details>`:`<p style="margin:0">✓ İmzadan sonra heç nə dəyişməyib.</p>`}</div>`}
 function sigCard(){const r=realOf(state.rep),S=r.sig||{};
   const box=(k,label,name)=>{const x=S[k];return `<div class="sigslot"><b>${label}</b>${x&&x.img?`<img src="${x.img}" alt="İmza"><span class="note">${esc(x.name||name||"")} · ${esc(fmtDT(x.at))}</span>
-    <div class="actions"><button class="btn sm" data-sign="${k}">Yenidən imzala</button><button class="btn sm ghost" data-signdel="${k}">Sil</button></div>`
-    :`<div class="sigempty">İmzalanmayıb</div><button class="btn pri" data-sign="${k}">✍ İmzala</button>`}</div>`};
+    <div class="actions"><button class="btn sm" data-sign="${k}">Yenidən imzala</button><button class="btn sm ghost" data-signdel="${k}">Sil</button>${k!=="eng"?`<button class="btn sm" data-signlink="${k}">📲 Link</button>`:""}</div>`
+    :`<div class="sigempty">İmzalanmayıb</div><button class="btn pri" data-sign="${k}">✍ İmzala</button>${k!=="eng"?`<button class="btn sm" data-signlink="${k}" style="margin-top:6px">📲 Müştəriyə link göndər</button>`:""}`}</div>`};
   return `<div class="card"><h3>İmzalar</h3><p class="note" style="margin:0">“İmzala” basın — ekranda açılan sahədə barmaqla və ya qələmlə imza atın. İmza hesabata (PDF, Excel, çap) avtomatik düşür və hesabatın qalanı sonra ofisdə tamamlansa da silinmir.</p>
    <div class="grid2">${box("eng","Servis mühəndisi",r.svc.eng)}${clSigners(r).map((c,i)=>box(c.k,(c.co||c.pos?esc([c.co,c.pos].filter(Boolean).join(" ")):"Müştəri nümayəndəsi"+(i?" "+(i+1):"")),c.name)).join("")}</div></div>`}
-function openSignPad(kind){const r=realOf(state.rep);const MV=/^mv[oi]\d+$/.test(kind)&&window.ZSMOV?ZSMOV.signer(r,kind):null,isCl=String(kind).indexOf("cl")===0||!!MV,C=MV||(isCl?(clSigners(r).find(c=>c.k===kind)||clSigners(r)[0]):null);
+/* customer signs remotely: PDF (or summary) + signature page opens from a link sent by WhatsApp; the signature lands in the report on the server */
+function signSummary(r){let t="";try{const el=document.querySelector("#paper");t=((el&&el.innerText)||"").replace(/\n{3,}/g,"\n\n").trim()}catch(e){}
+  if(!t){const d=(r.devices||[]).map(x=>[x.type,x.info&&x.info.brand,x.info&&x.info.model,x.info&&x.info.sn].filter(Boolean).join(" ")).join("\n");t=["Hesabat № "+(r.svc.repno||""),"Tarix: "+(r.svc.date||""),"Müştəri: "+(r.cl.name||""),"Obyekt: "+(r.cl.obj||""),d].filter(Boolean).join("\n")}
+  return t.slice(0,4800)}
+function waPhone(t){let d=String(t||"").split(/[,;\/]/)[0].replace(/[^\d]/g,"");if(!d)return"";if(d.startsWith("00"))d=d.slice(2);if(d.startsWith("0"))d="994"+d.slice(1);else if(d.length===9)d="994"+d;return d.length>=11?d:""}
+async function sendSignLink(k,btn){const r0=state.cur,r=realOf(r0),mode=LS.get("ups.signmode")||"pdf",old=btn.textContent;btn.disabled=true;
+  try{if(!hasServer()){toast("Link üçün server bağlantısı lazımdır");return}
+    btn.textContent="Saxlanılır…";await flush();await sync();if(state.pending.has(r.id)){toast("Hesabat serverə göndərilmədi (internet?) — yenidən cəhd edin");return}
+    if(mode==="pdf"){btn.textContent="PDF hazırlanır…";const pdf=await makePdf(r0,"az",()=>{});await api("pdf",{id:r.id,client:r.cl.name,payer:r.cl.payer||"",name:fname(r,"pdf"),data:await blobToB64(pdf.output("blob"))})}
+    btn.textContent="Link yaradılır…";const C=clSigners(r).find(c=>c.k===k)||clSigners(r)[0];
+    const res=await api("sign_link",{id:r.id,k,mode,repno:r.svc.repno||"",client:r.cl.name||"",name:C.name,pos:C.pos,co:C.co,days:7,sum:mode==="sum"?signSummary(r):""});
+    showSignLink(res.url,r,C)}
+  catch(e){toast("Link yaradılmadı: "+(e&&e.data&&e.data.error||e&&e.message||"xəta"))}
+  finally{btn.disabled=false;btn.textContent=old}}
+function showSignLink(url,r,C){const co=(state.settings&&state.settings.co)||"ZUVAND Grand System";
+  const txt=`Hörmətli ${C.name||"müştəri"}, ${r.svc.repno?r.svc.repno+" nömrəli ":""}servis hesabatını bu link vasitəsilə oxuyub imzalaya bilərsiniz (7 gün etibarlıdır):\n${url}\n— ${co}`;
+  const ph=waPhone(r.cl.tel),wa="https://wa.me/"+ph+"?text="+encodeURIComponent(txt);
   const ov=document.createElement("div");ov.className="sigpad";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");
-  ov.innerHTML=`<div class="sp-in"><div class="sp-head"><b>${MV?esc(MV.title):isCl?"Müştəri nümayəndəsinin imzası":"Servis mühəndisinin imzası"}</b><button class="btn sm ghost" id="spX" aria-label="Bağla">✕</button></div>
+  ov.innerHTML=`<div class="sp-in"><div class="sp-head"><b>İmza linki hazırdır</b><button class="btn sm ghost" id="slX" aria-label="Bağla">✕</button></div><p class="note" style="margin:0 0 8px">Müştəri linki açıb hesabatı oxuyur, barmaqla imza atır — imza avtomatik bu hesabata düşür.${ph?"":" (Müştərinin telefonu yazılmayıb — WhatsApp-da kontaktı özünüz seçəcəksiniz.)"}</p><input id="slU" readonly value="${esc(url)}" style="width:100%"><div class="actions sp-btns"><button class="btn pri" id="slWa">WhatsApp-da göndər</button><button class="btn" id="slCp">Linki kopyala</button></div></div>`;
+  document.body.appendChild(ov);const close=()=>ov.remove();ov.querySelector("#slX").onclick=close;
+  ov.querySelector("#slWa").onclick=()=>{window.open(wa,"_blank")};
+  ov.querySelector("#slCp").onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast("Mətn kopyalandı")}catch(e){const u=ov.querySelector("#slU");u.select();document.execCommand("copy");toast("Link kopyalandı")}}}
+function openSignPad(kind){const ME=kind==="@me";const r=ME?{svc:{},cl:{},sig:{}}:realOf(state.rep);const MV=/^mv[oi]\d+$/.test(kind)&&window.ZSMOV?ZSMOV.signer(r,kind):null,isCl=String(kind).indexOf("cl")===0||!!MV,C=MV||(isCl?(clSigners(r).find(c=>c.k===kind)||clSigners(r)[0]):null);
+  const ov=document.createElement("div");ov.className="sigpad";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");
+  ov.innerHTML=`<div class="sp-in"><div class="sp-head"><b>${ME?"Mənim daimi imzam":MV?esc(MV.title):isCl?"Müştəri nümayəndəsinin imzası":"Servis mühəndisinin imzası"}</b><button class="btn sm ghost" id="spX" aria-label="Bağla">✕</button></div>
    <label class="f"><span>Ad, soyad</span><input id="spName" value="${esc(isCl?C.name:(r.svc.eng||state.me.name||""))}"></label>${isCl?`<label class="f"><span>Vəzifəsi</span><input id="spPos" value="${esc(C.pos)}"></label><label class="f"><span>Şirkət / şöbə</span><input id="spCo" value="${esc(C.co)}"></label>`:""}
    <div class="sp-area"><canvas id="spCv"></canvas><span class="sp-hint" id="spHint">Burada barmaqla və ya qələmlə imza atın</span><span class="sp-line"></span></div>
    <div class="actions sp-btns"><button class="btn" id="spClear">Təmizlə</button><button class="btn ghost" id="spCancel">Ləğv et</button><button class="btn pri" id="spOk">Təsdiq et</button></div></div>`;
@@ -4277,6 +4313,7 @@ function openSignPad(kind){const r=realOf(state.rep);const MV=/^mv[oi]\d+$/.test
     let x0=Math.min(...P.map(p=>p.x)),y0=Math.min(...P.map(p=>p.y)),x1=Math.max(...P.map(p=>p.x)),y1=Math.max(...P.map(p=>p.y));const pad=6;x0-=pad;y0-=pad;x1+=pad;y1+=pad;
     const H=140,k=Math.min(H/(y1-y0),520/(x1-x0),2),out=document.createElement("canvas");out.width=Math.max(20,Math.round((x1-x0)*k));out.height=Math.max(20,Math.round((y1-y0)*k));
     const o=out.getContext("2d");o.drawImage(cv,x0*dpr,y0*dpr,(x1-x0)*dpr,(y1-y0)*dpr,0,0,out.width,out.height);
+    if(ME){state.me.sig=out.toDataURL("image/png");state.me.sigAuto=true;LS.set("ups.me",state.me);close();toast("İmzanız saxlanıldı — hesabatlara avtomatik düşəcək");try{renderSettings()}catch(e){}return}
     r.sig=r.sig||{};const name=ov.querySelector("#spName").value.trim();const pos=isCl?ov.querySelector("#spPos").value.trim():"";r.sig[kind]={img:out.toDataURL("image/png"),name,at:new Date().toISOString()};if(pos)r.sig[kind].pos=pos;if(isCl&&!MV){try{r.sigSnap={at:Date.now(),kind,name,flat:flatRep(r)}}catch(e){}}
     const sco=isCl?ov.querySelector("#spCo").value.trim():"";
     if(kind==="cl"){if(name&&!r.cl.sign)r.cl.sign=name;if(pos)r.cl.pos=pos;r.cl.sco=sco}else if(isCl&&C.x){if(name&&!C.x.name)C.x.name=name;if(pos)C.x.pos=pos;C.x.co=sco}if(!isCl&&name&&!r.svc.eng)r.svc.eng=name;
