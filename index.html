@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112316;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112410;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -1534,8 +1534,8 @@ const nkHas=(hay,q)=>{const H=nk(hay),W=nk(q).split(" ").filter(Boolean);return 
 const ownerOf=r=>{r=realOf(r)||{};return String(r.creator||(state.remote[r.id]||{}).creator||"").trim()};
 /* someone else's report: a worker may look at it, but changes go into a new report of their own (the manager edits everything) */
 const foreignRep=r=>{if(!r||realOf(r).sample||!hasServer()||state.me.role==="admin")return false;const o=ownerOf(r);return !!o&&!!state.me.name&&nameKey(o)!==nameKey(state.me.name)};
-const SVP=[["rep","Hesabat yazmaq və doldurmaq"],["view","“Təsdiqlənmiş” və “Hamısı” bölmələrini görmək, PDF yükləmək (dəyişmədən)"],["appr","Təsdiq və tapşırıq vermək (servis müdiri)"],["plan","Servis cədvəli"],["parts","Dəyişdirilmiş detallar siyahısı"],["staff","İşçi paneli və mükafat hesablanması"],["cust","Müştərilər və cihazlar"],["pay","Borclar və ödənişlər"],["stats","Statistika"]];
-const SV_POS=[["Servis mühəndisi",["rep","plan","parts"]],["Servis müdiri",["rep","view","appr","plan","parts","staff","cust","stats"]],["Mühasib",["view","staff","pay","stats","parts"]],["Anbardar",["view","parts"]]];
+const SVP=[["rep","Hesabat yazmaq və doldurmaq"],["view","“Təsdiqlənmiş” və “Hamısı” bölmələrini görmək, PDF yükləmək (dəyişmədən)"],["appr","Təsdiq və tapşırıq vermək (servis müdiri)"],["plan","Servis cədvəli"],["parts","Dəyişdirilmiş detallar siyahısı"],["staff","İşçi paneli və mükafat hesablanması"],["hr","Davamiyyət və icazələr (hamının qeydini görmək, qeyd etmək, icazə təsdiqləmək)"],["salary","Maaş hesablaması, avans və cərimələr"],["cust","Müştərilər və cihazlar"],["pay","Borclar və ödənişlər"],["stats","Statistika"]];
+const SV_POS=[["Servis mühəndisi",["rep","plan","parts"]],["Servis müdiri",["rep","view","appr","plan","parts","staff","hr","cust","stats"]],["Mühasib",["view","staff","pay","stats","parts","hr","salary"]],["Anbardar",["view","parts"]]];
 function svPerms(){if(state.me.role==="admin"||!hasServer())return SVP.map(x=>x[0]);
   if(typeof CFG!=="undefined"&&CFG.hub){const P=state.me.perms||["servis"],o=[];if(P.includes("servis"))o.push("rep");if(P.includes("tesdiq"))o.push("appr");P.forEach(m=>{if(/^sv_/.test(m))o.push(m.slice(3))});if(!P.some(m=>/^sv_/.test(m))&&o.includes("rep"))o.push("plan","parts");return o}
   return Array.isArray(state.me.sv)?state.me.sv:["rep","plan","parts"]}
@@ -5488,6 +5488,254 @@ window.ZSREPL=(function(){
   function allReplaced(V){try{if(!updHasBat())return false;const U=(V.x||{}).upd||{};if(U.newBat)return true;const G=groupRows(V,V.parts||[]);return !!(G&&G.per&&G.rows.length&&G.rows.every(r=>r.rep>=r.per))}catch(e){return false}}
   return {init,allReplaced,specOf,kinds,groupRows,pdfParts,pdfGroups,pdfBad,srcItems,fixName,_t:{applyDec,mkPart,mkBad}}})();
 (function(){const go=()=>{try{ZSREPL.init()}catch(e){console.log("zsupd init",e)}};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else go()})();
+</script>
+<script>/* UPS Servis: davamiyyət, icazələr, maaş hesablaması (HR). Server: hr_cfg, hr_cfg_set, hr_workers, hr_month, hr_op */
+(function(){try{
+if(window.__zsHr)return;window.__zsHr=1;
+const ST={work:["İşdə","İ","ok"],vac:["Məzuniyyət","M","info"],sick:["Xəstəlik","X","warn"],perm:["İcazəli","İc","info"],unpaid:["Haqqsız icazə","Hq","warn"],abs:["Qayıb","Q","bad"],off:["İstirahət","—",""]};
+const LVT={vac:"Məzuniyyət",sick:"Xəstəlik",perm:"İcazə (maaş saxlanılır)",unpaid:"Haqqsız icazə (maaşdan tutulur)"};
+const ADJT={avans:"Avans",cerime:"Cərimə",tutulma:"Digər tutulma",premiya:"Əlavə (premiya)",satis:"Satış məbləği (faiz üçün baza)"};
+const H={cfg:null,at:0,me:{},ym:"",pym:"",workers:null,day:"",busy:false};
+const money=n=>bnMoney(n);
+const R2=n=>Math.round((+n||0)*100)/100;
+const monthNow=()=>todayISO().slice(0,7);
+const ymAdd=(ym,d)=>{let [y,m]=ym.split("-").map(Number);m+=d;while(m<1){m+=12;y--}while(m>12){m-=12;y++}return y+"-"+String(m).padStart(2,"0")};
+const ymLabel=ym=>{const M=["Yanvar","Fevral","Mart","Aprel","May","İyun","İyul","Avqust","Sentyabr","Oktyabr","Noyabr","Dekabr"],[y,m]=ym.split("-").map(Number);return M[m-1]+" "+y};
+const dim=ym=>{const [y,m]=ym.split("-").map(Number);return new Date(y,m,0).getDate()};
+const dow=(ym,d)=>{const [y,m]=ym.split("-").map(Number);return new Date(y,m-1,d).getDay()};
+const wdCount=ym=>{let n=0;for(let d=1;d<=dim(ym);d++){const w=dow(ym,d);if(w>0&&w<6)n++}return n};
+const dd=d=>String(d).padStart(2,"0");
+const cfgOn=k=>!!(H.cfg&&H.cfg.cfg&&H.cfg.cfg.on&&H.cfg.cfg.on[k]);
+const errTxt=e=>{const m=String(e&&e.message||e);return m==="unknown_action"?"Server bu funksiyanı hələ tanımır — Google serverdə Code.gs yenilənməlidir":m==="forbidden"?"Bu əməliyyat üçün icazəniz yoxdur":m==="no_wid"?"Bunun üçün şəxsi açar lazımdır (Ayarlar → Açar)":m==="off"?"Bu funksiya Ayarlarda söndürülüb":m==="offline"?"İnternet yoxdur":"Alınmadı ("+m+")"};
+async function loadCfg(force){
+  if(!hasServer())return null;
+  if(H.cfg&&!force&&Date.now()-H.at<45000)return H.cfg;
+  try{const r=await api("hr_cfg");H.cfg=r;H.at=Date.now();H.me=r.me||{};return r}
+  catch(e){if(!H.cfg||force)H.cfg={off:true,err:errTxt(e)};H.at=Date.now();return H.cfg}}
+async function loadWorkers(force){
+  if(H.workers&&!force)return H.workers;
+  try{const r=await api("hr_workers");H.workers=r.workers||[]}catch(e){H.workers=H.workers||[]}
+  return H.workers}
+const chip=(st,txt)=>{const s=ST[st]||["?","?",""];return `<span class="chip ${s[2]}">${esc(txt||s[0])}</span>`};
+
+/* ---------- Əsas səhifədə: düymələr və "Gəldim / Getdim" kartı ---------- */
+async function homeExtras(){
+  if(state.view!=="home"||!hasServer()||!state.me.name)return;
+  const c=await loadCfg();if(!c||c.off||!c.cfg||state.view!=="home")return;
+  const row=document.querySelector("#main .actions");
+  const add=(id,txt,fn)=>{if(row&&!document.getElementById(id)){row.insertAdjacentHTML("beforeend",`<button class="btn" id="${id}">${txt}</button>`);document.getElementById(id).onclick=fn}};
+  if(cfgOn("att")||cfgOn("lv"))add("bHr","Davamiyyət və icazələr",()=>renderHr());
+  if(cfgOn("pay")&&H.me.pay)add("bHrPay","Maaş hesablaması",()=>renderHrPay());
+  if(cfgOn("att")&&H.me.wid)quickCard()}
+async function quickCard(){
+  const m=document.getElementById("main");if(!m||state.view!=="home")return;
+  let box=document.getElementById("hrQuick");if(!box){m.insertAdjacentHTML("afterbegin",'<div class="card" id="hrQuick" style="padding:10px 14px"></div>');box=document.getElementById("hrQuick")}
+  let d;try{d=await api("hr_month",{ym:monthNow()})}catch(e){box.remove();return}
+  if(!document.body.contains(box))return;
+  box.innerHTML=todayBlock(d);bindToday(box,()=>quickCard())}
+function todayBlock(d){
+  const td=d.today,me=(d.att||[]).find(x=>x.d===td&&x.wid===H.me.wid)||null;
+  if(me&&me.st&&me.st!=="work"&&ST[me.st])return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>Bu gün</b>${chip(me.st)}<span class="note">Rəhbər və ya təsdiqlənmiş icazə üzrə qeyd edilib</span></div>`;
+  if(!me||!me.in)return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between"><div><b>Bu gün</b> <span class="note">${esc(fmtDate(td))} · işə gəlişiniz qeyd edilməyib</span></div><button class="btn pri" data-hrin>Gəldim</button></div>`;
+  if(!me.out)return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between"><div><b>Bu gün</b> ${chip("work","İşdə")} <span class="note">giriş ${esc(me.in)}</span></div><button class="btn" data-hrout>Getdim</button></div>`;
+  return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between"><div><b>Bu gün</b> ${chip("work","İşdə")} <span class="note">${esc(me.in)} – ${esc(me.out)}</span></div><button class="btn sm ghost" data-hrout>Çıxış vaxtını yenilə</button></div>`}
+function bindToday(box,redraw){
+  const go=async op=>{if(H.busy)return;H.busy=true;try{await api("hr_op",{op});toast(op==="in"?"Giriş qeyd edildi":"Çıxış qeyd edildi")}catch(e){toast(errTxt(e))}finally{H.busy=false}redraw()};
+  const a=box.querySelector("[data-hrin]"),b=box.querySelector("[data-hrout]");if(a)a.onclick=()=>go("in");if(b)b.onclick=()=>go("out")}
+
+/* ---------- Davamiyyət və icazələr səhifəsi ---------- */
+async function renderHr(){
+  state.view="hr";$("#tabs").hidden=true;$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#hTitle").innerHTML='Davamiyyət<small>Gəliş-gediş və icazələr</small>';
+  H.ym=H.ym||monthNow();
+  $("#main").innerHTML=`<h2 class="sec">Davamiyyət və icazələr</h2><div id="hrBox"><p class="note">Yüklənir…</p></div><button class="btn ghost" id="hrBack">← Geri</button>`;
+  $("#hrBack").onclick=renderHome;window.scrollTo(0,0);
+  const c=await loadCfg(true);
+  if(state.view!=="hr")return;
+  if(!c||c.off||!c.cfg){$("#hrBox").innerHTML=`<p class="note">${esc(c&&c.err||"Server bağlantısı yoxdur")}</p>`;return}
+  if(H.me.full)await loadWorkers(true);
+  drawHr()}
+function monthBar(ym,id){return `<div class="actions" style="align-items:center"><button class="btn sm" id="${id}P" aria-label="Əvvəlki ay">‹</button><b style="min-width:130px;text-align:center">${esc(ymLabel(ym))}</b><button class="btn sm" id="${id}N" aria-label="Sonrakı ay">›</button><button class="btn sm ghost" id="${id}T">Bu ay</button></div>`}
+async function drawHr(){
+  const box=$("#hrBox");if(!box||state.view!=="hr")return;
+  const ym=H.ym,me=H.me,full=!!me.full;let d;
+  try{d=await api("hr_month",{ym})}catch(e){box.innerHTML=`<p class="note">${esc(errTxt(e))}</p>`;return}
+  if(state.view!=="hr")return;
+  const att=d.att||[],lv=d.lv||[],A={};att.forEach(x=>{(A[x.wid]=A[x.wid]||{})[x.d]=x});
+  const W=(H.workers||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,"az"));
+  let h=monthBar(ym,"hrM");
+  if(cfgOn("att")&&me.wid&&ym===monthNow())h+=`<div class="card" id="hrToday">${todayBlock(d)}</div>`;
+  if(cfgOn("att")&&!me.wid&&!full)h+=`<div class="card"><p class="note" style="margin:0">Gəliş-getməni qeyd etmək üçün şəxsi açar lazımdır: Ayarlar → Açar.</p></div>`;
+  if(cfgOn("lv")&&me.wid)h+=lvForm(lv.filter(x=>x.wid===me.wid));
+  if(full){
+    const pend=lv.filter(x=>x.dec==="p");
+    if(cfgOn("lv"))h+=`<div class="card"><h3>Təsdiq gözləyən icazələr${pend.length?` <span class="chip warn">${pend.length}</span>`:""}</h3>${pend.length?pend.map(x=>`<div class="rcard" style="padding:8px 0;border-bottom:1px solid var(--line)"><b>${esc(x.name)}</b> · ${esc(LVT[x.st]||x.st)}<br><span class="note">${esc(fmtDate(x.d))}${x.d2&&x.d2!==x.d?" – "+esc(fmtDate(x.d2)):""}${x.note?" · "+esc(x.note):""}</span><div class="actions" style="margin-top:6px"><input id="hrDn-${esc(x.id)}" placeholder="Şərh (istəyə görə)" style="min-height:34px;padding:5px 8px;flex:1;min-width:130px"><button class="btn sm pri" data-lvok="${esc(x.id)}">Təsdiq</button><button class="btn sm" data-lvno="${esc(x.id)}">İmtina</button></div></div>`).join(""):'<p class="note" style="margin:0">Yeni sorğu yoxdur.</p>'}</div>`;
+    h+=matrix(ym,W,A,lv);
+    h+=dayEditor(ym,W,A)}
+  else if(cfgOn("att"))h+=ownTable(ym,A[me.wid]||{});
+  box.innerHTML=h;
+  const nav=(k)=>{H.ym=k;drawHr()};
+  $("#hrMP").onclick=()=>nav(ymAdd(ym,-1));$("#hrMN").onclick=()=>nav(ymAdd(ym,1));$("#hrMT").onclick=()=>nav(monthNow());
+  const t=$("#hrToday");if(t)bindToday(t,()=>drawHr());
+  bindLv(box,d);
+  if(full)bindMatrix(box,d,W,A)}
+function lvForm(mine){
+  const td=todayISO();
+  return `<div class="card"><h3>İcazə / məzuniyyət sorğusu</h3>
+   <div class="grid2"><label class="f"><span>Növ</span><select id="lvT">${Object.entries(LVT).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join("")}</select></label>
+   <label class="f"><span>Səbəb (istəyə görə)</span><input id="lvN" placeholder="məs. ailə işi"></label></div>
+   <div class="grid2"><label class="f"><span>Tarixdən</span><input type="date" id="lvF" value="${td}"></label><label class="f"><span>Tarixədək</span><input type="date" id="lvTo" value="${td}"></label></div>
+   <div class="actions"><button class="btn pri" id="lvSend">Sorğu göndər</button></div>
+   ${mine.length?`<div style="margin-top:6px">${mine.sort((a,b)=>b.d.localeCompare(a.d)).map(x=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line)"><span>${esc(fmtDate(x.d))}${x.d2&&x.d2!==x.d?" – "+esc(fmtDate(x.d2)):""}</span><span class="note">${esc(LVT[x.st]||x.st)}</span>${x.dec==="ok"?'<span class="chip ok">təsdiqləndi</span>':x.dec==="no"?'<span class="chip bad">imtina</span>':'<span class="chip warn">gözləyir</span>'}${x.note?`<span class="note">${esc(x.note)}</span>`:""}${x.dec==="p"?`<button class="btn sm ghost" data-lvdel="${esc(x.id)}">Sil</button>`:""}</div>`).join("")}</div>`:""}</div>`}
+function bindLv(box,d){
+  const act=async(fn,ok)=>{if(H.busy)return;H.busy=true;try{await fn();if(ok)toast(ok)}catch(e){toast(errTxt(e))}finally{H.busy=false}drawHr()};
+  const s=box.querySelector("#lvSend");if(s)s.onclick=()=>{const f=$("#lvF").value,t=$("#lvTo").value||f;if(!f){toast("Tarix seçin");return}if(t<f){toast("Bitmə tarixi başlanğıcdan əvvəl ola bilməz");return}
+    act(()=>api("hr_op",{op:"lv_req",from:f,to:t,type:$("#lvT").value,note:$("#lvN").value.trim()}),"Sorğu rəhbərə göndərildi")};
+  box.querySelectorAll("[data-lvdel]").forEach(b=>b.onclick=()=>act(()=>api("hr_op",{op:"lv_del",id:b.dataset.lvdel}),"Sorğu silindi"));
+  box.querySelectorAll("[data-lvok]").forEach(b=>b.onclick=()=>{const n=document.getElementById("hrDn-"+b.dataset.lvok);act(()=>api("hr_op",{op:"lv_dec",id:b.dataset.lvok,ok:true,note:n?n.value.trim():""}),"Təsdiqləndi — günlər cədvələ yazıldı")});
+  box.querySelectorAll("[data-lvno]").forEach(b=>b.onclick=()=>{const n=document.getElementById("hrDn-"+b.dataset.lvno);act(()=>api("hr_op",{op:"lv_dec",id:b.dataset.lvno,ok:false,note:n?n.value.trim():""}),"İmtina edildi")})}
+function ownTable(ym,mine){
+  const rows=Object.values(mine).sort((a,b)=>a.d.localeCompare(b.d));
+  return `<div class="card"><h3>Mənim ayım</h3>${rows.length?`<div class="maptbl"><table class="ltbl"><tr><th>Tarix</th><th>Vəziyyət</th><th>Giriş</th><th>Çıxış</th></tr>${rows.map(x=>`<tr><td class="c">${esc(fmtDate(x.d))}</td><td class="c">${chip(x.st)}</td><td class="c">${esc(x.in||"—")}</td><td class="c">${esc(x.out||"—")}</td></tr>`).join("")}</table></div>`:'<p class="note" style="margin:0">Bu ay üçün qeyd yoxdur. Qeyd olunmayan gün işdə sayılır.</p>'}</div>`}
+function matrix(ym,W,A,lv){
+  const n=dim(ym),days=[...Array(n)].map((_,i)=>i+1);
+  const pendBy={};lv.filter(x=>x.dec==="p").forEach(x=>{pendBy[x.wid]=1});
+  return `<h3 style="margin:14px 0 6px">Aylıq cədvəl</h3><p class="hint" style="margin-top:0">Qeyd olunmayan gün işdə sayılır. Gün nömrəsinə və ya xanaya toxunsanız aşağıda həmin günü redaktə edə bilərsiniz. İ – işdə, M – məzuniyyət, X – xəstəlik, İc – icazəli, Hq – haqqsız icazə, Q – qayıb.</p>
+  <div class="maptbl"><table class="ltbl hrm"><tr><th>İşçi</th>${days.map(d=>{const w=dow(ym,d);return `<th class="${w===0||w===6?"hrw":""}"><a href="#" data-hrday="${d}">${d}</a></th>`}).join("")}<th>İ</th><th>M</th><th>X</th><th>İc</th><th>Hq</th><th>Q</th></tr>
+  ${W.length?W.map(w=>{const a=A[w.id]||{},cnt={};Object.values(a).forEach(x=>{cnt[x.st]=(cnt[x.st]||0)+1});
+    return `<tr><td>${esc(w.name)}${pendBy[w.id]?' <span class="chip warn">!</span>':""}</td>${days.map(d=>{const k=ym+"-"+dd(d),x=a[k],wd=dow(ym,d),s=x&&ST[x.st];return `<td class="c hrc ${wd===0||wd===6?"hrw":""} ${s?s[2]:""}" data-hrw="${esc(w.id)}" data-hrd="${d}" title="${x?esc((s?s[0]:"")+(x.in?" · "+x.in:"")+(x.out?"–"+x.out:"")):""}">${s?s[1]:""}</td>`}).join("")}${["work","vac","sick","perm","unpaid","abs"].map(k=>`<td class="c"><b>${cnt[k]||""}</b></td>`).join("")}</tr>`}).join(""):`<tr><td colspan="${n+7}" class="note">İşçi siyahısı yüklənmədi.</td></tr>`}</table></div>`}
+function dayEditor(ym,W,A){
+  const day=H.day&&H.day.slice(0,7)===ym?H.day:(todayISO().slice(0,7)===ym?todayISO():ym+"-01");H.day=day;
+  return `<div class="card" id="hrDay" style="margin-top:12px"><h3>Gün qeydi</h3><label class="f"><span>Tarix</span><input type="date" id="hrDate" value="${day}"></label>
+   <div class="maptbl"><table class="ltbl"><tr><th style="text-align:left">İşçi</th><th>Vəziyyət</th><th>Giriş</th><th>Çıxış</th></tr>${W.map(w=>{const x=(A[w.id]||{})[day]||{};return `<tr><td>${esc(w.name)}</td><td><select data-hs="${esc(w.id)}" style="min-height:34px"><option value="">— qeyd yoxdur —</option>${Object.entries(ST).map(([k,v])=>`<option value="${k}"${x.st===k?" selected":""}>${esc(v[0])}</option>`).join("")}</select></td><td><input type="time" data-hi="${esc(w.id)}" value="${esc(x.in||"")}" style="min-height:34px"></td><td><input type="time" data-ho="${esc(w.id)}" value="${esc(x.out||"")}" style="min-height:34px"></td></tr>`}).join("")}</table></div>
+   <div class="actions"><button class="btn sm" id="hrAllWork">Hamısı "İşdə"</button><button class="btn pri" id="hrDaySave">Günü saxla</button></div><p class="note" id="hrDayMsg" style="margin:0"></p></div>`}
+function bindMatrix(box,d,W,A){
+  const pick=day=>{H.day=day;drawHr().then(()=>{const e=document.getElementById("hrDay");if(e)e.scrollIntoView({behavior:"smooth",block:"start"})})};
+  box.querySelectorAll("[data-hrday]").forEach(a=>a.onclick=e=>{e.preventDefault();pick(H.ym+"-"+dd(a.dataset.hrday))});
+  box.querySelectorAll("[data-hrw]").forEach(c=>c.onclick=()=>pick(H.ym+"-"+dd(c.dataset.hrd)));
+  const dt=box.querySelector("#hrDate");if(dt)dt.onchange=()=>{if(dt.value){H.day=dt.value;if(dt.value.slice(0,7)!==H.ym)H.ym=dt.value.slice(0,7);drawHr()}};
+  const all=box.querySelector("#hrAllWork");if(all)all.onclick=()=>box.querySelectorAll("[data-hs]").forEach(s=>{if(!s.value)s.value="work"});
+  const sv=box.querySelector("#hrDaySave");if(sv)sv.onclick=async()=>{
+    if(H.busy)return;const day=H.day,msg=$("#hrDayMsg");let n=0,bad=0;const todo=[];
+    box.querySelectorAll("[data-hs]").forEach(s=>{const id=s.dataset.hs,x=(A[id]||{})[day]||{},st=s.value,i=box.querySelector(`[data-hi="${id}"]`).value,o=box.querySelector(`[data-ho="${id}"]`).value;
+      if((x.st||"")!==st||(x.in||"")!==i||(x.out||"")!==o)todo.push({op:"day",wid:id,date:day,st,in:st?i:"",out:st?o:""})});
+    if(!todo.length){msg.textContent="Dəyişiklik yoxdur";return}
+    H.busy=true;sv.disabled=true;
+    for(const p of todo){msg.textContent="Saxlanılır… "+(n+bad)+"/"+todo.length;try{await api("hr_op",p);n++}catch(e){bad++;if(e.message==="forbidden"||e.message==="unknown_action")break}}
+    H.busy=false;toast(bad?"Saxlanıldı: "+n+", alınmadı: "+bad:"Gün saxlanıldı ("+n+" işçi)");drawHr()}}
+
+/* ---------- Maaş hesablaması ---------- */
+async function hrBonus(ym){
+  const out={};
+  try{
+    if(!state.itemRows)state.itemRows=await loadItems(()=>{});
+    await loadRatings(false);
+    const R=state.ratings||{},OT=onTimeMap(),IT={};(state.itemRows||[]).forEach(x=>{const o=IT[x.id]=IT[x.id]||{bad:0,rep:0};if(x.kind==="Yararsız")o.bad++;else o.rep++});
+    const reps=listItems().filter(s=>!(state.reports[s.id]&&state.reports[s.id].sample)&&String(s.date||"").slice(0,7)===ym);
+    const W={},mk=k=>W[k]=W[k]||{name:k,list:[],plan:0,em:0,diag:0,other:0,dev:0,ok:0,late:0,fill:[],bad:0,rep:0,sc:[]};
+    reps.forEach(s=>{const k=whoOf(s),w=mk(k);w.list.push(s);const t=s.type||"";if(t==="Planlı profilaktik servis"||!t)w.plan++;else if(t==="Qəza çağırışı")w.em++;else if(t==="Diaqnostika")w.diag++;else w.other++;
+      w.dev+=s.devn||1;if(s.id in OT){if(OT[s.id]<=7)w.ok++;else w.late++}if(s.fill!=null&&s.fill!=="")w.fill.push(+s.fill);
+      const it=IT[s.id];if(it){w.bad+=it.bad;w.rep+=it.rep}if(R[s.id]&&R[s.id].score)w.sc.push(R[s.id].score)});
+    reps.forEach(s=>teamOfItem(s).forEach(m=>{const k=Object.keys(W).find(x=>nameKey(x)===nameKey(m.n))||String(m.n).trim(),w=mk(k);
+      (w.help=w.help||[]).push(s);if(s.id in OT){if(OT[s.id]<=7)w.ok++;else w.late++}if(s.fill!=null&&s.fill!=="")w.fill.push(+s.fill);if(R[s.id]&&R[s.id].score)w.sc.push(R[s.id].score)}));
+    const B=bonusCfg();Object.values(W).forEach(w=>{out[nameKey(w.name)]=workerBonus(w,B,OT)});
+    out.__ok=true}
+  catch(e){out.__err=String(e&&e.message||e)}
+  return out}
+function calcPay(ym,W,d,cfg,bonus){
+  const rl=cfg.cfg.rules||{},wk=+rl.wd>0?+rl.wd:wdCount(ym),on=cfg.cfg.on||{},CW=cfg.w||{};
+  return W.map(w=>{const c=CW[w.id]||{},base=+c.base||0,pct=+c.comm||0,daily=wk?base/wk:0,cnt={};
+    (d.att||[]).filter(x=>x.wid===w.id).forEach(x=>{cnt[x.st]=(cnt[x.st]||0)+1});
+    const cutAbs=daily*(cnt.abs||0)*(+rl.abs||0),cutUn=daily*(cnt.unpaid||0),cutSick=daily*(cnt.sick||0)*(1-(+rl.sick)/100),cut=R2(cutAbs+cutUn+cutSick);
+    const sum=t=>R2((d.adj||[]).filter(x=>x.wid===w.id&&x.st===t).reduce((a,x)=>a+x.amt,0));
+    const bn=bonus[nameKey(w.name)],bonusV=bn?R2(bn.sum):0,satis=sum("satis"),comm=on.comm?R2(satis*pct/100):0,prem=sum("premiya"),avans=sum("avans"),cer=sum("cerime"),tut=sum("tutulma");
+    const gross=R2(base-cut+bonusV+comm+prem),net=R2(gross-avans-cer-tut);
+    return {w,base,pct,wk,cnt,cut,bonus:bonusV,satis,comm,prem,avans,cer,tut,gross,net}})}
+async function renderHrPay(){
+  state.view="hrpay";$("#tabs").hidden=true;$("#hBack").hidden=false;$("#hSettings").hidden=true;$("#hTitle").innerHTML='Maaş<small>Hesablama və ödəniş</small>';
+  H.pym=H.pym||monthNow();
+  $("#main").innerHTML=`<h2 class="sec">Maaş hesablaması</h2><div id="payBox"><p class="note">Yüklənir…</p></div><button class="btn ghost" id="payBack">← Geri</button>`;
+  $("#payBack").onclick=renderHome;window.scrollTo(0,0);
+  const c=await loadCfg(true);if(state.view!=="hrpay")return;
+  if(!c||c.off||!c.cfg){$("#payBox").innerHTML=`<p class="note">${esc(c&&c.err||"Server bağlantısı yoxdur")}</p>`;return}
+  if(!H.me.pay){$("#payBox").innerHTML='<p class="note">Maaş bölməsi üçün icazəniz yoxdur. Rəhbər işçilər siyahısında icazə verə bilər.</p>';return}
+  if(!cfgOn("pay")){$("#payBox").innerHTML='<p class="note">Maaş hesablaması Ayarlarda söndürülüb.</p>';return}
+  await loadWorkers(true);drawPay()}
+let payCache={ym:"",bonus:null};
+async function drawPay(){
+  const box=$("#payBox");if(!box||state.view!=="hrpay")return;
+  const ym=H.pym;let d;
+  try{d=await api("hr_month",{ym})}catch(e){box.innerHTML=`<p class="note">${esc(errTxt(e))}</p>`;return}
+  if(state.view!=="hrpay")return;
+  const cfg=H.cfg,W=(H.workers||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,"az"));
+  const needB=payCache.ym!==ym||!payCache.bonus;
+  const paint=bonus=>{
+    if(state.view!=="hrpay"||H.pym!==ym)return;
+    const P=calcPay(ym,W,d,cfg,bonus),rl=cfg.cfg.rules||{},wk=+rl.wd>0?+rl.wd:wdCount(ym),commOn=cfgOn("comm");
+    const tot=k=>R2(P.reduce((a,x)=>a+x[k],0));
+    box.innerHTML=monthBar(ym,"payM")+`<p class="hint" style="margin-top:0">İş günü sayı: <b>${wk}</b>${+rl.wd>0?" (əl ilə)":" (həftə içi günlər)"}. Qeyd olunmayan gün işdə sayılır. Qayıb günün tutulması: gündəlik maaş × ${esc(String(rl.abs))}; xəstəlik günü maaşın ${esc(String(rl.sick))}%-i ödənilir; haqqsız icazə tam tutulur. Mükafat İşçi panelindəki xal sistemindən götürülür.${bonus.__err?` <b>Mükafat hesablanmadı: ${esc(bonus.__err)}</b>`:""}</p>
+    <div class="maptbl"><table class="ltbl"><tr><th style="text-align:left">İşçi</th><th>Sabit maaş</th>${commOn?"<th>Satış %</th>":""}<th>Qayıb / haqqsız / xəstə</th><th>Davamiyyət tutulması</th><th>Mükafat</th>${commOn?"<th>Satış faizi</th>":""}<th>Əlavə</th><th>Avans</th><th>Cərimə və tutulma</th><th>Yekun, ₼</th></tr>
+    ${P.map(x=>`<tr><td>${esc(x.w.name)}</td><td><input class="num" inputmode="decimal" data-pb="${esc(x.w.id)}" value="${x.base||""}" placeholder="0" style="width:90px;min-height:34px;padding:5px 8px"></td>${commOn?`<td><input class="num" inputmode="decimal" data-pc="${esc(x.w.id)}" value="${x.pct||""}" placeholder="0" style="width:60px;min-height:34px;padding:5px 8px"></td>`:""}<td class="c">${x.cnt.abs||0} / ${x.cnt.unpaid||0} / ${x.cnt.sick||0}</td><td class="c">${x.cut?"− "+money(x.cut):"—"}</td><td class="c">${x.bonus?money(x.bonus):"—"}</td>${commOn?`<td class="c">${x.comm?money(x.comm):"—"}${x.satis?`<br><span class="note">baza ${money(x.satis)}</span>`:""}</td>`:""}<td class="c">${x.prem?money(x.prem):"—"}</td><td class="c">${x.avans?"− "+money(x.avans):"—"}</td><td class="c">${x.cer+x.tut?"− "+money(x.cer+x.tut):"—"}</td><td class="c"><b>${money(x.net)}</b></td></tr>`).join("")}
+    <tr><td><b>Cəmi</b></td><td class="c"><b>${money(tot("base"))}</b></td>${commOn?"<td></td>":""}<td></td><td class="c">${tot("cut")?"− "+money(tot("cut")):"—"}</td><td class="c">${money(tot("bonus"))}</td>${commOn?`<td class="c">${money(tot("comm"))}</td>`:""}<td class="c">${money(tot("prem"))}</td><td class="c">${tot("avans")?"− "+money(tot("avans")):"—"}</td><td class="c">${money(R2(tot("cer")+tot("tut")))}</td><td class="c"><b>${money(tot("net"))}</b></td></tr></table></div>
+    <div class="actions"><button class="btn" id="payPdf">PDF</button><button class="btn" id="payXls">Excel</button><button class="btn ghost" id="payRe">Mükafatı yenidən hesabla</button></div>
+    <div class="card" style="margin-top:12px"><h3>Avans, cərimə, əlavə${commOn?" və satış məbləği":""}</h3>
+     <div class="grid2"><label class="f"><span>İşçi</span><select id="adW">${W.map(w=>`<option value="${esc(w.id)}">${esc(w.name)}</option>`).join("")}</select></label><label class="f"><span>Növ</span><select id="adT">${Object.entries(ADJT).filter(([k])=>k!=="satis"||commOn).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join("")}</select></label></div>
+     <div class="grid2"><label class="f"><span>Məbləğ, ₼</span><input class="num" inputmode="decimal" id="adA" placeholder="0"></label><label class="f"><span>Qeyd</span><input id="adN" placeholder="məs. 12 noyabr avansı"></label></div>
+     <div class="actions"><button class="btn pri" id="adAdd">Əlavə et</button></div>
+     ${(d.adj||[]).length?`<div class="maptbl"><table class="ltbl"><tr><th style="text-align:left">İşçi</th><th>Növ</th><th>Məbləğ</th><th style="text-align:left">Qeyd</th><th></th></tr>${(d.adj||[]).map(x=>`<tr><td>${esc(x.name)}</td><td class="c">${esc(ADJT[x.st]||x.st)}</td><td class="c">${money(x.amt)}</td><td>${esc(x.note||"")}</td><td class="c"><button class="btn sm ghost" data-adel="${esc(x.id)}">Sil</button></td></tr>`).join("")}</table></div>`:'<p class="note" style="margin:0">Bu ay üçün qeyd yoxdur.</p>'}</div>
+    <p class="note">Yekun = sabit maaş − davamiyyət tutulması + mükafat + satış faizi + əlavə − avans − cərimə − digər tutulma.</p>`;
+    const nav=k=>{H.pym=k;drawPay()};
+    $("#payMP").onclick=()=>nav(ymAdd(ym,-1));$("#payMN").onclick=()=>nav(ymAdd(ym,1));$("#payMT").onclick=()=>nav(monthNow());
+    const saveW=async(id,patch)=>{const cur=(H.cfg.w||{})[id]||{};const nv={base:+cur.base||0,comm:+cur.comm||0,...patch};
+      try{await api("hr_cfg_set",{cfg:{w:{[id]:nv}}});H.cfg.w=H.cfg.w||{};H.cfg.w[id]=nv;toast("Saxlanıldı");paint(bonus)}catch(e){toast(errTxt(e))}};
+    const num=v=>{const n=parseFloat(String(v).replace(",","."));return isNaN(n)?0:n};
+    box.querySelectorAll("[data-pb]").forEach(i=>i.onchange=()=>saveW(i.dataset.pb,{base:Math.max(0,num(i.value))}));
+    box.querySelectorAll("[data-pc]").forEach(i=>i.onchange=()=>saveW(i.dataset.pc,{comm:Math.min(100,Math.max(0,num(i.value)))}));
+    $("#adAdd").onclick=async()=>{const a=num($("#adA").value);if(!a||a<=0){toast("Məbləği yazın");return}if(H.busy)return;H.busy=true;
+      try{await api("hr_op",{op:"adj_add",wid:$("#adW").value,type:$("#adT").value,amount:a,ym,note:$("#adN").value.trim()});toast("Əlavə edildi")}catch(e){toast(errTxt(e))}finally{H.busy=false}drawPay()};
+    box.querySelectorAll("[data-adel]").forEach(b=>b.onclick=async()=>{try{await api("hr_op",{op:"adj_del",id:b.dataset.adel});toast("Silindi")}catch(e){toast(errTxt(e))}drawPay()});
+    $("#payRe").onclick=()=>{payCache.bonus=null;drawPay()};
+    const exp=kind=>{const head=["İşçi","Sabit maaş","Satış %","Qayıb","Haqqsız icazə","Xəstəlik","Davamiyyət tutulması","Mükafat","Satış faizi","Əlavə","Avans","Cərimə","Digər tutulma","Yekun, ₼"];
+      const data=P.map(x=>[x.w.name,x.base,x.pct,x.cnt.abs||0,x.cnt.unpaid||0,x.cnt.sick||0,x.cut,x.bonus,x.comm,x.prem,x.avans,x.cer,x.tut,x.net]);
+      data.push(["Cəmi",tot("base"),"","","","",tot("cut"),tot("bonus"),tot("comm"),tot("prem"),tot("avans"),tot("cer"),tot("tut"),tot("net")]);
+      const ph=["İşçi","Sabit maaş","Tutulma (davamiyyət)","Mükafat","Satış faizi","Əlavə","Avans","Cərimə / tutulma","Yekun, ₼"];
+      const prow=P.map(x=>[x.w.name,money(x.base),x.cut?"− "+money(x.cut):"—",money(x.bonus),money(x.comm),money(x.prem),x.avans?"− "+money(x.avans):"—",x.cer+x.tut?"− "+money(x.cer+x.tut):"—",money(x.net)]);
+      prow.push(["Cəmi",money(tot("base")),tot("cut")?"− "+money(tot("cut")):"—",money(tot("bonus")),money(tot("comm")),money(tot("prem")),tot("avans")?"− "+money(tot("avans")):"—",money(R2(tot("cer")+tot("tut"))),money(tot("net"))]);
+      const body=`<div class="blk"><table style="font-size:9pt;table-layout:fixed;width:100%"><tr>${ph.map(h=>`<th style="white-space:normal;line-height:1.2">${esc(h)}</th>`).join("")}</tr>${prow.map((r,j)=>`<tr${j===prow.length-1?' style="font-weight:700"':""}>${r.map((v,i)=>`<td class="${i?"c":""}">${esc(v)}</td>`).join("")}</tr>`).join("")}</table><p style="font-size:8pt;margin:4px 0 0">İş günü sayı: ${wk}. Yekun = sabit maaş − davamiyyət tutulması + mükafat + satış faizi + əlavə − avans − cərimə − digər tutulma.</p></div>`;
+      prepareFolder().then(root=>exportDoc(kind,{title:"MAAŞ VƏRƏQİ",sub:ymLabel(ym),body,head,data,base:"Maas_"+ym,root,client:"_Siyahılar",tag:"hrpay",widths:[24,12,8,8,10,10,14,12,12,12,12,12,12,14]}))};
+    $("#payPdf").onclick=()=>exp("pdf");$("#payXls").onclick=()=>exp("xlsx")};
+  if(!needB){paint(payCache.bonus);return}
+  box.innerHTML=monthBar(ym,"payM")+'<p class="note">Mükafat hesablanır (köhnə hesabatlar oxunur)…</p>';
+  $("#payMP").onclick=()=>{H.pym=ymAdd(ym,-1);drawPay()};$("#payMN").onclick=()=>{H.pym=ymAdd(ym,1);drawPay()};$("#payMT").onclick=()=>{H.pym=monthNow();drawPay()};
+  const b=await hrBonus(ym);payCache={ym,bonus:b};paint(b)}
+
+/* ---------- Ayarlar: funksiyaların açar-bağlayarı ---------- */
+async function settingsCard(){
+  if(state.view!=="settings"||!hasServer()||state.me.role!=="admin")return;
+  const c=await loadCfg(true);if(state.view!=="settings"||document.getElementById("hrSet")||(c&&c.cfg&&!H.me.boss))return;
+  const m=document.getElementById("main");if(!m)return;
+  const anchor=document.getElementById("wkBox"),html=c&&c.cfg?hrSetHtml(c):`<div class="card" id="hrSet"><h3>İşçi heyəti funksiyaları</h3><p class="note" style="margin:0">${esc(c&&c.err||"Server bağlantısı yoxdur")}</p></div>`;
+  if(anchor)anchor.insertAdjacentHTML("beforebegin",html);else m.insertAdjacentHTML("beforeend",html);
+  const box=document.getElementById("hrSet");if(!box||!c||!c.cfg)return;
+  const save=async(patch,msg)=>{try{const r=await api("hr_cfg_set",{cfg:patch});H.cfg.cfg.on=r.cfg.on;H.cfg.cfg.rules=r.cfg.rules;H.at=Date.now();toast(msg||"Saxlanıldı")}catch(e){toast(errTxt(e))}};
+  box.querySelectorAll("[data-hon]").forEach(i=>i.onchange=()=>save({on:{[i.dataset.hon]:i.checked}},i.checked?"Funksiya açıldı":"Funksiya gizlədildi"));
+  box.querySelectorAll("[data-hrl]").forEach(i=>i.onchange=()=>{const v=parseFloat(String(i.value).replace(",","."));save({rules:{[i.dataset.hrl]:isNaN(v)?0:v}},"Qayda saxlanıldı")})}
+function hrSetHtml(c){
+  const on=c.cfg.on,rl=c.cfg.rules,ck=(k,l,n)=>`<label class="chk" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0"><input type="checkbox" data-hon="${k}" ${on[k]?"checked":""} style="margin-top:3px"><span><b>${l}</b><br><span class="note">${n}</span></span></label>`;
+  return `<div class="card" id="hrSet"><h3>İşçi heyəti funksiyaları</h3><p class="note" style="margin:0">Hər funksiyanı ayrıca aça və ya gizlədə bilərsiniz. Bağlananda əsas səhifədə düyməsi görünmür. Kimin nəyi görəcəyini işçilər siyahısında <b>İcazələr</b> düyməsi ilə seçin: <b>Davamiyyət və icazələr</b>, <b>Maaş hesablaması</b>.</p>
+   ${ck("att","Davamiyyət","İşçi özü “Gəldim / Getdim” basır. Rəhbər gün üzrə cədvəldə qeyd edir.")}
+   ${ck("lv","İcazə və məzuniyyət sorğusu","İşçi sorğu göndərir, rəhbər təsdiqləyir. Təsdiq olunan günlər cədvələ yazılır.")}
+   ${ck("pay","Maaş hesablaması","Sabit maaş, mükafat, davamiyyət tutulması, avans və cərimə. Yalnız icazəsi olanlara görünür.")}
+   ${ck("comm","Satış faizi","Satışdan işçiyə faiz. Faizi maaş səhifəsində hər işçi üçün yazırsınız.")}
+   <div class="grid2" style="margin-top:8px"><label class="f"><span>İş günü sayı (0 = həftə içi günlər)</span><input class="num" inputmode="decimal" data-hrl="wd" value="${esc(String(rl.wd))}"></label><label class="f"><span>Qayıb günün tutulma əmsalı</span><input class="num" inputmode="decimal" data-hrl="abs" value="${esc(String(rl.abs))}"></label></div>
+   <label class="f"><span>Xəstəlik gününün ödənilən payı, %</span><input class="num" inputmode="decimal" data-hrl="sick" value="${esc(String(rl.sick))}"></label></div>`}
+
+/* ---------- qoşulma ---------- */
+const _rh=renderHome;renderHome=function(){const r=_rh.apply(this,arguments);try{setTimeout(homeExtras,60)}catch(e){}return r};
+const _rs=renderSettings;renderSettings=function(){const r=_rs.apply(this,arguments);try{setTimeout(settingsCard,80)}catch(e){}return r};
+window.renderHr=renderHr;window.renderHrPay=renderHrPay;
+const css=document.createElement("style");css.textContent=".hrm td,.hrm th{padding:3px 5px;min-width:24px}.hrm .hrw{background:rgba(120,130,125,.16)}.hrm td.hrc{cursor:pointer;font-weight:700;font-size:11px}.hrc.ok{color:var(--ok)}.hrc.bad{color:var(--bad)}.hrc.warn{color:var(--warn)}.hrc.info{color:var(--accent)}.hrm td:first-child,.hrm th:first-child{position:sticky;left:0;background:var(--surface);z-index:1;text-align:left;min-width:110px;white-space:nowrap}.chip.info{background:rgba(42,93,176,.14);color:#2a5db0}";
+document.head.appendChild(css);
+}catch(e){console.log("hr",e)}})();
 </script>
 </body>
 </html>
