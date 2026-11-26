@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112611;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112710;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -983,13 +983,16 @@ window.ZSBT=(function(){const C={},AGE=5*60e3;
     Object.assign(DICT.ru=DICT.ru||{},{"Akkumulyatorların dinamikası — əvvəlki servislərlə müqayisə":"Динамика аккумуляторов — сравнение с предыдущими сервисами","Əvvəlki servislərlə müqayisə (dinamika)":"Сравнение с предыдущими сервисами (динамика)"})}}catch(e){}};
   const K=x=>snNorm(x),snOf=d=>String(d&&d.info&&d.info.sn||"").trim(),hasBat=d=>!!(d&&TYPES[d.type]&&TYPES[d.type].hasBat);
   const avg=L=>L.length?L.reduce((a,b)=>a+b,0)/L.length:null;
+  /* təsdiqlənməmiş hesabatların akkumulyator məlumatı dinamikaya düşmür (təsdiq tələbi APPR_SINCE-dən sonrakı və göndərilmiş hesabatlara aiddir) */
+  const apprOk=x=>{try{x=realOf(x);if(!x)return false;if(x.appr&&x.appr.at)return true;if(x.sub&&x.sub.at)return false;return String(x.svc&&x.svc.date||"").slice(0,10)<APPR_SINCE}catch(e){return true}};
+  const apprPt=p=>{try{const L=state.reports&&state.reports[p.id];if(L)return apprOk(L);const s=state.remote&&state.remote[p.id];if(s)return !!s.appr||(!s.sub&&String(s.date||p.d||"").slice(0,10)<APPR_SINCE);return true}catch(e){return true}};
   /* exact point from a report on this device (same calculation as the report itself) */
   function pointOf(r,i){const keep=CUR_TYPE,keepD=CUR_DEV;try{const d=r.devices[i];useType(d.type,d);const V=devProxy(r,i),a=analyze(V),ts=a.blocks.map(b=>b.t).filter(x=>x!==null);
       return {id:r.id,d:String(r.svc&&r.svc.date||"").slice(0,10),no:r.svc&&r.svc.repno||"",n:a.tested.length,ar:avg(a.rv),mr:a.rv.length?Math.max(...a.rv):null,av:avg(a.vv),mv:a.vv.length?Math.min(...a.vv):null,at:avg(ts),w:a.att.length,x:a.rep.length}}
     catch(e){return null}finally{useType(keep,keepD)}}
   function collect(r,i){r=realOf(r);const d=r.devices[i],k=K(snOf(d));const M={};
-    if(k&&C[k])C[k].pts.forEach(p=>{if(p.id!==r.id)M[p.id]=p});
-    if(k)Object.values(state.reports||{}).forEach(x=>{x=realOf(x);if(!x||x.sample||x.id===r.id||!Array.isArray(x.devices))return;
+    if(k&&C[k])C[k].pts.forEach(p=>{if(p.id!==r.id&&apprPt(p))M[p.id]=p});
+    if(k)Object.values(state.reports||{}).forEach(x=>{x=realOf(x);if(!x||x.sample||x.id===r.id||!Array.isArray(x.devices)||!apprOk(x))return;
       const j=x.devices.findIndex(dd=>hasBat(dd)&&K(snOf(dd))===k);if(j<0)return;const p=pointOf(x,j);if(p&&p.n)M[x.id]=p});
     const me=pointOf(r,i);if(me&&me.n){me.cur=1;M[r.id]=me}
     const B=d.bat||{};return btEval(Object.values(M),{warn:B.warn,fail:B.fail,inst:typeof batInstEff==="function"?batInstEff(B):B.inst})}
@@ -5201,7 +5204,8 @@ window.ZSLOC=(function(){
     document.addEventListener("visibilitychange",()=>{if(!document.hidden){flush();if(mode==="fg"&&watchId===null)fg()}})}
   function stop(){started=false;try{if(watchId!==null)navigator.geolocation.clearWatch(watchId)}catch(e){}watchId=null;
     try{const bg=BG();if(bg&&bgId)bg.removeWatcher({id:bgId})}catch(e){}bgId=null;clearInterval(timer);timer=null}
-  function tick(){if(!started)return;const ev=((cfg&&cfg.every)||3)*60000;if(last&&Date.now()-lastQ>=ev-5000)queue(mode);else flush();try{geoRep()}catch(e){}
+  function getPos(){try{if(last||!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(p=>onPos({la:p.coords.latitude,lo:p.coords.longitude,a:p.coords.accuracy,t:p.timestamp}),()=>{},{enableHighAccuracy:false,timeout:20000,maximumAge:300000})}catch(e){}}
+  function tick(){if(!started)return;if(!last)getPos();const ev=((cfg&&cfg.every)||3)*60000;if(last&&Date.now()-lastQ>=ev-5000)queue(mode);else flush();try{geoRep()}catch(e){}
     if(Date.now()-cfgAt>30*60000)loadCfg()}
   async function loadCfg(){if(!srv())return;cfgAt=Date.now();try{const r=await api("loc_cfg",{});cfg=r.cfg||null;lss(KCFG,cfg)}catch(e){}
     if(cfg&&cfg.me)start();else if(started)stop()}
@@ -5263,7 +5267,7 @@ window.ZSLOC=(function(){
     const l=document.getElementById("locList");if(!l)return;const on=!r.cfg||r.cfg.on;
     l.innerHTML=(on?"":`<p class="note" style="color:var(--bad)">İzləmə söndürülüb — telefonlar yer göndərmir.</p>`)+`<div style="display:grid;gap:4px">${rows.map(x=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:5px 0">
         <span style="width:12px;height:12px;border-radius:50%;background:${x.p&&Date.now()-x.p.t<30*60000?x.c:"#9AA3A0"};flex:none"></span><b style="min-width:120px">${esc(x.w.name)}</b>
-        <span class="note" style="flex:1">${off.includes(x.w.id)?"izlənmir":x.p?ago(x.p.t)+(x.p.a?" · ±"+Math.round(x.p.a)+" m":"")+(x.p.bt!=null?" · 🔋"+x.p.bt+"%":""):"hələ yer göndərməyib"}</span>
+        <span class="note" style="flex:1">${off.includes(x.w.id)?"izlənmir":x.p?ago(x.p.t)+(x.p.a?" · ±"+Math.round(x.p.a)+" m":"")+(x.p.bt!=null?" · 🔋"+x.p.bt+"%":""):"hələ yer göndərməyib — işçi telefonda proqramı açıb “Razıyam” demək və yerə icazə verməlidir"}</span>
         ${x.p?`<button class="btn sm" data-lsh="${esc(x.w.id)}">Xəritədə</button>`:""}<button class="btn sm" data-lrt="${esc(x.w.id)}">Marşrut</button></div>`).join("")}</div>`;
     l.querySelectorAll("[data-lsh]").forEach(b=>b.onclick=()=>{const p=byW[b.dataset.lsh];if(S.wid){S.wid="";drawLast(false)}if(S.map&&p){S.map.setView([p.la,p.lo],16);document.getElementById("locMap").scrollIntoView({behavior:"smooth",block:"center"})}else if(p)window.open(mapLink(p),"_blank")});
     l.querySelectorAll("[data-lrt]").forEach(b=>b.onclick=()=>route(b.dataset.lrt,S.date||today()))}
@@ -5747,6 +5751,8 @@ Object.defineProperty(window,"ZS_RN",{configurable:true,get:function(){return wr
 }catch(e){console.log("zs rn",e)}})();
 /* "Planlı servis yaxınlaşır": müştəriyə toxunanda köhnə təsdiqlənmiş hesabat açılmır — yeni hesabat başlayır, köhnə dəyişmir */
 ;(function(){try{document.addEventListener("click",async function(e){var b=e.target&&e.target.closest&&e.target.closest("[data-upc]");if(!b)return;e.preventDefault();e.stopPropagation();b.disabled=true;var src;try{src=normalize(clone(await getFull(b.dataset.upc)))}catch(err){b.disabled=false;toast("Köçürmək üçün internet lazımdır");return}b.disabled=false;copyChoice(src)},true)}catch(e){console.log("zs upc",e)}})();
+/* mobil ekrana uyğunluq və süzgəc düymələrinin aktiv rəngi */
+;(function(){try{var s=document.createElement("style");s.textContent='.filters button[aria-pressed="true"]{background:var(--accent,#0E6A5B);color:#fff;border-color:var(--accent,#0E6A5B);box-shadow:0 1px 4px rgba(0,0,0,.25)}.filters button[aria-pressed="true"] .note{color:#fff;opacity:.9}html,body{max-width:100%;overflow-x:clip}.top .bar{flex-wrap:wrap;row-gap:6px}.top .brand{flex:1 1 150px}@media (max-width:480px){.top .bar{padding:8px 10px;gap:6px 8px}.top .brand{flex:1 1 100%;order:-1}.top .bar .btn.sm{padding-left:8px;padding-right:8px}}';document.head.appendChild(s)}catch(e){console.log("zs css",e)}})();
 </script>
 </body>
 </html>
