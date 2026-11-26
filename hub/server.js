@@ -408,7 +408,7 @@ const ACTIONS = {
   bat_trend: (u, b) => {
     const k = btSnK(b.sn); if (!k) return { pts: [] }; const pts = [];
     for (const rec of reports.values()) {
-      const r = rec.report; if (!r || !Array.isArray(r.devices) || r.sample) continue;
+      const r = rec.report; if (!r || !Array.isArray(r.devices) || r.sample) continue; if (!(r.appr && r.appr.at) && String((r.svc && r.svc.date) || '').slice(0, 10) >= '2026-10-01') continue;
       const j = r.devices.findIndex(d => d && d.info && btSnK(d.info.sn) === k && d.bat); if (j < 0) continue;
       const B = r.devices[j].bat, tot = Math.max(0, Math.floor(+B.per || 0) * Math.floor(+B.str || 0));
       let rows = (rec.blocks || []).filter(x => Array.isArray(x) && x.length > 7 && btSnK(x[7]) === k).map(x => ({ v: x[3], r: x[4], t: x[5], st: x[6] }));
