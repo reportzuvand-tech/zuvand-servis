@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112712;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112713;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -4089,16 +4089,16 @@ function renderCustomers(){if(!svCan("cust")){toast("Bu bölmə yalnız rəhbər
   if(state.cuVia&&!VIA[state.cuVia])state.cuVia="";const via=state.cuVia||"",viaName=via?VIA[via].name:"";
   const match=c=>(!via||c.payers.some(p=>cuKey(p)===via))&&(!q||nkHas([c.name,c.objs.join(" "),c.payers.join(" "),c.addr,...c.devs.map(d=>[d.brand,d.model,d.sn,d.loc].join(" "))].join(" "),q));
   const list=book.filter(match),nDev=list.reduce((x,c)=>x+c.devs.length,0),cur=sel?book.find(c=>cuKey(c.name)===sel):null;
-  const devRow=(d,i)=>`<tr><td class="c">${i+1}</td><td>${esc(d.tt||"")}</td><td><b>${esc([d.brand,d.model].filter(Boolean).join(" ")||"—")}</b>${d.kva?" · "+esc(d.kva)+" kVA":""}</td><td class="mono">${esc(d.sn||"—")}</td><td>${esc(d.loc||"")}</td><td class="c">${esc(fmtDate(d.last)||"")}</td><td class="c">${d.n}</td><td class="c">${esc(fmtDate(d.next)||"")}</td><td>${d.lastId?`<button class="btn sm" data-cuopen="${esc(d.lastId)}">Son hesabat</button>`:""}</td></tr>`;
+  const devRow=(d,i)=>`<tr><td class="c">${i+1}</td><td>${esc(d.tt||"")}</td><td><b>${esc([d.brand,d.model].filter(Boolean).join(" ")||"—")}</b>${d.kva?" · "+esc(d.kva)+" kVA":""}</td><td class="mono">${esc(d.sn||"—")}</td><td>${esc(d.loc||"")}</td><td class="c">${esc(fmtDate(d.last)||"")}</td><td class="c">${d.n}</td><td class="c">${esc(fmtDate(d.next)||"")}</td><td>${d.lastId?`<button class="btn sm" data-cuopen="${esc(d.lastId)}">Son hesabat</button>`:""}${d.sn?` <button class="btn sm" data-cuhist="${esc(d.sn)}">Tarixçə</button>`:""}</td></tr>`;
   const devTable=c=>c.devs.length?`<div class="tw" style="overflow-x:auto"><table class="cut"><tr><th>#</th><th>Növ</th><th>Marka / model</th><th>Seriya №</th><th>Yerləşmə</th><th>Son servis</th><th>Servis sayı</th><th>Növbəti</th><th></th></tr>${c.devs.map(devRow).join("")}</table></div>`:'<p class="note" style="margin:0">Cihaz məlumatı yoxdur.</p>';
   let h=`<h2 class="sec">Müştərilər və cihazlar</h2><p class="hint">Siyahı bütün servis hesabatlarından avtomatik toplanır: müştəri, obyektlər, əlaqə və hər cihaz (seriya № üzrə bir dəfə), son və növbəti servis. Müştəriyə basın — onun cihazları açılır.</p>
    <div class="card"><div class="actions" style="align-items:center"><input id="cuQ" type="search" placeholder="Axtar: müştəri, vasitəçi, obyekt, model, seriya №" value="${esc(state.cuQ||"")}" style="flex:1;min-width:200px">
      ${vias.length?`<select id="cuVia" style="max-width:280px" title="Vasitəçi şirkət"><option value="">Vasitəçi şirkət: hamısı</option>${vias.map(([k,v])=>`<option value="${esc(k)}"${k===via?" selected":""}>${esc(v.name)} · ${v.n} müştəri</option>`).join("")}</select>`:""}
      <button class="btn pri" id="cuPdf">PDF</button><button class="btn" id="cuXls">Excel</button>${listFolderBtn("cust")}</div>
-     <p class="note" style="margin:6px 0 0">${via?"Vasitəçi: <b>"+esc(viaName)+"</b> · ":""}${list.length} müştəri · ${nDev} cihaz${q?" (axtarışa uyğun)":""} · PDF / Excel ${cur?"<b>seçilən müştərini</b>":"görünən siyahını"} çıxarır.</p></div>`;
+     <p class="note" style="margin:6px 0 0">${via?"Vasitəçi: <b>"+esc(viaName)+"</b> · ":""}${list.length} müştəri · ${nDev} cihaz${q?" (axtarışa uyğun)":""} · PDF / Excel ${cur?"<b>seçilən müştərini</b>":"görünən siyahını"} çıxarır.</p><div class="actions" style="margin-top:8px"><input id="cuSn" type="search" placeholder="Seriya № yazın — cihazın tam tarixçəsi" style="flex:1;min-width:200px"><button class="btn pri" id="cuSnGo">Cihaz tarixçəsi</button></div></div>`;
   /* an intermediary chosen (or found by search): all devices of its customers in one table */
   if(!cur&&(via||(q&&list.length&&list.every(c=>c.payers.some(p=>nkHas(p,q)))))){const rows=[];list.forEach(c=>c.devs.forEach(d=>rows.push({c,d})));
-    h+=`<div class="card"><h3>${via?esc(viaName):"Vasitəçi şirkət üzrə"} — bütün cihazlar · ${rows.length}</h3>${rows.length?`<div class="tw" style="overflow-x:auto"><table class="cut"><tr><th>#</th><th>Müştəri / obyekt</th><th>Növ</th><th>Marka / model</th><th>Seriya №</th><th>Yerləşmə</th><th>Son servis</th><th>Növbəti</th><th></th></tr>${rows.map(({c,d},i)=>`<tr><td class="c">${i+1}</td><td><b>${esc(c.name)}</b></td><td>${esc(d.tt||"")}</td><td>${esc([d.brand,d.model].filter(Boolean).join(" ")||"—")}${d.kva?" · "+esc(d.kva)+" kVA":""}</td><td class="mono">${esc(d.sn||"—")}</td><td>${esc(d.loc||"")}</td><td class="c">${esc(fmtDate(d.last)||"")}</td><td class="c">${esc(fmtDate(d.next)||"")}</td><td>${d.lastId?`<button class="btn sm" data-cuopen="${esc(d.lastId)}">Son hesabat</button>`:""}</td></tr>`).join("")}</table></div>`:'<p class="note" style="margin:0">Cihaz məlumatı yoxdur.</p>'}</div>`}
+    h+=`<div class="card"><h3>${via?esc(viaName):"Vasitəçi şirkət üzrə"} — bütün cihazlar · ${rows.length}</h3>${rows.length?`<div class="tw" style="overflow-x:auto"><table class="cut"><tr><th>#</th><th>Müştəri / obyekt</th><th>Növ</th><th>Marka / model</th><th>Seriya №</th><th>Yerləşmə</th><th>Son servis</th><th>Növbəti</th><th></th></tr>${rows.map(({c,d},i)=>`<tr><td class="c">${i+1}</td><td><b>${esc(c.name)}</b></td><td>${esc(d.tt||"")}</td><td>${esc([d.brand,d.model].filter(Boolean).join(" ")||"—")}${d.kva?" · "+esc(d.kva)+" kVA":""}</td><td class="mono">${esc(d.sn||"—")}</td><td>${esc(d.loc||"")}</td><td class="c">${esc(fmtDate(d.last)||"")}</td><td class="c">${esc(fmtDate(d.next)||"")}</td><td>${d.lastId?`<button class="btn sm" data-cuopen="${esc(d.lastId)}">Son hesabat</button>`:""}${d.sn?` <button class="btn sm" data-cuhist="${esc(d.sn)}">Tarixçə</button>`:""}</td></tr>`).join("")}</table></div>`:'<p class="note" style="margin:0">Cihaz məlumatı yoxdur.</p>'}</div>`}
   if(cur){h+=`<div class="card"><div class="actions" style="justify-content:space-between;align-items:center"><h3 style="margin:0">${esc(cur.name)}</h3><button class="btn sm" id="cuAll">← Bütün müştərilər</button></div>
      <p class="note" style="margin:4px 0 8px">${[cur.objs.length?"Obyekt: "+cur.objs.join(", "):"",cur.addr?"Ünvan: "+cur.addr:"",cur.person?"Əlaqə: "+cur.person+(cur.tel?" · "+cur.tel:""):"",cur.payers.length?"Vasitəçi (hesab): "+cur.payers.join(", "):"",cur.reps+" hesabat · son servis "+(fmtDate(cur.last)||"—")+(cur.next?" · növbəti "+fmtDate(cur.next):"")].filter(Boolean).map(esc).join("<br>")}</p>${stopAdm()?`<label class="note" style="display:block;margin:0 0 8px"><input type="checkbox" id="cuStop"${stopMap()["c:"+nk(cur.name)]?" checked":""}> Servis müqaviləsi bitib / servis dayandırılıb (planlı servisə çıxmasın)</label>`:""}${devTable(cur)}</div>`}
   else h+=`<div class="rlist">${list.map(c=>`<button class="rcard" data-cu="${esc(cuKey(c.name))}"><span class="t">${esc(c.name)}</span><span class="chip">${c.devs.length} cihaz</span>${(()=>{if(!payOn())return "";const k=ckey(c.name),t=(PAY.items||[]).filter(x=>x.st==="inv"&&(ckey(x.client)===k||ckey(x.site)===k)).reduce((a,x)=>a+x.total,0);return t?`<span class="chip warn">borc ${azn(t)}</span>`:""})()}<span class="m"><span>${c.reps} hesabat</span><span>son: ${esc(fmtDate(c.last)||"—")}</span>${c.next?`<span>növbəti: ${esc(fmtDate(c.next))}</span>`:""}${c.objs.length?`<span>${esc(c.objs.slice(0,3).join(", "))}${c.objs.length>3?"…":""}</span>`:""}${c.payers.length?`<span class="chip">vasitəçi: ${esc(c.payers.join(", "))}</span>`:""}</span></button>`).join("")||'<div class="empty"><h3>Müştəri tapılmadı</h3></div>'}</div>`;
@@ -5786,6 +5786,36 @@ Object.defineProperty(window,"ZS_RN",{configurable:true,get:function(){return wr
 
 /*ZS-STOP*/document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-upstop],[data-stlist]");if(!b)return;e.preventDefault();e.stopPropagation();
   if(b.dataset.stlist){stopList();return}const x=upcomingAll().find(y=>y.id===b.dataset.upstop);if(x)stopDlg(x)},true);
+
+/*ZS-DHIST*/(function(){
+const fx=o=>typeof o==="string"?o:Object.values(o||{}).filter(x=>typeof x==="string"&&x).join(" · ");
+const pl=(o,l)=>[o,l].map(x=>String(x||"").trim()).filter(Boolean).join(", ");
+async function dev(sn){const k=String(sn||"").trim().toLowerCase();if(!k)return;
+  const w=document.createElement("div");w.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow:auto";
+  w.innerHTML=`<div class="card" style="max-width:760px;width:100%"><h3>Cihaz tarixçəsi · S/N ${esc(sn)}</h3><p class="note" id="dhB">Yüklənir…</p><div class="actions" style="margin-top:10px"><button class="btn" id="dhX">Bağla</button></div></div>`;
+  document.body.appendChild(w);w.querySelector("#dhX").onclick=()=>w.remove();const B=w.querySelector("#dhB");
+  const its=listItems().filter(it=>!(it.local&&state.reports[it.id]&&state.reports[it.id].sample)&&stopKeys(it).includes(k)).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+  if(!its.length){B.textContent="Bu seriya nömrəsi ilə hesabat tapılmadı.";return}
+  const E=[];let fail=0;
+  for(const it of its){try{const r=realOf(normalize(clone(await getFull(it.id)))),d=(r.devices||[]).find(x=>String(x.info&&x.info.sn||"").trim().toLowerCase()===k)||(r.devices||[])[0]||{},prof=SVC_PROF(r),st=(r.mv&&Array.isArray(r.mv.st))?r.mv.st:[];
+    E.push({id:it.id,date:(r.svc&&r.svc.date)||it.date||"",type:(r.svc&&r.svc.type)||"",no:(r.svc&&r.svc.repno)||"",cl:(r.cl&&r.cl.name)||it.client||"",obj:(r.cl&&r.cl.obj)||it.obj||"",loc:d.loc||"",eng:(r.svc&&r.svc.eng)||"",prof,st,parts:(d.parts||[]).filter(p=>p&&p.name),bad:(d.bad||[]).filter(p=>p&&p.name),ex:d.wExtra||"",notes:r.notes||"",model:[d.info&&d.info.brand,d.info&&d.info.model].filter(Boolean).join(" "),tt:(TYPES[d.type]||{}).title||""})}catch(e){fail++}}
+  const last=E[E.length-1]||{},chain=[];
+  E.forEach((e,ei)=>{if(e.prof==="mov"&&e.st.length){e.st.forEach((s,i)=>{if(i===0)chain.push((ei?E[ei-1].cl:e.cl)+(s.fo?" — "+s.fo:""));chain.push((e.cl)+(s.to?" — "+s.to:""))})}else chain.push(e.cl+(e.obj?" — "+e.obj:""))});
+  const ch=chain.filter((x,i)=>x&&x!==chain[i-1]);
+  const row=e=>`<div style="border-top:1px solid var(--line,#ddd);padding:10px 0"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>${esc(fmtDate(e.date)||"")} · ${esc(e.type||"")}</b><span class="note">${esc(e.no)}</span></div>
+   <div>${esc(e.cl)}${e.obj?" · "+esc(e.obj):""}${e.loc?" · "+esc(e.loc):""}</div>${e.eng?`<div class="note">Mühəndis: ${esc(e.eng)}</div>`:""}
+   ${e.st.length?e.st.map(s=>`<div style="margin-top:4px">➜ <b>Yerdəyişmə${s.date?" ("+esc(fmtDate(s.date))+")":""}:</b> ${esc(pl(s.fo,s.fl)||"…")} → ${esc(pl(s.to,s.tl)||"…")}${s.tr?` <span class="note">· ${esc(s.tr)}</span>`:""}</div>`).join(""):""}
+   ${e.parts.length?`<div style="margin-top:4px"><b>Dəyişdirilən / quraşdırılan detallar:</b> ${e.parts.map(p=>esc(fx({n:p.name,c:p.code,q:p.qty?"× "+p.qty:"",t:p.note}))).join("; ")}</div>`:""}
+   ${e.bad.length?`<div style="margin-top:4px;color:var(--bad)"><b>Nasaz detallar:</b> ${e.bad.map(p=>esc(fx({n:p.name,c:p.code,q:p.qty?"× "+p.qty:"",t:p.note}))).join("; ")}</div>`:""}
+   ${e.ex?`<div class="note" style="margin-top:4px">${esc(e.ex)}</div>`:""}
+   <div style="margin-top:6px"><button class="btn sm" data-dhopen="${esc(e.id)}">Hesabatı aç</button></div></div>`;
+  B.outerHTML=`<p class="note" style="margin:0 0 6px">${esc([last.tt,last.model].filter(Boolean).join(" · "))} · ${E.length} hesabat${fail?` (${fail} hesabat yüklənmədi — internet lazımdır)`:""}</p>
+   <div class="card" style="margin:6px 0"><b>Hazırkı yer:</b> ${esc(last.cl||"")}${last.obj?" · "+esc(last.obj):""}${last.loc?" · "+esc(last.loc):""}${ch.length>1?`<br><b>Yer zənciri:</b> ${ch.map(esc).join(" ➜ ")}`:""}</div>`+E.map(row).join("");
+  w.querySelectorAll("[data-dhopen]").forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=normalize(clone(await getFull(b.dataset.dhopen)));w.remove();openReport(r)}catch(e){b.disabled=false;toast("Hesabatı açmaq üçün internet lazımdır")}})}
+document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("[data-cuhist],#cuSnGo");if(!t)return;e.preventDefault();e.stopPropagation();
+  dev(t.id==="cuSnGo"?(document.getElementById("cuSn")||{}).value:t.dataset.cuhist)},true);
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target&&e.target.id==="cuSn"){e.preventDefault();dev(e.target.value)}},true);
+})();
 </script>
 </body>
 </html>
