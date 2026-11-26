@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112510;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112610;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -2134,7 +2134,7 @@ function upcomingAll(){const latest={};
     return {...it,days,at:due-REMIND_DAYS*864e5+9*3600e3}}).filter(Boolean).sort((a,b)=>a.days-b.days)}
 function upcomingBanner(){const u=upcomingAll().filter(x=>x.days<=REMIND_DAYS&&x.days>=-30);if(!u.length)return "";
   const when=d=>d<0?`<b style="color:var(--bad)">${-d} gün gecikir</b>`:d===0?"<b>bu gün</b>":d===1?"<b>sabah</b>":`<b>${d} gün sonra</b>`;
-  return `<details class="card remind" role="status"${localStorage.getItem("ups.pbOpen")!=="0"?" open":""} ontoggle="try{localStorage.setItem('ups.pbOpen',this.open?'1':'0')}catch(e){}"><summary style="cursor:pointer"><h3 style="display:inline">Planlı servis yaxınlaşır: ${u.length}</h3></summary><div style="margin-top:8px">${u.map(x=>`<button class="rrow" data-open="${esc(x.id)}"><span>${esc(x.client||"Adsız müştəri")}${x.obj?` · <span class="note">${esc(x.obj)}</span>`:""}<br><span class="note">${esc([x.brand,x.model].filter(Boolean).join(" "))}${x.sn?" · S/N "+esc(x.sn):""}</span></span><span style="text-align:right">${esc(fmtDate(x.next))}<br>${when(x.days)}</span></button>`).join("")}</div></details>`}
+  return `<details class="card remind" role="status"${localStorage.getItem("ups.pbOpen")!=="0"?" open":""} ontoggle="try{localStorage.setItem('ups.pbOpen',this.open?'1':'0')}catch(e){}"><summary style="cursor:pointer"><h3 style="display:inline">Planlı servis yaxınlaşır: ${u.length}</h3></summary><div style="margin-top:8px">${u.map(x=>`<button class="rrow" data-upc="${esc(x.id)}"><span>${esc(x.client||"Adsız müştəri")}${x.obj?` · <span class="note">${esc(x.obj)}</span>`:""}<br><span class="note">${esc([x.brand,x.model].filter(Boolean).join(" "))}${x.sn?" · S/N "+esc(x.sn):""}</span></span><span style="text-align:right">${esc(fmtDate(x.next))}<br>${when(x.days)}</span></button>`).join("")}</div></details>`}
 let remindSig="";
 async function scheduleReminders(){if(!IS_APP)return;
   try{const LN=(Capacitor.Plugins&&Capacitor.Plugins.LocalNotifications)||Capacitor.registerPlugin("LocalNotifications");
@@ -5743,6 +5743,8 @@ function inst(){try{return typeof SVC_PROF==="function"&&state&&state.rep&&SVC_P
 function wrap(o){if(last===o&&px)return px;last=o;px=new Proxy(o,{get:function(t,k){if(k==="Dəst"&&!inst())return undefined;return t[k]},has:function(t,k){if(k==="Dəst"&&!inst())return false;return k in t},ownKeys:function(t){var K=Reflect.ownKeys(t);return inst()?K:K.filter(function(x){return x!=="Dəst"})},getOwnPropertyDescriptor:function(t,k){if(k==="Dəst"&&!inst())return undefined;return Reflect.getOwnPropertyDescriptor(t,k)}});return px}
 Object.defineProperty(window,"ZS_RN",{configurable:true,get:function(){return wrap(raw)},set:function(v){raw=v||{}}});
 }catch(e){console.log("zs rn",e)}})();
+/* "Planlı servis yaxınlaşır": müştəriyə toxunanda köhnə təsdiqlənmiş hesabat açılmır — yeni hesabat başlayır, köhnə dəyişmir */
+;(function(){try{document.addEventListener("click",async function(e){var b=e.target&&e.target.closest&&e.target.closest("[data-upc]");if(!b)return;e.preventDefault();e.stopPropagation();b.disabled=true;var src;try{src=normalize(clone(await getFull(b.dataset.upc)))}catch(err){b.disabled=false;toast("Köçürmək üçün internet lazımdır");return}b.disabled=false;copyChoice(src)},true)}catch(e){console.log("zs upc",e)}})();
 </script>
 </body>
 </html>
