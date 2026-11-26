@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112710;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112711;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -2127,10 +2127,15 @@ function listItems(){
   return out}
 /* ---------------- planned-service reminders ---------------- */
 const REMIND_DAYS=2;
-function upcomingAll(){const latest={};
-  listItems().forEach(it=>{if(it.local&&state.reports[it.id]&&state.reports[it.id].sample)return;
-    const key=it.sn?"sn:"+String(it.sn).toLowerCase():"c:"+nk(it.client)+"|"+nk(it.obj);
-    if(!latest[key]||(it.date||"")>(latest[key].date||""))latest[key]=it});
+function upcomingAll(){const sk=s=>String(s||"").trim().toLowerCase(),ck=it=>nk(it.client)+"|"+nk(it.obj);
+  /* iş başqa yolla (plandan istifadə etmədən yeni hesabatla) görülübsə, planlı servis siyahıda qalmır: cihazın (bütün S/N-lər) və ya müştəri+obyektin daha yeni hesabatı varsa */
+  const info=listItems().filter(it=>!(it.local&&state.reports[it.id]&&state.reports[it.id].sample)).map(it=>{const K=String(it.sns||"").split("\n").map(l=>sk(l.split(" | ")[0])).filter(Boolean);if(it.sn&&!K.includes(sk(it.sn)))K.push(sk(it.sn));return {it,K,c:ck(it),d:it.date||""}});
+  const lastSn={},lastNoSn={};
+  info.forEach(x=>{x.K.forEach(k=>{if(!lastSn[k]||x.d>lastSn[k].d)lastSn[k]=x});if(!x.K.length&&(!lastNoSn[x.c]||x.d>lastNoSn[x.c].d))lastNoSn[x.c]=x});
+  const latest={};
+  info.forEach(x=>{const newerNoSn=lastNoSn[x.c]&&lastNoSn[x.c]!==x&&lastNoSn[x.c].d>x.d;let keep;
+    if(x.K.length)keep=x.K.some(k=>lastSn[k]===x)&&!newerNoSn;else keep=lastNoSn[x.c]===x&&!info.some(y=>y!==x&&y.K.length&&y.c===x.c&&y.d>x.d);
+    if(keep)latest[x.it.id]=x.it});
   const now=new Date(),t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
   return Object.values(latest).map(it=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(it.next||"");if(!m)return null;
     const due=new Date(+m[1],+m[2]-1,+m[3]).getTime(),days=Math.round((due-t0)/864e5);
