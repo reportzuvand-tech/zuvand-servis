@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112711;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112712;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -2127,6 +2127,29 @@ function listItems(){
   return out}
 /* ---------------- planned-service reminders ---------------- */
 const REMIND_DAYS=2;
+/* ---- planlı servisi dayandır: ZSTPL şablonunda (T.stop) saxlanır, bütün işçilərə server vasitəsilə çatır ---- */
+const stopMap=()=>{try{return (ZSTPL.raw()||{}).stop||{}}catch(e){return {}}};
+const stopAdm=()=>!!state.me&&(state.me.role==="admin"||!hasServer());
+const stopKeys=it=>{const o=[];String(it.sns||"").split("\n").forEach(l=>{const k=String(l.split(" | ")[0]||"").trim().toLowerCase();if(k&&!o.includes(k))o.push(k)});const s=String(it.sn||"").trim().toLowerCase();if(s&&!o.includes(s))o.push(s);return o};
+const stopOf=it=>{const M=stopMap();if(M["c:"+nk(it.client)])return M["c:"+nk(it.client)];const K=stopKeys(it);if(K.length&&K.every(k=>M["sn:"+k]))return M["sn:"+K[0]];return null};
+async function stopCommit(fn,msg){const T=JSON.parse(JSON.stringify(ZSTPL.raw()||{}));T.stop=T.stop||{};fn(T.stop);try{await ZSTPL.saveT(T);toast(msg||"Saxlandı");return true}catch(e){toast("Serverdə saxlanmadı: "+((e&&e.message)||e));return false}}
+function stopDlg(x){const has=!!stopKeys(x).length,today=new Date().toISOString().slice(0,10);
+  const w=document.createElement("div");w.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px";
+  w.innerHTML=`<div class="card" style="max-width:420px;width:100%;max-height:90vh;overflow:auto"><h3>Planlı servisi dayandır</h3><p class="note">${esc(x.client||"")}${x.sn?" · S/N "+esc(x.sn):""}</p>
+  <label style="display:block;margin:6px 0"><input type="radio" name="stT" value="c" checked> Bütün müştəri (müqavilə bitib / servis dayandırılıb)</label>
+  ${has?`<label style="display:block;margin:6px 0"><input type="radio" name="stT" value="d"> Yalnız bu cihaz${x.sn?" ("+esc(x.sn)+")":""}</label>`:""}
+  <label style="display:block;margin:8px 0 2px">Səbəb</label><input id="stW" type="text" placeholder="məs. müqavilə bitib" style="width:100%">
+  <label style="display:block;margin:8px 0 2px">Tarix</label><input id="stD" type="date" value="${today}" style="width:100%">
+  <div class="actions" style="margin-top:12px"><button class="btn pri" id="stOk">Dayandır</button><button class="btn" id="stNo">Ləğv et</button></div></div>`;
+  document.body.appendChild(w);w.querySelector("#stNo").onclick=()=>w.remove();
+  w.querySelector("#stOk").onclick=async()=>{const t=(w.querySelector('input[name=stT]:checked')||{}).value||"c",why=w.querySelector("#stW").value.trim().slice(0,120),at=w.querySelector("#stD").value||today,by=(state.me&&state.me.name)||"";
+    const ent={at,why,by,client:x.client||"",sn:t==="d"?(x.sn||""):""};
+    const ok=await stopCommit(S=>{if(t==="c")S["c:"+nk(x.client)]=ent;else stopKeys(x).forEach(k=>{S["sn:"+k]=ent})},"Planlı servis dayandırıldı");
+    if(ok){w.remove();renderHome()}}}
+function stopList(){const M=stopMap(),ks=Object.keys(M),w=document.createElement("div");w.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px";
+  w.innerHTML=`<div class="card" style="max-width:520px;width:100%;max-height:90vh;overflow:auto"><h3>Dayandırılmış servislər: ${ks.length}</h3>${ks.length?ks.map(k=>{const e=M[k];return `<div style="border-top:1px solid var(--line,#ddd);padding:8px 0"><b>${esc(e.client||k)}</b>${e.sn?" · S/N "+esc(e.sn):" · bütün müştəri"}<br><span class="note">${esc(fmtDate(e.at)||"")}${e.why?" · "+esc(e.why):""}${e.by?" · "+esc(e.by):""}</span><br><button class="btn sm" data-rs="${esc(k)}">Bərpa et</button></div>`}).join(""):'<p class="note">Boşdur.</p>'}<div class="actions" style="margin-top:12px"><button class="btn" id="stX">Bağla</button></div></div>`;
+  document.body.appendChild(w);w.querySelector("#stX").onclick=()=>w.remove();
+  w.querySelectorAll("[data-rs]").forEach(b=>b.onclick=async()=>{b.disabled=true;const k=b.dataset.rs;if(await stopCommit(S=>{const e=S[k];if(e&&k.indexOf("sn:")===0){Object.keys(S).forEach(q=>{if(S[q]&&S[q].at===e.at&&S[q].client===e.client&&S[q].sn===e.sn)delete S[q]})}else delete S[k]},"Bərpa olundu")){w.remove();renderHome()}else b.disabled=false})}
 function upcomingAll(){const sk=s=>String(s||"").trim().toLowerCase(),ck=it=>nk(it.client)+"|"+nk(it.obj);
   /* iş başqa yolla (plandan istifadə etmədən yeni hesabatla) görülübsə, planlı servis siyahıda qalmır: cihazın (bütün S/N-lər) və ya müştəri+obyektin daha yeni hesabatı varsa */
   const info=listItems().filter(it=>!(it.local&&state.reports[it.id]&&state.reports[it.id].sample)).map(it=>{const K=String(it.sns||"").split("\n").map(l=>sk(l.split(" | ")[0])).filter(Boolean);if(it.sn&&!K.includes(sk(it.sn)))K.push(sk(it.sn));return {it,K,c:ck(it),d:it.date||""}});
@@ -2139,10 +2162,10 @@ function upcomingAll(){const sk=s=>String(s||"").trim().toLowerCase(),ck=it=>nk(
   const now=new Date(),t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
   return Object.values(latest).map(it=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(it.next||"");if(!m)return null;
     const due=new Date(+m[1],+m[2]-1,+m[3]).getTime(),days=Math.round((due-t0)/864e5);
-    return {...it,days,at:due-REMIND_DAYS*864e5+9*3600e3}}).filter(Boolean).sort((a,b)=>a.days-b.days)}
-function upcomingBanner(){const u=upcomingAll().filter(x=>x.days<=REMIND_DAYS&&x.days>=-30);if(!u.length)return "";
+    return {...it,days,at:due-REMIND_DAYS*864e5+9*3600e3}}).filter(Boolean).filter(x=>!stopOf(x)).sort((a,b)=>a.days-b.days)}
+function upcomingBanner(){const u=upcomingAll().filter(x=>x.days<=REMIND_DAYS&&x.days>=-30),nst=Object.keys(stopMap()).length,sl=stopAdm()&&nst?`<p class="note" style="margin:6px 0 0"><button class="btn sm" data-stlist="1">Dayandırılmış servislər: ${nst}</button></p>`:"";if(!u.length)return sl?`<div class="card">${sl}</div>`:"";
   const when=d=>d<0?`<b style="color:var(--bad)">${-d} gün gecikir</b>`:d===0?"<b>bu gün</b>":d===1?"<b>sabah</b>":`<b>${d} gün sonra</b>`;
-  return `<details class="card remind" role="status"${localStorage.getItem("ups.pbOpen")!=="0"?" open":""} ontoggle="try{localStorage.setItem('ups.pbOpen',this.open?'1':'0')}catch(e){}"><summary style="cursor:pointer"><h3 style="display:inline">Planlı servis yaxınlaşır: ${u.length}</h3></summary><div style="margin-top:8px">${u.map(x=>`<button class="rrow" data-upc="${esc(x.id)}"><span>${esc(x.client||"Adsız müştəri")}${x.obj?` · <span class="note">${esc(x.obj)}</span>`:""}<br><span class="note">${esc([x.brand,x.model].filter(Boolean).join(" "))}${x.sn?" · S/N "+esc(x.sn):""}</span></span><span style="text-align:right">${esc(fmtDate(x.next))}<br>${when(x.days)}</span></button>`).join("")}</div></details>`}
+  return `<details class="card remind" role="status"${localStorage.getItem("ups.pbOpen")!=="0"?" open":""} ontoggle="try{localStorage.setItem('ups.pbOpen',this.open?'1':'0')}catch(e){}"><summary style="cursor:pointer"><h3 style="display:inline">Planlı servis yaxınlaşır: ${u.length}</h3></summary><div style="margin-top:8px">${u.map(x=>`<button class="rrow" data-upc="${esc(x.id)}"><span>${esc(x.client||"Adsız müştəri")}${x.obj?` · <span class="note">${esc(x.obj)}</span>`:""}<br><span class="note">${esc([x.brand,x.model].filter(Boolean).join(" "))}${x.sn?" · S/N "+esc(x.sn):""}</span></span><span style="text-align:right">${esc(fmtDate(x.next))}<br>${when(x.days)}</span></button>${stopAdm()?`<div style="text-align:right;margin:-2px 0 8px"><button class="btn sm" data-upstop="${esc(x.id)}">Dayandır</button></div>`:""}`).join("")}${sl}</div></details>`}
 let remindSig="";
 async function scheduleReminders(){if(!IS_APP)return;
   try{const LN=(Capacitor.Plugins&&Capacitor.Plugins.LocalNotifications)||Capacitor.registerPlugin("LocalNotifications");
@@ -4077,13 +4100,15 @@ function renderCustomers(){if(!svCan("cust")){toast("Bu bölmə yalnız rəhbər
   if(!cur&&(via||(q&&list.length&&list.every(c=>c.payers.some(p=>nkHas(p,q)))))){const rows=[];list.forEach(c=>c.devs.forEach(d=>rows.push({c,d})));
     h+=`<div class="card"><h3>${via?esc(viaName):"Vasitəçi şirkət üzrə"} — bütün cihazlar · ${rows.length}</h3>${rows.length?`<div class="tw" style="overflow-x:auto"><table class="cut"><tr><th>#</th><th>Müştəri / obyekt</th><th>Növ</th><th>Marka / model</th><th>Seriya №</th><th>Yerləşmə</th><th>Son servis</th><th>Növbəti</th><th></th></tr>${rows.map(({c,d},i)=>`<tr><td class="c">${i+1}</td><td><b>${esc(c.name)}</b></td><td>${esc(d.tt||"")}</td><td>${esc([d.brand,d.model].filter(Boolean).join(" ")||"—")}${d.kva?" · "+esc(d.kva)+" kVA":""}</td><td class="mono">${esc(d.sn||"—")}</td><td>${esc(d.loc||"")}</td><td class="c">${esc(fmtDate(d.last)||"")}</td><td class="c">${esc(fmtDate(d.next)||"")}</td><td>${d.lastId?`<button class="btn sm" data-cuopen="${esc(d.lastId)}">Son hesabat</button>`:""}</td></tr>`).join("")}</table></div>`:'<p class="note" style="margin:0">Cihaz məlumatı yoxdur.</p>'}</div>`}
   if(cur){h+=`<div class="card"><div class="actions" style="justify-content:space-between;align-items:center"><h3 style="margin:0">${esc(cur.name)}</h3><button class="btn sm" id="cuAll">← Bütün müştərilər</button></div>
-     <p class="note" style="margin:4px 0 8px">${[cur.objs.length?"Obyekt: "+cur.objs.join(", "):"",cur.addr?"Ünvan: "+cur.addr:"",cur.person?"Əlaqə: "+cur.person+(cur.tel?" · "+cur.tel:""):"",cur.payers.length?"Vasitəçi (hesab): "+cur.payers.join(", "):"",cur.reps+" hesabat · son servis "+(fmtDate(cur.last)||"—")+(cur.next?" · növbəti "+fmtDate(cur.next):"")].filter(Boolean).map(esc).join("<br>")}</p>${devTable(cur)}</div>`}
+     <p class="note" style="margin:4px 0 8px">${[cur.objs.length?"Obyekt: "+cur.objs.join(", "):"",cur.addr?"Ünvan: "+cur.addr:"",cur.person?"Əlaqə: "+cur.person+(cur.tel?" · "+cur.tel:""):"",cur.payers.length?"Vasitəçi (hesab): "+cur.payers.join(", "):"",cur.reps+" hesabat · son servis "+(fmtDate(cur.last)||"—")+(cur.next?" · növbəti "+fmtDate(cur.next):"")].filter(Boolean).map(esc).join("<br>")}</p>${stopAdm()?`<label class="note" style="display:block;margin:0 0 8px"><input type="checkbox" id="cuStop"${stopMap()["c:"+nk(cur.name)]?" checked":""}> Servis müqaviləsi bitib / servis dayandırılıb (planlı servisə çıxmasın)</label>`:""}${devTable(cur)}</div>`}
   else h+=`<div class="rlist">${list.map(c=>`<button class="rcard" data-cu="${esc(cuKey(c.name))}"><span class="t">${esc(c.name)}</span><span class="chip">${c.devs.length} cihaz</span>${(()=>{if(!payOn())return "";const k=ckey(c.name),t=(PAY.items||[]).filter(x=>x.st==="inv"&&(ckey(x.client)===k||ckey(x.site)===k)).reduce((a,x)=>a+x.total,0);return t?`<span class="chip warn">borc ${azn(t)}</span>`:""})()}<span class="m"><span>${c.reps} hesabat</span><span>son: ${esc(fmtDate(c.last)||"—")}</span>${c.next?`<span>növbəti: ${esc(fmtDate(c.next))}</span>`:""}${c.objs.length?`<span>${esc(c.objs.slice(0,3).join(", "))}${c.objs.length>3?"…":""}</span>`:""}${c.payers.length?`<span class="chip">vasitəçi: ${esc(c.payers.join(", "))}</span>`:""}</span></button>`).join("")||'<div class="empty"><h3>Müştəri tapılmadı</h3></div>'}</div>`;
   h+=`<button class="btn ghost" id="cuBack">← Geri</button>`;
   $("#main").innerHTML=h;
   const qi=$("#cuQ");qi.oninput=e=>{state.cuQ=e.target.value;const p=e.target.selectionStart;renderCustomers();const n=$("#cuQ");n.focus();n.setSelectionRange(p,p)};
   document.querySelectorAll("[data-cu]").forEach(b=>b.onclick=()=>{state.cuSel=b.dataset.cu;renderCustomers();window.scrollTo(0,0)});
   const cv=$("#cuVia");if(cv)cv.onchange=()=>{state.cuVia=cv.value;state.cuSel="";renderCustomers()};
+  const cs=$("#cuStop");if(cs)cs.onchange=async()=>{const on=cs.checked,k="c:"+nk(cur.name);let why="";if(on){why=prompt("Səbəb (məs. müqavilə bitib):","müqavilə bitib");if(why===null){cs.checked=false;return}}
+    cs.disabled=true;const ok=await stopCommit(S=>{if(on)S[k]={at:new Date().toISOString().slice(0,10),why:String(why).trim().slice(0,120),by:(state.me&&state.me.name)||"",client:cur.name,sn:""};else delete S[k]},on?"Planlı servis dayandırıldı":"Bərpa olundu");cs.disabled=false;if(!ok)cs.checked=!on};
   const ca=$("#cuAll");if(ca)ca.onclick=()=>{state.cuSel="";renderCustomers()};$("#cuBack").onclick=renderHome;
   document.querySelectorAll("[data-cuopen]").forEach(b=>b.onclick=async()=>{b.disabled=true;try{openReport(normalize(clone(await getFull(b.dataset.cuopen))))}catch(e){b.disabled=false;toast("Hesabatı açmaq üçün internet lazımdır")}});
   const exp=kind=>{const L=cur?[cur]:list;if(!L.length){toast("Siyahı boşdur");return}
@@ -5758,6 +5783,9 @@ Object.defineProperty(window,"ZS_RN",{configurable:true,get:function(){return wr
 ;(function(){try{document.addEventListener("click",async function(e){var b=e.target&&e.target.closest&&e.target.closest("[data-upc]");if(!b)return;e.preventDefault();e.stopPropagation();b.disabled=true;var src;try{src=normalize(clone(await getFull(b.dataset.upc)))}catch(err){b.disabled=false;toast("Köçürmək üçün internet lazımdır");return}b.disabled=false;copyChoice(src)},true)}catch(e){console.log("zs upc",e)}})();
 /* mobil ekrana uyğunluq və süzgəc düymələrinin aktiv rəngi */
 ;(function(){try{var s=document.createElement("style");s.textContent='.filters button[aria-pressed="true"]{background:var(--accent,#0E6A5B);color:#fff;border-color:var(--accent,#0E6A5B);box-shadow:0 1px 4px rgba(0,0,0,.25)}.filters button[aria-pressed="true"] .note{color:#fff;opacity:.9}html,body{max-width:100%;overflow-x:clip}.top .bar{flex-wrap:wrap;row-gap:6px}.top .brand{flex:1 1 150px}@media (max-width:480px){.top .bar{padding:8px 10px;gap:6px 8px}.top .brand{flex:1 1 100%;order:-1}.top .bar .btn.sm{padding-left:8px;padding-right:8px}}';document.head.appendChild(s)}catch(e){console.log("zs css",e)}})();
+
+/*ZS-STOP*/document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-upstop],[data-stlist]");if(!b)return;e.preventDefault();e.stopPropagation();
+  if(b.dataset.stlist){stopList();return}const x=upcomingAll().find(y=>y.id===b.dataset.upstop);if(x)stopDlg(x)},true);
 </script>
 </body>
 </html>
