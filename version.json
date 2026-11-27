@@ -1,1 +1,1 @@
-{"v":2026112716,"notes":"Yığcam / Ən yığcam görünüş: hesabat siyahısı bir sətirdə (müştəri, hesabat №, hazırlayan, təsdiq), fon rəngi vəziyyətə, çərçivə ödənişə görə; düymələr arası məsafə azaldıldı","files":{"zs":"index.html"},"hub":{"app/index.html":"index.html","server.js":"hub/server.js"}}
+{"v":2026112717,"notes":"Yığcam / Ən yığcam görünüşdə ana səhifədəki rəqəm kartları (bu ay servis, təsdiq gözləyir, gecikən, borc) gizlədilir","files":{"zs":"index.html"},"hub":{"app/index.html":"index.html","server.js":"hub/server.js"}}
