@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112720;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112721;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -4712,7 +4712,7 @@ window.ZSBK=(function(){
 <script>/* UPS Servis: göstəricilər, statistika, aşağı menyu, status rəngi, PDF loqo, rəhbərin görünüşü, animasiyalar */
 (function(){try{
   const LOGO0=LOGO,adm=()=>state.me.role==="admin";
-  document.head.insertAdjacentHTML("beforeend",`<style>.rcard[data-st=ok]{border-left:5px solid var(--ok)!important}.rcard[data-st=wait]{border-left:5px solid #d4a017!important}.rcard[data-st=bad]{border-left:5px solid var(--bad)!important}.rcard[data-st=none]{border-left:5px solid var(--line)!important}</style>`);
+  document.head.insertAdjacentHTML("beforeend",`<style>.rcard[data-st=ok]{border-left:5px solid var(--ok)!important}.rcard[data-st=wait]{border-left:5px solid #d4a017!important}.rcard[data-st=bad]{border-left:5px solid var(--bad)!important}.rcard[data-st=none]{border-left:5px solid var(--line)!important}.rwrap .rcard{background:var(--surface)!important;border:2px solid var(--line)!important;border-left:8px solid #aab4b0!important;border-right:8px solid #aab4b0!important}.rwrap .rcard[data-cls=ok]{border-left-color:#15803d!important}.rwrap .rcard[data-cls=warn]{border-left-color:#d4a017!important}.rwrap .rcard[data-cls=bad]{border-left-color:var(--bad)!important}.rwrap .rcard[data-ap='1']{border-right-color:#15803d!important}.rwrap .rcard[data-pay=paid]{border-top-color:#14532d!important;border-bottom-color:#14532d!important}.rwrap .rcard[data-pay=unpaid]{border-top-color:var(--bad)!important;border-bottom-color:var(--bad)!important}</style>`);
   /* home: key numbers */
   function kpi(){const m=document.getElementById("main");if(!m||state.view!=="home"||document.getElementById("zsKpi"))return;const row=m.querySelector(".actions");if(!row)return;
     const all=listItems().filter(s=>!(s.local&&state.reports[s.id]&&state.reports[s.id].sample)),mon=todayISO().slice(0,7);
