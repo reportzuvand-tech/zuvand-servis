@@ -1,1 +1,1 @@
-{"v":2026112717,"notes":"Yığcam / Ən yığcam görünüşdə ana səhifədəki rəqəm kartları (bu ay servis, təsdiq gözləyir, gecikən, borc) gizlədilir","files":{"zs":"index.html"},"hub":{"app/index.html":"index.html","server.js":"hub/server.js"}}
+{"v":2026112718,"notes":"Yığcam / Ən yığcam: rəqəm kartları gizlədilir; hesabat siyahısında № sığmasa altına keçir, təsdiq və ödəniş sağda qövs ilə göstərilir","files":{"zs":"index.html"},"hub":{"app/index.html":"index.html","server.js":"hub/server.js"}}
