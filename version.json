@@ -1,1 +1,1 @@
-{"v":2026112718,"notes":"Yığcam / Ən yığcam: rəqəm kartları gizlədilir; hesabat siyahısında № sığmasa altına keçir, təsdiq və ödəniş sağda qövs ilə göstərilir","files":{"zs":"index.html"},"hub":{"app/index.html":"index.html","server.js":"hub/server.js"}}
+{"v":2026112719,"notes":"Yığcam / Ən yığcam: hesabat siyahısı — hesabat № sığmasa alt sətrə keçir, sağda təsdiq qövsü (yaşıl/boz), solda ödəniş qövsü (yaşıl/qırmızı), fon vəziyyətə görə; ana səhifədəki rəqəm kartları gizlədilir","files":{"zs":"index.html"},"hub":{"app/index.html":"index.html","server.js":"hub/server.js"}}
