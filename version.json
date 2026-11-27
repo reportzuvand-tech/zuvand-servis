@@ -1,1 +1,1 @@
-{"v":2026112713,"notes":"Müştərilər və cihazlar: seriya № üzrə cihaz tarixçəsi (quraşdırma, yerdəyişmə, dəyişdirilən və nasaz detallar, müştərilər arası yer zənciri)","files":{"zs":"index.html"},"hub":{"app/index.html":"index.html","server.js":"hub/server.js"}}
+{"v":2026112714,"notes":"Müştəri kartında hər cihaz üçün status seçimi (Davam edir / Dəyişdirilib / Servisdən çıxarılıb / Yenilənib); işçi heyəti funksiyaları görünüşü düzəldildi","files":{"zs":"index.html"},"hub":{"app/index.html":"index.html","server.js":"hub/server.js"}}
