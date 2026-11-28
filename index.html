@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="az">
 <head>
-<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112721;window.ZS_APP="zs";(function(){
+<script>/*ZSUPD-BOOT*/window.ZS_BUILD=2026112722;window.ZS_APP="zs";(function(){
 /* installed app (phone APK / Windows): if a newer version was downloaded with "Yenilə", run that one instead of the built-in file */
 var K="zsupd."+ZS_APP;try{var L=location;if(!(L.protocol==="file:"||window.Capacitor||(L.hostname==="localhost"&&!L.port)))return;
 if(/[?&]zsorig=1/.test(L.search)||sessionStorage.getItem(K+".off"))return;var v=+localStorage.getItem(K+".v")||0;
@@ -5827,6 +5827,26 @@ document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target&&e.target.i
   else if(v==="out"){why=prompt("Səbəb (məs. müqavilə bitib):","müqavilə bitib");if(why===null){renderCustomers();return}}
   s.disabled=true;const ok=await stopCommit(S=>{if(v==="on")delete S[k];else S[k]={st:v,at:new Date().toISOString().slice(0,10),to:String(to).trim().slice(0,120),why:String(why).trim().slice(0,120),by:(state.me&&state.me.name)||"",client:c.name,sn}},"Status saxlandı");
   renderCustomers()},true);
+
+/*ZS-ME*/(function(){
+const F=["sig","sigAuto","engCo","engPos"];let snap=null,busy=false,tm=null,quiet=false;
+const pick=m=>{const o={};F.forEach(k=>{if(m&&m[k]!==undefined&&m[k]!=="")o[k]=m[k]});return o};
+const str=m=>JSON.stringify(pick(m));
+const ok=()=>{try{return typeof hasServer==="function"&&hasServer()&&state.me&&(state.me.key||IS_GAS)}catch(e){return false}};
+async function push(){if(!ok())return;try{const m=pick(state.me);m.at=state.me.meAt||Date.now();await api("me_set",{me:m});snap=str(state.me)}catch(e){}}
+async function pull(){if(busy||!ok())return;busy=true;
+  try{const r=await api("me_get"),s=(r&&r.me)||{},loc=state.me;
+    if(s.at&&s.at>(loc.meAt||0)&&str(s)!==str(loc)){quiet=true;F.forEach(k=>{if(s[k]!==undefined&&s[k]!=="")loc[k]=s[k];else delete loc[k]});loc.meAt=s.at;LS.set("ups.me",loc);quiet=false;snap=str(loc);try{if(typeof renderSettings==="function"&&document.getElementById("meSigDraw"))renderSettings()}catch(e){}}
+    else if(!s.at&&str(loc)!=="{}"){loc.meAt=Date.now();quiet=true;LS.set("ups.me",loc);quiet=false;await push()}
+    else if(str(loc)!==str(s)&&(loc.meAt||0)>(s.at||0))await push();
+    else snap=str(loc)}catch(e){}finally{busy=false}}
+const raw=LS.set;LS.set=function(k,v){const r=raw.apply(this,arguments);
+  if(k==="ups.me"&&!quiet&&snap!==null&&v&&str(v)!==snap){v.meAt=Date.now();raw.call(this,k,v);clearTimeout(tm);tm=setTimeout(push,1500)}
+  return r};
+setTimeout(pull,3500);setInterval(()=>{if(!document.hidden)pull()},120000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(pull,800)});
+window.addEventListener("online",()=>setTimeout(pull,800));
+})();
 </script>
 </body>
 </html>
