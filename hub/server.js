@@ -491,6 +491,10 @@ const ACTIONS = {
   /* a copy of all data before a backup is restored (kept beside the daily backups) */
   /* the look the manager sends to everybody (one file for the service journal and Satış və Anbar) */
   look_get: () => ({ look: readJSON(P("look.json"), null) }),
+  me_get: (u) => { const k = String((u && (u.id || u.name)) || "x").replace(/[^\w.-]+/g, "_").slice(0, 60); return { me: readJSON(P("me_" + k + ".json"), {}) } },
+  me_set: (u, b) => { const k = String((u && (u.id || u.name)) || "x").replace(/[^\w.-]+/g, "_").slice(0, 60); const m = b.me || {}, o = { at: +m.at || Date.now() };
+    if (typeof m.sig === "string" && /^data:image\//.test(m.sig) && m.sig.length < 300000) o.sig = m.sig; if (m.sigAuto !== undefined) o.sigAuto = !!m.sigAuto;
+    if (m.engCo) o.engCo = String(m.engCo).slice(0, 120); if (m.engPos) o.engPos = String(m.engPos).slice(0, 120); writeJSON(P("me_" + k + ".json"), o); return {} },
   tpl_get: () => ({ tpl: readJSON(P("templates.json"), null) }),
   tpl_set: (u, b) => { needAdmin(u); if (!b.tpl || typeof b.tpl !== "object") err("bad_tpl"); if (JSON.stringify(b.tpl).length > 900000) err("too_big"); writeJSON(P("templates.json"), b.tpl); log(u, "templates", ""); return {} },
   look_set: (u, b) => { needAdmin(u); writeJSON(P("look.json"), b.look === undefined ? null : b.look); log(u, "look", b.look ? "set" : "off"); return { ok: true } },
